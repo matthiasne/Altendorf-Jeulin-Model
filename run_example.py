@@ -29,11 +29,12 @@ def main():
     print("Cells filled with the fiber system:")
     io.print_grid(grid)
     print("We calculate and apply forces:")
-    calculate_forces(grid)
+    calculate_forces(grid, fiber_system=fs)
     apply_forces(fs)
     io.print_fiber_positions(fs, 5)
     io.plot_fibers_in_2D(fs, path="spheres+.png")
     io.save_fibers_as_tif(fs, path="spheres+.tif")
+
 
 if __name__ == "__main__":
     main()
