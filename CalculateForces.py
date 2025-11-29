@@ -38,7 +38,7 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
             if (i - 1 >= 0):
                 calculate_spring_force(fiber[i - 1], ball, is_next=False, rho=rho)
             if (i - 1 >= 0 and i + 1 < len(fiber)):
-                calculate_angle_force(ball, fiber[i - 1], fiber[i + 1], ALPHA_S, ALPHA_E, rho)
+                calculate_angle_force(ball, fiber[i - 1], fiber[i + 1], rho)
 
 
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):

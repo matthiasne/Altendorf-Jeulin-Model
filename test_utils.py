@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from utils import periodic_distance
+from utils import periodic_distance, angle_between
 
 
 class test_utils(unittest.TestCase):
@@ -16,3 +16,13 @@ class test_utils(unittest.TestCase):
         dist, _ = periodic_distance(coord3, coord4, image_size)
         self.assertEqual(dist, 2,
                          "Error in periodic distance")
+
+    def test_angle_between(self):
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([0.0, 1.0, 0.0])
+        v3 = np.array([0.0, 0.0, 1.0])
+        v4 = np.array([0.0, 0.0, 0.0])
+        self.assertEqual(angle_between(v1, v2), np.pi / 2.0)
+        self.assertEqual(angle_between(v2, v3), np.pi / 2.0)
+        with self.assertRaises(ValueError):
+            angle_between(v1, v4)

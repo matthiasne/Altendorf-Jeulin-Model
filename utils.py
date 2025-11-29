@@ -50,5 +50,11 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     :return: float
         angle between the two vectors v1, v2
     """
-    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    l1 = np.linalg.norm(v1)
+    l2 = np.linalg.norm(v2)
+    if l1 == 0:
+        raise ValueError("v1 has length 0")
+    if l2 == 0:
+        raise ValueError("v2 has length 0")
+    cos_angle = np.dot(v1, v2) / (l1 * l2)
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
