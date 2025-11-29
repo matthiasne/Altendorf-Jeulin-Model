@@ -145,8 +145,7 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
 
 def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float = 0.2):
     """
-    Calculates the spring force between 2 balls
-    and adds it to corresponding balls
+    Calculates the spring force between 2 balls and adds it to corresponding balls
 
     Attributes
     ---------------------
@@ -176,8 +175,25 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     add_recover_force(ball1, spring_force)
 
 
-def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball,
-                          alpha_s: float, alpha_e: float, rho=0.2):
+def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
+    """
+    Calculates angle force between 3 neighboring balls and adds it to the center ball
+    Note: this code does not directly follow the paper by Altendorf&Jeulin
+    because this caused strange errors. Instead, it uses an equivalent calculation
+    that was proposed yet undocumented in the original code (MAVIlib)
+
+    Attributes
+    ---------------------
+    :param ball: Ball
+        center ball - this is where the force will be applied
+    :param ball_prev: Ball
+        previous ball
+    :param ball_next: Ball
+        next ball
+    :param rho: float
+        factor to balance forces, [0, 1]
+        default 0.2 from Altendorf&Jeulin 2011
+    """
     # TODO: periodize distances here?
     # calculate current angle between ball triplet
     v1 = ball.coordinate - ball_next.coordinate
@@ -198,7 +214,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball,
     # distances
     h_prev = np.linalg.norm(m - ball_prev.coordinate)
     h_next = np.linalg.norm(m - ball_next.coordinate)
-    z0     = np.linalg.norm(m - ball.coordinate)
+    z0 = np.linalg.norm(m - ball.coordinate)
 
     tan_alpha = np.tan(ball.angle)
 
@@ -211,7 +227,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball,
     v /= np.linalg.norm(v)
 
     # calculate force magnitude
-    factor = smoothing_factor(alpha0 - ball.angle, alpha_s, alpha_e)
+    factor = smoothing_factor(alpha0 - ball.angle, ALPHA_S, ALPHA_E)
     angle_force = rho * factor * (z - z0) * v
 
     # add angle force to recover force
