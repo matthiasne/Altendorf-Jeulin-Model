@@ -3,14 +3,15 @@ import numpy as np
 
 class Ball:
     def __init__(self, coordinate: np.ndarray, radius: float,
-                 fiber_label: int = -1, ball_label: int = -1, angle:float = np.pi):
+                 fiber_label: int = -1, ball_label: int = -1, angle: float = np.pi):
         self.coordinate = coordinate
         self.radius = radius
         self.fiber_label = fiber_label
         self.ball_label = ball_label
-        self.force: np.ndarray = np.array([0.0,0.0,0.0])
+        self.force: np.ndarray = np.array([0.0, 0.0, 0.0])
         self.overlap = 0
         self.angle = angle
+
 
 class Fiber:
     def __init__(self, coordinates: list[np.ndarray], radii: list[float]):

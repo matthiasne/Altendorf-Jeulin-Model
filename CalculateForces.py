@@ -51,7 +51,6 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
     return np.linalg.norm(total_force), total_overlap
 
 
-
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):
     """
     Calculates the repulsion force for the whole fiber system
@@ -212,7 +211,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     v1 = ball.coordinate - ball_next.coordinate
     v2 = ball.coordinate - ball_prev.coordinate
     alpha0 = angle_between(v1, v2)
-    #print("alpha ", ball.angle, " alpha0 ", alpha0)
+    # print("alpha ", ball.angle, " alpha0 ", alpha0)
     # Altendorf-Jeulin only fix angles that are too high
     if alpha0 >= ball.angle:
         return
@@ -229,16 +228,16 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
 
     tan_alpha = np.tan(ball.angle)
     if tan_alpha == 0:
-        force_strength = 0.5*z0
+        force_strength = 0.5 * z0
     else:
         sqroot = np.sqrt((h_prev + h_next) ** 2.0 + 4.0 * h_prev * h_next * tan_alpha ** 2)
-        z = (h_prev + h_next - sqroot) / (2.0* tan_alpha)
-        force_strength = 0.5*(z0 - z)
-    #print(dist)
+        z = (h_prev + h_next - sqroot) / (2.0 * tan_alpha)
+        force_strength = 0.5 * (z0 - z)
+    # print(dist)
 
     # calculate force direction
     force_dir = m - ball.coordinate
-    force_dir = force_dir/ np.linalg.norm(force_dir)
+    force_dir = force_dir / np.linalg.norm(force_dir)
 
     # calculate force magnitude
     factor = smoothing_factor(ball.angle - alpha0, ALPHA_S, ALPHA_E)
