@@ -47,7 +47,7 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
     for fiber in fiber_system:
         for ball in fiber:
             total_force = total_force + ball.force
-            total_overlap = total_overlap + ball.overlap
+            total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
 
@@ -72,8 +72,6 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: Spatia
         # calculate repulsion forces
         if (ball.fiber_label != neighbor.fiber_label or
                 abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
-            # print("fiberlabels = ", ball.fiber_label, ", ", neighbor.fiber_label, " balllabels = ",
-            #      ball.ball_label, ", ", neighbor.ball_label)
             dist, dir = periodic_distance(ball.coordinate, neighbor.coordinate, grid.image_size)
             add_repulsion_force(ball, neighbor, dist, dir)
     # compare with neighbor cells
@@ -85,8 +83,6 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: Spatia
         for neighbor in cell:
             if (ball.fiber_label != neighbor.fiber_label or
                     abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
-                # print("fiberlabels = ", ball.fiber_label, ", ", neighbor.fiber_label, " balllabels = ",
-                #      ball.ball_label, ", ", neighbor.ball_label)
                 dist, dir = periodic_distance(ball.coordinate, neighbor.coordinate, grid.image_size)
                 add_repulsion_force(ball, neighbor, dist, dir)
 
@@ -107,12 +103,12 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
         The direction vector of the periodic distance
     """
     doesOverlap = (dist - ball.radius - neighbor.radius < 0)
-    if (doesOverlap):
+    if doesOverlap:
         overlap = abs(dist - ball.radius - neighbor.radius)
         ball.force = ball.force - overlap / 2.0 * dir
-        ball.overlap += overlap
+        ball.overlap = max(ball.overlap, overlap)
         neighbor.force = neighbor.force + overlap / 2.0 * dir
-        neighbor.overlap += overlap
+        neighbor.overlap = max(neighbor.overlap, overlap)
 
 
 def add_recover_force(ball: Ball, force: np.ndarray):
