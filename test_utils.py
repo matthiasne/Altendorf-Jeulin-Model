@@ -22,7 +22,12 @@ class test_utils(unittest.TestCase):
         v2 = np.array([0.0, 1.0, 0.0])
         v3 = np.array([0.0, 0.0, 1.0])
         v4 = np.array([0.0, 0.0, 0.0])
+        v5 = np.array([1.0, 0.0, 1e-12])
         self.assertEqual(angle_between(v1, v2), np.pi / 2.0)
         self.assertEqual(angle_between(v2, v3), np.pi / 2.0)
+        self.assertEqual(angle_between(v1, 200 * v1), 0)
+        self.assertEqual(angle_between(v1, -v1), np.pi)
+        self.assertEqual(angle_between(v1, v5), 0)
+        self.assertEqual(angle_between(v2, 2 * v1), np.pi / 2.0)
         with self.assertRaises(ValueError):
             angle_between(v1, v4)
