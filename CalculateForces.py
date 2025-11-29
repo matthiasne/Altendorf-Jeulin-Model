@@ -26,6 +26,8 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
         factor to balance forces, [0, 1]
         0 means no recover forces
         default 0.2 from Altendorf&Jeulin 2011
+    :return: np.ndarray
+        total force of the fiber system
     """
 
     for cell in grid.cells:
@@ -39,6 +41,15 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
                 calculate_spring_force(fiber[i - 1], ball, is_next=False, rho=rho)
             if (i - 1 >= 0 and i + 1 < len(fiber)):
                 calculate_angle_force(ball, fiber[i - 1], fiber[i + 1], rho)
+
+    total_force = np.array([0.0, 0.0, 0.0])
+    total_overlap = 0
+    for fiber in fiber_system:
+        for ball in fiber:
+            total_force = total_force + ball.force
+            total_overlap = total_overlap + ball.overlap
+    return np.linalg.norm(total_force), total_overlap
+
 
 
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):
@@ -100,7 +111,9 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
     if (doesOverlap):
         overlap = abs(dist - ball.radius - neighbor.radius)
         ball.force = ball.force - overlap / 2.0 * dir
+        ball.overlap += overlap
         neighbor.force = neighbor.force + overlap / 2.0 * dir
+        neighbor.overlap += overlap
 
 
 def add_recover_force(ball: Ball, force: np.ndarray):
@@ -198,37 +211,38 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     # calculate current angle between ball triplet
     v1 = ball.coordinate - ball_next.coordinate
     v2 = ball.coordinate - ball_prev.coordinate
-    alpha0 = np.pi - angle_between(v1, v2)
+    alpha0 = angle_between(v1, v2)
+    #print("alpha ", ball.angle, " alpha0 ", alpha0)
     # Altendorf-Jeulin only fix angles that are too high
-    if (ball.angle >= alpha0):
+    if alpha0 >= ball.angle:
         return
 
     # m: line cutting plane
     line = Line(ball_prev.coordinate, direction=ball_next.coordinate - ball_prev.coordinate)
     plane = Plane(ball.coordinate, normal=ball_next.coordinate - ball_prev.coordinate)
     m = plane.intersect_line(line)
-    # Altendorf-Jeulin only fix angles that are too high, this is zero
-    if np.array_equal(m, ball.coordinate):
-        return
-
-    # distances
     h_prev = np.linalg.norm(m - ball_prev.coordinate)
     h_next = np.linalg.norm(m - ball_next.coordinate)
     z0 = np.linalg.norm(m - ball.coordinate)
+    if z0 == 0:
+        return
 
     tan_alpha = np.tan(ball.angle)
-
-    # compute z
-    sqroot = np.sqrt((h_prev + h_next) ** 2 + 4 * h_prev * h_next * tan_alpha ** 2)
-    z = (h_prev + h_next + sqroot) / (2 * tan_alpha)
+    if tan_alpha == 0:
+        force_strength = 0.5*z0
+    else:
+        sqroot = np.sqrt((h_prev + h_next) ** 2.0 + 4.0 * h_prev * h_next * tan_alpha ** 2)
+        z = (h_prev + h_next - sqroot) / (2.0* tan_alpha)
+        force_strength = 0.5*(z0 - z)
+    #print(dist)
 
     # calculate force direction
-    v = m - ball.coordinate
-    v /= np.linalg.norm(v)
+    force_dir = m - ball.coordinate
+    force_dir = force_dir/ np.linalg.norm(force_dir)
 
     # calculate force magnitude
-    factor = smoothing_factor(alpha0 - ball.angle, ALPHA_S, ALPHA_E)
-    angle_force = rho * factor * (z - z0) * v
+    factor = smoothing_factor(ball.angle - alpha0, ALPHA_S, ALPHA_E)
+    angle_force = factor * force_strength * force_dir
 
     # add angle force to recover force
     add_recover_force(ball, angle_force)
@@ -251,3 +265,4 @@ def apply_forces(fiber_system: list[list[Ball]]):
             new_coord = old_coord + ball.force
             ball.coordinate = new_coord
             ball.force = np.array([0, 0, 0])
+            ball.overlap = 0
