@@ -34,3 +34,7 @@ def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[
     else:
         dist = np.linalg.norm(coord2mod - coord1mod)
         return dist, dir
+
+def angle_between(v1:np.ndarray, v2:np.ndarray):
+    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    return np.acos(np.clip(cos_angle, -1.0, 1.0))

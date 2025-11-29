@@ -1,12 +1,15 @@
 import numpy as np
+from skspatial.objects import Line, Plane
 
 import SpatialHashing
-from utils import periodic_distance
+from utils import periodic_distance, angle_between
 from Fiber import Ball
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
 X_E = 0.1
+ALPHA_S = 0.1 * np.pi / 180
+ALPHA_E = 0.2 * np.pi / 180
 
 
 def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: float = 0.2):
@@ -34,6 +37,8 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
                 calculate_spring_force(ball, fiber[i + 1], is_next=True, rho=rho)
             if (i - 1 >= 0):
                 calculate_spring_force(fiber[i - 1], ball, is_next=False, rho=rho)
+            if (i - 1 >= 0 and i + 1 < len(fiber)):
+                calculate_angle_force(ball, fiber[i - 1], fiber[i + 1], ALPHA_S, ALPHA_E, rho)
 
 
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):
@@ -94,8 +99,8 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
     doesOverlap = (dist - ball.radius - neighbor.radius < 0)
     if (doesOverlap):
         overlap = abs(dist - ball.radius - neighbor.radius)
-        ball.force -= overlap / 2.0 * dir
-        neighbor.force += overlap / 2.0 * dir
+        ball.force = ball.force - overlap / 2.0 * dir
+        neighbor.force = neighbor.force + overlap / 2.0 * dir
 
 
 def add_recover_force(ball: Ball, force: np.ndarray):
@@ -109,7 +114,7 @@ def add_recover_force(ball: Ball, force: np.ndarray):
     :param force: np.ndarray
         The force that is added to the ball
     """
-    ball.force += force
+    ball.force = ball.force + force
 
 
 def smoothing_factor(x: float, x_s: float, x_e: float):
@@ -169,6 +174,48 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     # add to recoverforce
     spring_force = s_f * rho * dist_displaced / 2 * dir
     add_recover_force(ball1, spring_force)
+
+
+def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball,
+                          alpha_s: float, alpha_e: float, rho=0.2):
+    # TODO: periodize distances here?
+    # calculate current angle between ball triplet
+    v1 = ball.coordinate - ball_next.coordinate
+    v2 = ball.coordinate - ball_prev.coordinate
+    alpha0 = np.pi - angle_between(v1, v2)
+    # Altendorf-Jeulin only fix angles that are too high
+    if (ball.angle >= alpha0):
+        return
+
+    # m: line cutting plane
+    line = Line(ball_prev.coordinate, direction=ball_next.coordinate - ball_prev.coordinate)
+    plane = Plane(ball.coordinate, normal=ball_next.coordinate - ball_prev.coordinate)
+    m = plane.intersect_line(line)
+    # Altendorf-Jeulin only fix angles that are too high, this is zero
+    if np.array_equal(m, ball.coordinate):
+        return
+
+    # distances
+    h_prev = np.linalg.norm(m - ball_prev.coordinate)
+    h_next = np.linalg.norm(m - ball_next.coordinate)
+    z0     = np.linalg.norm(m - ball.coordinate)
+
+    tan_alpha = np.tan(ball.angle)
+
+    # compute z
+    sqroot = np.sqrt((h_prev + h_next) ** 2 + 4 * h_prev * h_next * tan_alpha ** 2)
+    z = (h_prev + h_next + sqroot) / (2 * tan_alpha)
+
+    # calculate force direction
+    v = m - ball.coordinate
+    v /= np.linalg.norm(v)
+
+    # calculate force magnitude
+    factor = smoothing_factor(alpha0 - ball.angle, alpha_s, alpha_e)
+    angle_force = rho * factor * (z - z0) * v
+
+    # add angle force to recover force
+    add_recover_force(ball, angle_force)
 
 
 def apply_forces(fiber_system: list[list[Ball]]):
