@@ -3,7 +3,7 @@ import numpy as np
 import FiberModel as fm
 import io_utils as io
 import SpatialHashing as sh
-from CalculateForces import calculate_forces, apply_forces
+from ForceBiased import run_force_biased
 
 
 def main():
@@ -28,12 +28,12 @@ def main():
     grid.add_fiber_system(fs)
     print("Cells filled with the fiber system:")
     io.print_grid(grid)
-    print("We calculate and apply forces:")
-    calculate_forces(grid, fiber_system=fs)
-    apply_forces(fs)
+    print("We run the force-biased algorithm:")
+    run_force_biased(fs, (64, 64, 64))
+
     io.print_fiber_positions(fs, 5)
-    io.plot_fibers_in_2D(fs, path="spheres+.png")
-    io.save_fibers_as_tif(fs, path="spheres+.tif")
+    io.plot_fibers_in_2D(fs, path="spheres++.png")
+    io.save_fibers_as_tif(fs, path="spheres++.tif")
 
 
 if __name__ == "__main__":
