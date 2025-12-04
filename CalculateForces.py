@@ -51,6 +51,37 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
     return np.linalg.norm(total_force), total_overlap
 
 
+def calculate_forces_endstep(grid: SpatialHashing, fiber_system: list[list[Ball]]):
+    """
+    Calculates forces in the fiber system and adds them to corresponding ball
+
+    Attributes
+    ---------------------
+    :param grid: SpatialHashing
+        The spatial hashing grid for the model
+    :param fiber_system: list[list[Ball]])
+        The fiber system that contains all balls
+    :param rho: float
+        factor to balance forces, [0, 1]
+        0 means no recover forces
+        default 0.2 from Altendorf&Jeulin 2011
+    :return: np.ndarray
+        total force of the fiber system
+    """
+
+    for cell in grid.cells:
+        for i, ball in enumerate(cell):
+            calculate_repulsion_force(i, ball, cell, grid)
+
+    total_force = np.array([0.0, 0.0, 0.0])
+    total_overlap = 0
+    for fiber in fiber_system:
+        for ball in fiber:
+            total_force = total_force + ball.force
+            total_overlap = max(total_overlap, ball.overlap)
+    return np.linalg.norm(total_force), total_overlap
+
+
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):
     """
     Calculates the repulsion force for the whole fiber system
