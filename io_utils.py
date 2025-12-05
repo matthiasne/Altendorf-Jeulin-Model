@@ -1,6 +1,6 @@
 import tifffile
 import numpy as np
-from Fiber import Fiber, Ball
+from Fiber import Ball
 import SpatialHashing
 
 
@@ -27,7 +27,7 @@ def print_fiber_positions(fiber_system: list[list[Ball]],
 
 def save_fibers_as_tif(fiber_system: list[list[Ball]],
                        shape: tuple[int, int, int] = (64, 64, 64),
-                       path: str = "spheres.tif"):
+                       path: str = "outputs/spheres.tif"):
     """
     Save fibers as tif-image
 
@@ -57,7 +57,7 @@ def save_fibers_as_tif(fiber_system: list[list[Ball]],
 
 
 def plot_fibers_in_2D(fiber_system: list[list[Ball]],
-                      path: str = "spheres.png"):
+                      path: str = "outputs/spheres.png"):
     """
     Plot fibers in a 2D image with 3D representations
 

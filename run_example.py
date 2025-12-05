@@ -5,6 +5,7 @@ import io_utils as io
 import SpatialHashing as sh
 from ForceBiased import run_force_biased
 
+
 def main():
     # create a fiber system
     print("This is the Altendorf-Jeulin model")
@@ -31,8 +32,9 @@ def main():
     run_force_biased(fs, (64, 64, 64))
 
     io.print_fiber_positions(fs, 5)
-    io.plot_fibers_in_2D(fs, path="spheres++.png")
-    io.save_fibers_as_tif(fs, path="spheres++.tif")
+    io.plot_fibers_in_2D(fs, path="outputs/spheres++.png")
+    io.save_fibers_as_tif(fs, path="outputs/spheres++.tif")
+
 
 if __name__ == "__main__":
     main()
