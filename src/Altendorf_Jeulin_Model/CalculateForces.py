@@ -1,9 +1,9 @@
 import numpy as np
 from skspatial.objects import Line, Plane
 
-import SpatialHashing
-from utils import periodic_distance, angle_between
-from Fiber import Ball
+import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between
+from Altendorf_Jeulin_Model.Fiber import Ball
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
@@ -12,7 +12,7 @@ ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
 
 
-def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: float = 0.2):
+def calculate_forces(grid: sh, fiber_system: list[list[Ball]], rho: float = 0.2):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -51,7 +51,7 @@ def calculate_forces(grid: SpatialHashing, fiber_system: list[list[Ball]], rho: 
     return np.linalg.norm(total_force), total_overlap
 
 
-def calculate_forces_endstep(grid: SpatialHashing, fiber_system: list[list[Ball]]):
+def calculate_forces_endstep(grid: sh, fiber_system: list[list[Ball]]):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -82,7 +82,7 @@ def calculate_forces_endstep(grid: SpatialHashing, fiber_system: list[list[Ball]
     return np.linalg.norm(total_force), total_overlap
 
 
-def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: SpatialHashing):
+def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
     """
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball

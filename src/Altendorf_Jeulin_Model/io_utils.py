@@ -1,7 +1,7 @@
 import tifffile
 import numpy as np
-from Fiber import Ball
-import SpatialHashing
+from Altendorf_Jeulin_Model.Fiber import Ball
+import Altendorf_Jeulin_Model.SpatialHashing as sh
 
 
 def print_fiber_positions(fiber_system: list[list[Ball]],
@@ -98,7 +98,7 @@ def plot_fibers_in_2D(fiber_system: list[list[Ball]],
     plt.savefig(path, dpi=300)
 
 
-def print_grid(grid: SpatialHashing):
+def print_grid(grid: sh):
     """
     Print cells of a SpatialHashing
 

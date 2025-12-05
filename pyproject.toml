@@ -1,3 +1,7 @@
+[project]
+name = "Altendorf_Jeulin_Model"
+version = "0.0.1"
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]

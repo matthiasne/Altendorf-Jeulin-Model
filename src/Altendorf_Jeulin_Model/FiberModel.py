@@ -1,4 +1,4 @@
-from Fiber import Fiber, Ball
+from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 from scipy.stats import rv_discrete
 from scipy.stats import rv_continuous
 from scipy.stats import uniform

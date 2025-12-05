@@ -1,7 +1,7 @@
-import SpatialHashing as sh
+import Altendorf_Jeulin_Model.SpatialHashing as sh
 import numpy as np
-from Fiber import Ball
-from CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
+from Altendorf_Jeulin_Model.Fiber import Ball
+from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
 
 MAX_STEPS = 10000
 MAX_OVERLAP = 0.1
@@ -36,12 +36,12 @@ def run_force_biased(fs: list[list[Ball]], image_size: tuple[int, int, int],
         force_strength, overlap = calculate_forces(grid, fiber_system=fs)
 
     if use_end_step_radius:
-        end_step_radius(fs, overlap, MAX_OVERLAP*min_radius)
+        end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:
         end_step_repulsion(fs, max_radius, overlap, image_size)
 
 
-def end_step_radius(fs:list[list[Ball]], overlap: float, max_overlap: float):
+def end_step_radius(fs: list[list[Ball]], overlap: float, max_overlap: float):
     """
     The end step where radii are reduced
 
@@ -54,7 +54,7 @@ def end_step_radius(fs:list[list[Ball]], overlap: float, max_overlap: float):
     :param max_overlap: float
         The maximal overlap that is permitted for the fiber system
     """
-    if overlap > max_overlap: # why not only do this for radii that are too large?
+    if overlap > max_overlap:  # why not only do this for radii that are too large?
         for fiber in fs:
             for ball in fiber:
                 new_radius = ball.radius - ball.overlap
@@ -63,7 +63,8 @@ def end_step_radius(fs:list[list[Ball]], overlap: float, max_overlap: float):
                 ball.radius = new_radius
                 ball.overlap = 0
 
-def end_step_repulsion(fs:list[list[Ball]], max_radius: float,
+
+def end_step_repulsion(fs: list[list[Ball]], max_radius: float,
                        overlap: float, image_size: tuple[int, int, int]):
     """
     The end step where only the repulsion force is applied

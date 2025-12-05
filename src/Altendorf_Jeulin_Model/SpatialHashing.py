@@ -1,7 +1,7 @@
-from math import ceil, floor
+from math import floor
 from itertools import product
 import numpy as np
-from Fiber import Ball, Fiber
+from Altendorf_Jeulin_Model.Fiber import Ball
 
 
 class SpatialHashing:

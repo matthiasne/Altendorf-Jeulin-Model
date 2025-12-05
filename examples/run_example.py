@@ -1,9 +1,9 @@
 import numpy as np
 
-import FiberModel as fm
-import io_utils as io
-import SpatialHashing as sh
-from ForceBiased import run_force_biased
+import Altendorf_Jeulin_Model.FiberModel as fm
+import Altendorf_Jeulin_Model.io_utils as io
+import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 
 
 def main():
