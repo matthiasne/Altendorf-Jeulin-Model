@@ -6,6 +6,8 @@ from scipy.stats import vonmises_fisher
 import numpy as np
 from numpy.random import default_rng
 
+# TODO: normalize vectors function
+
 class FiberModel:
     def __init__(self, initial_fiber_system):
         if not (isinstance(initial_fiber_system, list) and all(isinstance(x, Fiber) for x in initial_fiber_system)):
@@ -37,11 +39,11 @@ def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size:
         theta0 = np.arccos((1 - 2 * u2)/np.sqrt(beta**2 - (beta**2 - 1) * (1 - 2*u2)**2))
         mu0 = np.array(spherical_to_cartesian(1,theta0, phi0))
         # 3. Simulating a random walk for the fiber system
-        coo = np.zeros((l, 3))
-        coo[0, 0] = image_size[0] * U.rvs(random_state=rng)
-        coo[0, 1] = image_size[1] * U.rvs(random_state=rng)
-        coo[0, 2] = image_size[2] * U.rvs(random_state=rng)
-        Fiber_System[i] = [Ball(coo[0], r, i, 0)]
+        coord = np.zeros((l, 3))
+        coord[0, 0] = image_size[0] * U.rvs(random_state=rng)
+        coord[0, 1] = image_size[1] * U.rvs(random_state=rng)
+        coord[0, 2] = image_size[2] * U.rvs(random_state=rng)
+        Fiber_System[i] = [Ball(coord[0], r, i, 0)]
 
         cnt = 1
         mu_old = mu0
@@ -50,22 +52,25 @@ def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size:
             mu_new = (kappa1 * mu0 + kappa2 * mu_old) / kappa_new
             vmf = vonmises_fisher(mu_new, kappa_new)
 
-            direction = vmf.rvs()[0]
+            direction = vmf.rvs(random_state=rng)[0]
 
-            coo[cnt] = coo[cnt - 1] + r * direction / 2
+            coord[cnt] = coord[cnt - 1] + r * direction / 2
             mu_old = direction
             cnt = cnt + 1
 
         # 4. Adjusting the fibers such that the mean orientation is maintained
-        mu_bar = (coo[l - 1] - coo[0]) / np.linalg.norm(coo[l - 1] - coo[0])
-        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar))
+        mu_bar = (coord[l - 1] - coord[0]) / np.linalg.norm(coord[l - 1] - coord[0])
+        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar)) #TODO catch parallel directions?
         alpha = np.arccos(np.dot(mu0, mu_bar))
 
         for j in range(1,l):
-            coo[j] = coo[0] + rot(coo[j] - coo[0], n_axis, alpha)
-            Fiber_System[i].append(Ball(coo[j], r, i, j))
-            #TODO: add proper angles between fibers
-
+            coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
+            angle = np.pi
+            if j < l-1:
+                dir_prev = (coord[j] - coord[j-1])/np.linalg.norm(coord[j] - coord[j-1])
+                dir_next = (coord[j+1] - coord[j]) / np.linalg.norm(coord[j+1] - coord[j])
+                angle = np.arccos(np.dot(dir_prev, dir_next))
+            Fiber_System[i].append(Ball(coord[j], r, i, j, angle))
 
     return Fiber_System
 
