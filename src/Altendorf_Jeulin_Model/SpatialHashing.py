@@ -64,10 +64,10 @@ class SpatialHashing:
         :return: tuple[int, int, int]
             The cell index
         """
-        if (not all(np.greater(self.image_size, position))
-                or not all(np.greater_equal(position, np.array([0, 0, 0])))):
-            raise ValueError("Coordinate is outside the image.")
-        return tuple(floor(coord / width) for coord, width in zip(position, self.cell_width))
+
+        pos_mod = (position[0] % self.image_size[0], position[1] % self.image_size[1],
+         position[2] % self.image_size[2])
+        return tuple(floor(coord / width) for coord, width in zip(pos_mod, self.cell_width))
 
     def get_neighbor_cell_indices(self, index: tuple[int, int, int]) -> list[tuple[int, int, int]]:
         """

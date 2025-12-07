@@ -2,6 +2,7 @@ from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 from scipy.stats import rv_discrete
 from scipy.stats import rv_continuous
 from scipy.stats import uniform
+from scipy.stats import vonmises_fisher
 import numpy as np
 from numpy.random import default_rng
 
@@ -11,7 +12,7 @@ class FiberModel:
             raise TypeError('Initial_fiber_system must be a list of fibers')
 
 
-def initialize_fiber_system(N: int, L: float, R: float, beta: float,
+def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size: tuple[int, int, int],
                             kappa1: float, kappa2: float, seed:int = 42):
     #if not isinstance(L, rv_discrete):
     #    raise TypeError('L must be a discrete random variables modeling the length of each Fiber')
@@ -23,27 +24,47 @@ def initialize_fiber_system(N: int, L: float, R: float, beta: float,
     rng = default_rng(seed)
     U = uniform(loc=0, scale=1)
 
+    # TODO
     Fiber_System = [None] * N
     for i in range(0, N):
-        # 1. Simulate the length of the ith Fiber and its radius (for now only constant)
+        # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l = L
         r = R
-        # 2. Simulate the mean orientation
+        # 2. Simulate the mean orientation TODO: put this code into its own function
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)
         phi0 = np.pi * 2 * u1
         theta0 = np.arccos((1 - 2 * u2)/np.sqrt(beta**2 - (beta**2 - 1) * (1 - 2*u2)**2))
         mu0 = np.array(spherical_to_cartesian(1,theta0, phi0))
         # 3. Simulating a random walk for the fiber system
+        coo = np.zeros((l, 3))
+        coo[0, 0] = image_size[0] * U.rvs(random_state=rng)
+        coo[0, 1] = image_size[1] * U.rvs(random_state=rng)
+        coo[0, 2] = image_size[2] * U.rvs(random_state=rng)
+        Fiber_System[i] = [Ball(coo[0], r, i, 0)]
 
-        # very preliminary version
-        start = np.array([30, 30, 30])
-        Fiber_System[i] = [Ball(start, r, i, 0)]
-        for j in range(1, int(l/r)):
-            pos = start + r*mu0*j
-            Fiber_System[i].append(Ball(pos, r, i, j))
+        cnt = 1
+        mu_old = mu0
+        while cnt < l:
+            kappa_new = np.linalg.norm(kappa1 * mu0 + kappa2 * mu_old)
+            mu_new = (kappa1 * mu0 + kappa2 * mu_old) / kappa_new
+            vmf = vonmises_fisher(mu_new, kappa_new)
+
+            direction = vmf.rvs()[0]
+
+            coo[cnt] = coo[cnt - 1] + r * direction / 2
+            mu_old = direction
+            cnt = cnt + 1
 
         # 4. Adjusting the fibers such that the mean orientation is maintained
+        mu_bar = (coo[l - 1] - coo[0]) / np.linalg.norm(coo[l - 1] - coo[0])
+        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar))
+        alpha = np.arccos(np.dot(mu0, mu_bar))
+
+        for j in range(1,l):
+            coo[j] = coo[0] + rot(coo[j] - coo[0], n_axis, alpha)
+            Fiber_System[i].append(Ball(coo[j], r, i, j))
+            #TODO: add proper angles between fibers
 
 
     return Fiber_System
@@ -60,3 +81,6 @@ def spherical_to_cartesian(r, theta, phi):
     y = r * np.sin(phi) * np.sin(theta)
     z = r * np.cos(phi)
     return x, y, z
+
+def rot(mu, n, alpha):
+    return np.dot(n, mu) * n + np.cos(alpha) * np.cross(np.cross(n, mu), n) + np.sin(alpha) * np.cross(n, mu)

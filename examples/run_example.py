@@ -1,39 +1,28 @@
-import numpy as np
-
 import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io
-import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 
 
 def main():
     # create a fiber system
     print("This is the Altendorf-Jeulin model")
-    N = 2
-    radius = 2
-    fs = fm.initialize_fiber_system(N, 20, radius, 1, 10, 100)
+    image_size = (200, 200, 200)
+    N = 10
+    radius = 4
+    fs = fm.initialize_fiber_system(N, 35, radius, 1, image_size, 10, 100)
 
     # output fiber system
     print("We generated the following fibers")
-    io.print_fiber_positions(fs, 5)
-    io.plot_fibers_in_2D(fs)
-    io.save_fibers_as_tif(fs)
+    io.print_fiber_positions(fs, 10)
+    io.plot_fibers_in_2D(fs, path = "examples/outputs/spheres.png")
+    io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
 
-    # set up spatial hashing
-    grid = sh.SpatialHashing((64, 64, 64), 32)
-    index = grid.get_cell_index_of_coord(np.array([30, 30, 30]))
-    neighbor_cells = grid.get_neighbor_cell_indices(index)
-    print("index: ", index)
-    print("neighbor cells:", neighbor_cells)
-    grid.add_fiber_system(fs)
-    print("Cells filled with the fiber system:")
-    io.print_grid(grid)
     print("We run the force-biased algorithm:")
-    run_force_biased(fs, (64, 64, 64))
+    run_force_biased(fs, image_size)
 
-    io.print_fiber_positions(fs, 5)
-    io.plot_fibers_in_2D(fs, path="outputs/spheres++.png")
-    io.save_fibers_as_tif(fs, path="outputs/spheres++.tif")
+    io.print_fiber_positions(fs, 10)
+    io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
+    io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
 
 
 if __name__ == "__main__":
