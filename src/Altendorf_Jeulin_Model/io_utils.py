@@ -97,6 +97,48 @@ def plot_fibers_in_2D(fiber_system: list[list[Ball]],
     ax.set_title('Fiber System')
     plt.savefig(path, dpi=300)
 
+def plot_fibers_in_2D_mod(fiber_system: list[list[Ball]], image_size: tuple[int, int, int],
+                      path: str = "spheres.png"):
+    """
+    Plot fibers in a 2D image with 3D representations
+
+    Parameters
+    ---------------------
+    :param fiber_system: list[list[Ball]
+        A list of fibers, each represented as a list of Balls
+    :param path: string optional
+        The path where the image will be saved
+    :return:
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    cmap = cm.get_cmap('viridis', len(fiber_system))
+
+    # Create a sphere parametrically
+    u = np.linspace(0, 2 * np.pi, 20)  # angle around z-axis
+    v = np.linspace(0, np.pi, 20)  # angle from top to bottom
+
+    for i, fiber in enumerate(fiber_system):
+        color = cmap(i)
+        for ball in fiber:
+            x0, y0, z0 = ball.coordinate % image_size
+            radius = ball.radius
+            x = x0 + radius * np.outer(np.cos(u), np.sin(v))
+            y = y0 + radius * np.outer(np.sin(u), np.sin(v))
+            z = z0 + radius * np.outer(np.ones_like(u), np.cos(v))
+
+            ax.plot_surface(x, y, z, color=color, alpha=0.6)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Fiber System')
+    plt.savefig(path, dpi=300)
+
+
 
 def print_grid(grid: sh):
     """

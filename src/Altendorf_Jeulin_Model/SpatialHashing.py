@@ -1,4 +1,4 @@
-from math import floor
+from math import floor, ceil
 from itertools import product
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Ball
@@ -34,11 +34,11 @@ class SpatialHashing:
             The maximal size for each cell
         """
         self.image_size = image_size
-        self.division = tuple(floor(size / max_cell_size) for size in image_size)
+        self.division = tuple(ceil(size / max_cell_size) for size in image_size)
         self.n_cells = self.division[0] * self.division[1] * self.division[2]
         "TODO: this must be implemented as spheres instead"
         self.cells = [[] for _ in range(self.n_cells)]
-        self.cell_width = tuple(floor(size / div) for size, div in zip(image_size, self.division))
+        self.cell_width = tuple(ceil(size / div) for size, div in zip(image_size, self.division))
 
     def _in_bounds(self, index: tuple[int, int, int]) -> bool:
         """

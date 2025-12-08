@@ -14,7 +14,7 @@ class FiberModel:
             raise TypeError('Initial_fiber_system must be a list of fibers')
 
 
-def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size: tuple[int, int, int],
+def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, int, int],
                             kappa1: float, kappa2: float, seed:int = 42):
     #if not isinstance(L, rv_discrete):
     #    raise TypeError('L must be a discrete random variables modeling the length of each Fiber')
@@ -30,8 +30,8 @@ def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size:
     Fiber_System = [None] * N
     for i in range(0, N):
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
-        l = L
-        r = R
+        l = set_value(L, rng)
+        r = set_value(R, rng)
         # 2. Simulate the mean orientation TODO: put this code into its own function
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)
@@ -60,16 +60,17 @@ def initialize_fiber_system(N: int, L: float, R: float, beta: float, image_size:
 
         # 4. Adjusting the fibers such that the mean orientation is maintained
         mu_bar = (coord[l - 1] - coord[0]) / np.linalg.norm(coord[l - 1] - coord[0])
-        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar)) #TODO catch parallel directions?
+        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar))
         alpha = np.arccos(np.dot(mu0, mu_bar))
 
         for j in range(1,l):
-            coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
+            if alpha > 0:
+                coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
             angle = np.pi
             if j < l-1:
                 dir_prev = (coord[j] - coord[j-1])/np.linalg.norm(coord[j] - coord[j-1])
                 dir_next = (coord[j+1] - coord[j]) / np.linalg.norm(coord[j+1] - coord[j])
-                angle = np.arccos(np.dot(dir_prev, dir_next))
+                angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
             Fiber_System[i].append(Ball(coord[j], r, i, j, angle))
 
     return Fiber_System
@@ -89,3 +90,16 @@ def spherical_to_cartesian(r, theta, phi):
 
 def rot(mu, n, alpha):
     return np.dot(n, mu) * n + np.cos(alpha) * np.cross(np.cross(n, mu), n) + np.sin(alpha) * np.cross(n, mu)
+
+
+def set_value(input_value, rng):
+    if isinstance(input_value, float) or isinstance(input_value, int):
+        # L is a constant number
+        result = input_value
+    elif hasattr(input_value, 'rvs'):
+        # L is a Poisson generator (or any similar object with an rvs method)
+        result = input_value.rvs(random_state=rng)
+    else:
+        raise ValueError("Input must be a float/int or a distribution object with an 'rvs' method.")
+
+    return result
