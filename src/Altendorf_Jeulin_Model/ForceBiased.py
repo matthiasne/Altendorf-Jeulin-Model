@@ -18,9 +18,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         the fiber system to be packed
     :param image_size: tuple[int, int, int]
     """
-    # calculate maximal radius TODO: use implementation from Fiber
-    max_radius = max(ball.radius for fiber in fs for ball in fiber.balls)
-    min_radius = min(ball.radius for fiber in fs for ball in fiber.balls)
+    max_radius = max(fiber.get_max_radius() for fiber in fs)
+    min_radius = min(fiber.get_max_radius() for fiber in fs)
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs)

@@ -15,19 +15,42 @@ class FiberModel:
 
 def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, int, int],
                             kappa1: float, kappa2: float, seed: int = 42):
+    """
+    initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
+    Altendorf&Jeulin (2011), further systems tbd
+
+    Parameters
+    ---------------------
+    :param N: int
+        number of fibers
+    :param L: float or random variable
+        length of the fiber
+    :param R: float or random variable
+        radius of the fiber
+    :param beta: float
+        direction parameter for the Schladitz distribution
+    :param image_size: tuple[int, int, int]
+    :param kappa1: float
+        curvature parameter for the random walk
+    :param kappa2: float
+        curvature parameter for the random walk
+    :param seed: int, default 42
+        seed for the random variables
+    :return: list[Fiber]
+        the generated fiber system
+    """
     if beta < 0:
         raise TypeError('beta must be non-negative')
 
     rng = default_rng(seed)
     U = uniform(loc=0, scale=1)
 
-    # TODO
-    Fiber_System = [None] * N
+    fiber_system = [None] * N
     for i in range(0, N):
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
-        # 2. Simulate the mean orientation TODO: put this code into its own function
+        # 2. Simulate the mean orientation
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)
         phi0 = np.pi * 2 * u1
@@ -38,7 +61,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         coord[0, 0] = image_size[0] * U.rvs(random_state=rng)
         coord[0, 1] = image_size[1] * U.rvs(random_state=rng)
         coord[0, 2] = image_size[2] * U.rvs(random_state=rng)
-        Fiber_System[i] = Fiber(Ball(coord[0], r_fiber, i, 0))
+        fiber_system[i] = Fiber(Ball(coord[0], r_fiber, i, 0))
 
         cnt = 1
         mu_old = mu0
@@ -66,9 +89,9 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
                 dir_prev = (coord[j] - coord[j - 1]) / np.linalg.norm(coord[j] - coord[j - 1])
                 dir_next = (coord[j + 1] - coord[j]) / np.linalg.norm(coord[j + 1] - coord[j])
                 angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
-            Fiber_System[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
+            fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
 
-    return Fiber_System
+    return fiber_system
 
 
 def cartesian_to_spherical(x, y, z):
@@ -90,6 +113,16 @@ def rot(mu, n, alpha):
 
 
 def set_value(input_value, rng):
+    """
+    sets values that could be a constant scalar or a realization of a random variable
+
+    Parameters
+    ---------------------
+    :param input_value: constant scalar or random variable
+    :param rng: random number Generator providing the random state
+    :return: float
+        value that the variable should be set to
+    """
     if isinstance(input_value, float) or isinstance(input_value, int):
         # L is a constant number
         result = input_value

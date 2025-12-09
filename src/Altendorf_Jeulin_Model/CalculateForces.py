@@ -260,7 +260,6 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         sqroot = np.sqrt((h_prev + h_next) ** 2.0 + 4.0 * h_prev * h_next * tan_alpha ** 2)
         z = (h_prev + h_next - sqroot) / (2.0 * tan_alpha)
         force_strength = 0.5 * (z0 - z)
-    # print(dist)
 
     # calculate force direction
     force_dir = m - ball.coordinate

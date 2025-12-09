@@ -2,6 +2,21 @@ import numpy as np
 
 
 class Ball:
+    """
+    Ball contains balls used in the fiber model
+
+    Attributes:
+        coordinate: np.ndarray
+            coordinate of the center of the ball
+        radius: float
+            radius of the ball
+        fiber_label: int
+            label of the fiber that the ball belongs to
+        ball_label: int
+            index of the ball within the fiber
+        angle: float
+            angle between the incident edges of the ball
+    """
     def __init__(self, coordinate: np.ndarray, radius: float,
                  fiber_label: int = -1, ball_label: int = -1, angle: float = np.pi):
         self.coordinate = coordinate
@@ -14,6 +29,13 @@ class Ball:
 
 
 class Fiber:
+    """
+    Fiber contains a list of the balls forming the fiber
+
+    Attributes:
+        balls: [Ball]
+            list of the balls
+    """
     def __init__(self, ball: Ball):
         self.balls = [ball]
 

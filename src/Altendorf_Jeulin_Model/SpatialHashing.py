@@ -127,7 +127,6 @@ class SpatialHashing:
     def add_fiber(self, fiber: Fiber):
         """
         Adds a fiber to the SpatialHashing
-        TODO: implement this with an actual Fiber class
 
         Parameters
         ---------------------
@@ -140,7 +139,6 @@ class SpatialHashing:
     def add_fiber_system(self, fiber_system: list[Fiber]):
         """
         Adds a fiber system to the SpatialHashing
-        TODO: this must be implemented with a fiber system instead
 
         Parameters
         ---------------------
