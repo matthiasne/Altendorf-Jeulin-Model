@@ -1,11 +1,11 @@
 import tifffile
 import numpy as np
-from Altendorf_Jeulin_Model.Fiber import Ball
+from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 
 
 def print_fiber_positions(fiber_system: list[list[Ball]],
-                          max_fibers: int = 10, max_spheres: int = 10):
+                          max_fibers: int = 10, max_balls: int = 10):
     """
     Print fibers as positions.
 
@@ -15,13 +15,13 @@ def print_fiber_positions(fiber_system: list[list[Ball]],
         A list of fibers, each represented as a list of balls
     :param max_fibers: int, optional
         maximal number of fibers to be printed
-    :param max_spheres:  int, optional
+    :param max_balls:  int, optional
         maximal number of spheres to be printed
     """
     for i, fiber in enumerate(fiber_system[:max_fibers]):
         coords = ' '.join(f"[{ball.coordinate[0]:.2f},"
                           f" {ball.coordinate[1]:.2f}, {ball.coordinate[2]:.2f}]"
-                          for ball in fiber[:max_spheres])
+                          for ball in fiber.balls[:max_balls])
         print("Fiber ", i, ":", coords)
 
 
@@ -42,7 +42,7 @@ def save_fibers_as_tif(fiber_system: list[list[Ball]],
     """
     volume = np.zeros(shape, dtype=np.uint8)
     for i, fiber in enumerate(fiber_system):
-        for ball in fiber:
+        for ball in fiber.balls:
             # create mesh grid
             x = np.arange(shape[2])
             y = np.arange(shape[1])
@@ -56,7 +56,7 @@ def save_fibers_as_tif(fiber_system: list[list[Ball]],
     tifffile.imwrite(path, volume)
 
 
-def plot_fibers_in_2D(fiber_system: list[list[Ball]],
+def plot_fibers_in_2D(fiber_system: list[Fiber],
                       path: str = "spheres.png"):
     """
     Plot fibers in a 2D image with 3D representations
@@ -82,7 +82,7 @@ def plot_fibers_in_2D(fiber_system: list[list[Ball]],
 
     for i, fiber in enumerate(fiber_system):
         color = cmap(i)
-        for ball in fiber:
+        for ball in fiber.balls:
             x0, y0, z0 = ball.coordinate
             radius = ball.radius
             x = x0 + radius * np.outer(np.cos(u), np.sin(v))
@@ -97,7 +97,7 @@ def plot_fibers_in_2D(fiber_system: list[list[Ball]],
     ax.set_title('Fiber System')
     plt.savefig(path, dpi=300)
 
-def plot_fibers_in_2D_mod(fiber_system: list[list[Ball]], image_size: tuple[int, int, int],
+def plot_fibers_in_2D_mod(fiber_system: list[Fiber], image_size: tuple[int, int, int],
                       path: str = "spheres.png"):
     """
     Plot fibers in a 2D image with 3D representations
@@ -123,7 +123,7 @@ def plot_fibers_in_2D_mod(fiber_system: list[list[Ball]], image_size: tuple[int,
 
     for i, fiber in enumerate(fiber_system):
         color = cmap(i)
-        for ball in fiber:
+        for ball in fiber.balls:
             x0, y0, z0 = ball.coordinate % image_size
             radius = ball.radius
             x = x0 + radius * np.outer(np.cos(u), np.sin(v))

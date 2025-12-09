@@ -3,7 +3,7 @@ from skspatial.objects import Line, Plane
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between
-from Altendorf_Jeulin_Model.Fiber import Ball
+from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
@@ -12,7 +12,7 @@ ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
 
 
-def calculate_forces(grid: sh, fiber_system: list[list[Ball]], rho: float = 0.2):
+def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -34,24 +34,24 @@ def calculate_forces(grid: sh, fiber_system: list[list[Ball]], rho: float = 0.2)
         for i, ball in enumerate(cell):
             calculate_repulsion_force(i, ball, cell, grid)
     for fiber in fiber_system:
-        for i, ball in enumerate(fiber):
-            if (i + 1 < len(fiber)):
-                calculate_spring_force(ball, fiber[i + 1], is_next=True, rho=rho)
+        for i, ball in enumerate(fiber.balls):
+            if (i + 1 < len(fiber.balls)):
+                calculate_spring_force(ball, fiber.balls[i + 1], is_next=True, rho=rho)
             if (i - 1 >= 0):
-                calculate_spring_force(fiber[i - 1], ball, is_next=False, rho=rho)
-            if (i - 1 >= 0 and i + 1 < len(fiber)):
-                calculate_angle_force(ball, fiber[i - 1], fiber[i + 1], rho)
+                calculate_spring_force(fiber.balls[i - 1], ball, is_next=False, rho=rho)
+            if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
+                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1], rho)
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
     for fiber in fiber_system:
-        for ball in fiber:
+        for ball in fiber.balls:
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
 
-def calculate_forces_endstep(grid: sh, fiber_system: list[list[Ball]]):
+def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -76,7 +76,7 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[list[Ball]]):
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
     for fiber in fiber_system:
-        for ball in fiber:
+        for ball in fiber.balls:
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
@@ -274,7 +274,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     add_recover_force(ball, angle_force)
 
 
-def apply_forces(fiber_system: list[list[Ball]]):
+def apply_forces(fiber_system: list[Fiber]):
     """
     Applies forces to the fiber system
     - it adds their forces to their coordinates, thus moves the balls
@@ -286,7 +286,7 @@ def apply_forces(fiber_system: list[list[Ball]]):
         The fiber system that contains all balls
     """
     for fiber in fiber_system:
-        for ball in fiber:
+        for ball in fiber.balls:
             old_coord = ball.coordinate
             new_coord = old_coord + ball.force
             ball.coordinate = new_coord

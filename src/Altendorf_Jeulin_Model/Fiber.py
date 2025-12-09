@@ -26,15 +26,19 @@ class Fiber:
         self.coordinates = coordinates
         self.radii = radii
 
-    def __init__(self, coordinate: np.ndarray, radius: float):
-        b = Ball(coordinate, radius)
-        self.balls = [b]
+    def __init__(self, ball:Ball):
+        self.balls = [ball]
 
     def get_number_of_balls(self):
-        return len(self.coordinates)
+        return len(self.balls)
 
     def get_min_radius(self):
-        return min(self.radii)
+        min_radius = min([ball.radius for ball in self.balls])
+        return min_radius
 
     def get_max_radius(self):
-        return max(self.radii)
+        max_radius = max([ball.radius for ball in self.balls])
+        return max_radius
+
+    def add_ball(self, ball:Ball):
+        self.balls.append(ball)

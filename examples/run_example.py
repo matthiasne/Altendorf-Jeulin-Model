@@ -23,7 +23,7 @@ def main():
     #io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
 
     print("We run the force-biased algorithm:")
-    run_force_biased(fs, image_size)
+    #run_force_biased(fs, image_size)
 
     io.print_fiber_positions(fs, 10)
     io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")

@@ -43,7 +43,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         coord[0, 0] = image_size[0] * U.rvs(random_state=rng)
         coord[0, 1] = image_size[1] * U.rvs(random_state=rng)
         coord[0, 2] = image_size[2] * U.rvs(random_state=rng)
-        Fiber_System[i] = [Ball(coord[0], r, i, 0)]
+        Fiber_System[i] = Fiber(Ball(coord[0], r, i, 0))
 
         cnt = 1
         mu_old = mu0
@@ -71,7 +71,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
                 dir_prev = (coord[j] - coord[j-1])/np.linalg.norm(coord[j] - coord[j-1])
                 dir_next = (coord[j+1] - coord[j]) / np.linalg.norm(coord[j+1] - coord[j])
                 angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
-            Fiber_System[i].append(Ball(coord[j], r, i, j, angle))
+            Fiber_System[i].add_ball(Ball(coord[j], r, i, j, angle))
 
     return Fiber_System
 

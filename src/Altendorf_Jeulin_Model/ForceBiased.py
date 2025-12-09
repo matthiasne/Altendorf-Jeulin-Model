@@ -1,4 +1,5 @@
 import Altendorf_Jeulin_Model.SpatialHashing as sh
+import Altendorf_Jeulin_Model.Fiber as Fiber
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Ball
 from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
@@ -7,7 +8,7 @@ MAX_STEPS = 10000
 MAX_OVERLAP = 0.1
 
 
-def run_force_biased(fs: list[list[Ball]], image_size: tuple[int, int, int],
+def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
                      use_end_step_radius: bool = False, use_end_step_repulsion: bool = False):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -19,8 +20,8 @@ def run_force_biased(fs: list[list[Ball]], image_size: tuple[int, int, int],
     :param image_size: tuple[int, int, int]
     """
     # calculate maximal radius TODO: use implementation from Fiber
-    max_radius = max(ball.radius for fiber in fs for ball in fiber)
-    min_radius = min(ball.radius for fiber in fs for ball in fiber)
+    max_radius = max(ball.radius for fiber in fs for ball in fiber.balls)
+    min_radius = min(ball.radius for fiber in fs for ball in fiber.balls)
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     print("cell size = ", grid.cell_width, "    grid size = ", grid.division)
@@ -42,7 +43,7 @@ def run_force_biased(fs: list[list[Ball]], image_size: tuple[int, int, int],
         end_step_repulsion(fs, max_radius, overlap, image_size)
 
 
-def end_step_radius(fs: list[list[Ball]], overlap: float, max_overlap: float):
+def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):
     """
     The end step where radii are reduced
 
@@ -57,7 +58,7 @@ def end_step_radius(fs: list[list[Ball]], overlap: float, max_overlap: float):
     """
     if overlap > max_overlap:  # why not only do this for radii that are too large?
         for fiber in fs:
-            for ball in fiber:
+            for ball in fiber.balls:
                 new_radius = ball.radius - ball.overlap
                 if new_radius <= 0:
                     raise ValueError("Radius cannot be reduced sufficiently.")
@@ -65,7 +66,7 @@ def end_step_radius(fs: list[list[Ball]], overlap: float, max_overlap: float):
                 ball.overlap = 0
 
 
-def end_step_repulsion(fs: list[list[Ball]], max_radius: float,
+def end_step_repulsion(fs: list[Fiber], max_radius: float,
                        overlap: float, image_size: tuple[int, int, int]):
     """
     The end step where only the repulsion force is applied
@@ -81,7 +82,7 @@ def end_step_repulsion(fs: list[list[Ball]], max_radius: float,
     :param image_size: tuple[int, int, int]
     """
     for fiber in fs:
-        for ball in fiber:
+        for ball in fiber.balls:
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
