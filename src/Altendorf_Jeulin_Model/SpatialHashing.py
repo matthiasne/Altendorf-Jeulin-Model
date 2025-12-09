@@ -1,7 +1,7 @@
 from math import floor, ceil
 from itertools import product
 import numpy as np
-from Altendorf_Jeulin_Model.Fiber import Ball
+from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 
 
 class SpatialHashing:
@@ -66,7 +66,7 @@ class SpatialHashing:
         """
 
         pos_mod = (position[0] % self.image_size[0], position[1] % self.image_size[1],
-         position[2] % self.image_size[2])
+                   position[2] % self.image_size[2])
         return tuple(floor(coord / width) for coord, width in zip(pos_mod, self.cell_width))
 
     def get_neighbor_cell_indices(self, index: tuple[int, int, int]) -> list[tuple[int, int, int]]:
@@ -84,8 +84,8 @@ class SpatialHashing:
         for di, dj, dk in product((-1, 0, 1), repeat=3):
             if di == dj == dk == 0:
                 continue  # skip the cell itself
-            neighbor = ((index[0] + di)%self.division[0], (index[1] + dj)%self.division[1],
-                        (index[2] + dk)%self.division[2])
+            neighbor = ((index[0] + di) % self.division[0], (index[1] + dj) % self.division[1],
+                        (index[2] + dk) % self.division[2])
             if self._in_bounds(neighbor) and neighbor not in neighbor_cells:
                 neighbor_cells.append(neighbor)
         return neighbor_cells
@@ -104,8 +104,8 @@ class SpatialHashing:
         neighbor_cells: list[tuple[int, int, int]] = []
         for di, dj, dk in product((-1, 0, 1), repeat=3):
             if (di, dj, dk) < (0, 0, 0):
-                neighbor = ((index[0] + di)%self.division[0], (index[1] + dj)%self.division[1],
-                        (index[2] + dk)%self.division[2])
+                neighbor = ((index[0] + di) % self.division[0], (index[1] + dj) % self.division[1],
+                            (index[2] + dk) % self.division[2])
                 if self._in_bounds(neighbor) and neighbor not in neighbor_cells:
                     neighbor_cells.append(neighbor)
         return neighbor_cells

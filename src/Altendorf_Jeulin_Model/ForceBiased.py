@@ -1,7 +1,6 @@
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import numpy as np
-from Altendorf_Jeulin_Model.Fiber import Ball
 from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
 
 MAX_STEPS = 10000
@@ -24,7 +23,6 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
     min_radius = min(ball.radius for fiber in fs for ball in fiber.balls)
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
-    print("cell size = ", grid.cell_width, "    grid size = ", grid.division)
     grid.add_fiber_system(fs)
     force_strength, overlap = calculate_forces(grid, fiber_system=fs)
 

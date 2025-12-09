@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from utils import periodic_distance, angle_between
+from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between
 
 
 class test_utils(unittest.TestCase):

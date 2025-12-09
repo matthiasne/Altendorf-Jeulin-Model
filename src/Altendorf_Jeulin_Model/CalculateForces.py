@@ -102,7 +102,7 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
     for neighbor in cell[i + 1:]:
         # calculate repulsion forces
         if (ball.fiber_label != neighbor.fiber_label
-            or abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
+                or abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
             dist, dir = periodic_distance(ball.coordinate, neighbor.coordinate, grid.image_size)
             add_repulsion_force(ball, neighbor, dist, dir)
     # compare with neighbor cells

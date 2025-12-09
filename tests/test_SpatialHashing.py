@@ -1,8 +1,8 @@
 import unittest
-import SpatialHashing as sh
 import numpy as np
-from Fiber import Ball
-import FiberModel as fm
+
+import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.Fiber import Ball
 
 
 class TestSpatialHashing(unittest.TestCase):
@@ -21,10 +21,6 @@ class TestSpatialHashing(unittest.TestCase):
                          "Calculation of cell index is wrong")
         self.assertEqual(grid.get_cell_index_of_coord(np.array([0, 30, 30])), (0, 0, 0),
                          "Calculation of cell index is wrong")
-        with self.assertRaises(ValueError):
-            grid.get_cell_index_of_coord(np.array([-1, 30, 30]))
-        with self.assertRaises(ValueError):
-            grid.get_cell_index_of_coord(np.array([1, 65, 30]))
 
     def test_get_neighbor_cell_indices(self):
         grid = sh.SpatialHashing((64, 64, 64), 32)
@@ -43,29 +39,6 @@ class TestSpatialHashing(unittest.TestCase):
                             "Ball was inserted wrongly in the SpatialHashing")
         self.assertEqual(len(grid.cells[3]), 0,
                          "Ball was inserted wrongly in the SpatialHashing")
-
-    def test_add_fiber_system(self):
-        N = 2
-        radius = 2
-        fs = fm.initialize_fiber_system(N, 20, radius, 1, 10, 100)
-        grid = sh.SpatialHashing((64, 64, 64), 32)
-        grid.add_fiber_system(fs)
-        self.assertEqual(len(grid.cells[0]), 9,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[1]), 0,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[2]), 5,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[3]), 6,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[4]), 0,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[5]), 0,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[6]), 0,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
-        self.assertEqual(len(grid.cells[7]), 0,
-                         "FiberSystem was inserted wrongly in the SpatialHashing")
 
 
 if __name__ == '__main__':

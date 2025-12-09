@@ -1,10 +1,11 @@
 import tifffile
 import numpy as np
-from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
+from Altendorf_Jeulin_Model.Fiber import Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
+import Altendorf_Jeulin_Model.FiberModel as FiberModel
 
 
-def print_fiber_positions(fiber_system: list[list[Ball]],
+def print_fiber_positions(fiber_system: FiberModel,
                           max_fibers: int = 10, max_balls: int = 10):
     """
     Print fibers as positions.
@@ -25,7 +26,7 @@ def print_fiber_positions(fiber_system: list[list[Ball]],
         print("Fiber ", i, ":", coords)
 
 
-def save_fibers_as_tif(fiber_system: list[list[Ball]],
+def save_fibers_as_tif(fiber_system: list[Fiber],
                        shape: tuple[int, int, int] = (64, 64, 64),
                        path: str = "spheres.tif"):
     """
@@ -97,8 +98,9 @@ def plot_fibers_in_2D(fiber_system: list[Fiber],
     ax.set_title('Fiber System')
     plt.savefig(path, dpi=300)
 
+
 def plot_fibers_in_2D_mod(fiber_system: list[Fiber], image_size: tuple[int, int, int],
-                      path: str = "spheres.png"):
+                          path: str = "spheres.png"):
     """
     Plot fibers in a 2D image with 3D representations
 
@@ -137,7 +139,6 @@ def plot_fibers_in_2D_mod(fiber_system: list[Fiber], image_size: tuple[int, int,
     ax.set_zlabel('Z')
     ax.set_title('Fiber System')
     plt.savefig(path, dpi=300)
-
 
 
 def print_grid(grid: sh):

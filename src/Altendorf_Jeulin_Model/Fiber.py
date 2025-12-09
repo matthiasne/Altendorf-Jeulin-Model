@@ -14,19 +14,7 @@ class Ball:
 
 
 class Fiber:
-    def __init__(self, coordinates: list[np.ndarray], radii: list[float]):
-        if not (isinstance(coordinates, list) and all(isinstance(v, (list, tuple)) and len(v) == 3 and
-                                                      all(isinstance(x, (int, float)) for x in v) for v in
-                                                      coordinates)):
-            raise TypeError('Coordinates must be a list of 3D vectors')
-        if not all(isinstance(r, (int, float)) and r > 0 for r in radii):
-            raise TypeError('Radii must be a list of positive real numbers')
-        if not len(coordinates) == len(radii):
-            raise ValueError('Coordinates and radii must have the same length')
-        self.coordinates = coordinates
-        self.radii = radii
-
-    def __init__(self, ball:Ball):
+    def __init__(self, ball: Ball):
         self.balls = [ball]
 
     def get_number_of_balls(self):
@@ -40,5 +28,5 @@ class Fiber:
         max_radius = max([ball.radius for ball in self.balls])
         return max_radius
 
-    def add_ball(self, ball:Ball):
+    def add_ball(self, ball: Ball):
         self.balls.append(ball)
