@@ -1,11 +1,9 @@
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
+from Altendorf_Jeulin_Model.utils import normalized
 from scipy.stats import uniform
 from scipy.stats import vonmises_fisher
 import numpy as np
 from numpy.random import default_rng
-
-
-# TODO: normalize vectors function
 
 class FiberModel:
     def __init__(self, initial_fiber_system):
@@ -77,8 +75,8 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
             cnt = cnt + 1
 
         # 4. Adjusting the fibers such that the mean orientation is maintained
-        mu_bar = (coord[l_fiber - 1] - coord[0]) / np.linalg.norm(coord[l_fiber - 1] - coord[0])
-        n_axis = np.cross(mu0, mu_bar) / np.linalg.norm(np.cross(mu0, mu_bar))
+        _, mu_bar = normalized(coord[l_fiber - 1] - coord[0])
+        _, n_axis = normalized(np.cross(mu0, mu_bar))
         alpha = np.arccos(np.dot(mu0, mu_bar))
 
         for j in range(1, l_fiber):
@@ -86,8 +84,8 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
                 coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
             angle = np.pi
             if j < l_fiber - 1:
-                dir_prev = (coord[j] - coord[j - 1]) / np.linalg.norm(coord[j] - coord[j - 1])
-                dir_next = (coord[j + 1] - coord[j]) / np.linalg.norm(coord[j + 1] - coord[j])
+                _, dir_prev = normalized(coord[j] - coord[j - 1])
+                _, dir_next = normalized(coord[j + 1] - coord[j])
                 angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
             fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
 

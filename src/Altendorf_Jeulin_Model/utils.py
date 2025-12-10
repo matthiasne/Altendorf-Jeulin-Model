@@ -58,3 +58,9 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
         raise ValueError("v2 has length 0")
     cos_angle = np.dot(v1, v2) / (l1 * l2)
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
+
+def normalized(v: np.ndarray):
+    if np.linalg.norm(v) == 0:
+        return 0, v
+    v_length = np.linalg.norm(v)
+    return v_length, v/v_length

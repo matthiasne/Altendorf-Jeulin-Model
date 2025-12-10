@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between
+from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between, normalized
 
 
 class test_utils(unittest.TestCase):
@@ -31,3 +31,24 @@ class test_utils(unittest.TestCase):
         self.assertEqual(angle_between(v2, 2 * v1), np.pi / 2.0)
         with self.assertRaises(ValueError):
             angle_between(v1, v4)
+
+    def test_normalized(self):
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([0.0, 1.0, 0.0])
+        v3 = np.array([0.0, 0.0, 1.0])
+        v4 = np.array([0.0, 0.0, 0.0])
+        l1, vl = normalized(v1)
+        np.testing.assert_array_equal(vl, v1)
+        self.assertEqual(l1, 1)
+        l2, vl = normalized(v2)
+        np.testing.assert_array_equal(vl, v2)
+        self.assertEqual(l2, 1)
+        l3, vl = normalized(v3)
+        np.testing.assert_array_equal(vl, v3)
+        self.assertEqual(l3, 1)
+        l4, vl = normalized(v4)
+        np.testing.assert_array_equal(vl, v4)
+        self.assertEqual(l4, 0)
+        l5, vl = normalized(2*v1)
+        np.testing.assert_array_equal(vl, v1)
+        self.assertEqual(l5, 2)

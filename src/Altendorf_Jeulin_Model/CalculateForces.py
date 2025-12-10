@@ -2,7 +2,7 @@ import numpy as np
 from skspatial.objects import Line, Plane
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between
+from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between, normalized
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 
 MIN_REPULSION_DISTANCE = 5
@@ -199,9 +199,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
         indicates whether ball2 comes before or after ball1 in the fiber
     """
     # displacement
-    dir = ball2.coordinate - ball1.coordinate  # as original code - no periodicity necessary?
-    dist_is = np.linalg.norm(dir)
-    dir = dir / dist_is
+    dist_is, dir = normalized(ball2.coordinate - ball1.coordinate)  # as original code - no periodicity necessary?
     # distance to next ball is currently always radius
     # - may need to adapt for different random walks
     dist_should = ball1.radius if is_next else ball2.radius
@@ -262,8 +260,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         force_strength = 0.5 * (z0 - z)
 
     # calculate force direction
-    force_dir = m - ball.coordinate
-    force_dir = force_dir / np.linalg.norm(force_dir)
+    _, force_dir = normalized(m - ball.coordinate)
 
     # calculate force magnitude
     factor = smoothing_factor(ball.angle - alpha0, ALPHA_S, ALPHA_E)
