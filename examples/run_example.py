@@ -8,7 +8,7 @@ def main():
     # create a fiber system
     print("This is the Altendorf-Jeulin model")
     image_size = (200, 200, 200)
-    N = 10
+    N = 100
     L = poisson(35)
     R = uniform(loc=4, scale=1)
     fs = fm.initialize_fiber_system(N, L, R, 1, image_size, 10, 100)
