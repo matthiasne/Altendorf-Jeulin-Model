@@ -60,6 +60,16 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
 
 def normalized(v: np.ndarray):
+    """
+    normalizes a vector and returns both the original length and the normalized vector
+
+    Attributes
+    ---------------------
+    :param v: np.ndarray
+        vector to be normalized
+    :return: float, np.ndarray
+        original length, normalized vector
+    """
     if np.linalg.norm(v) == 0:
         return 0, v
     v_length = np.linalg.norm(v)
