@@ -26,6 +26,7 @@ class Ball:
         self.force: np.ndarray = np.array([0.0, 0.0, 0.0])
         self.overlap = 0
         self.angle = angle
+        self.neighbor_dist = radius/2.0
 
 
 class Fiber:

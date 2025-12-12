@@ -86,7 +86,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
             if j < l_fiber - 1:
                 _, dir_prev = normalized(coord[j] - coord[j - 1])
                 _, dir_next = normalized(coord[j + 1] - coord[j])
-                angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+                angle = np.arccos(np.dot(dir_prev, dir_next))
             fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
 
     return fiber_system

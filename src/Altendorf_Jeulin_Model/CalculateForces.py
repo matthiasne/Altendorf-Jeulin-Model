@@ -38,17 +38,19 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
             if (i + 1 < len(fiber.balls)):
                 calculate_spring_force(ball, fiber.balls[i + 1], is_next=True, rho=rho)
             if (i - 1 >= 0):
-                calculate_spring_force(fiber.balls[i - 1], ball, is_next=False, rho=rho)
+                calculate_spring_force(ball, fiber.balls[i - 1], is_next=False, rho=rho)
             if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
                 calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1], rho)
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
+    total_neighbor_dist = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
-    return np.linalg.norm(total_force), total_overlap
+            total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
+    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist
 
 
 def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
@@ -99,23 +101,23 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
         The spatial hashing grid of the mdel
     """
     # compare within cell
-    for neighbor in cell[i + 1:]:
+    for ball2 in cell[i + 1:]:
         # calculate repulsion forces
-        if (ball.fiber_label != neighbor.fiber_label
-                or abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
-            dist, dir = periodic_distance(ball.coordinate, neighbor.coordinate, grid.image_size)
-            add_repulsion_force(ball, neighbor, dist, dir)
+        if (ball.fiber_label != ball2.fiber_label
+                or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+            dist, dir = periodic_distance(ball.coordinate, ball2.coordinate, grid.image_size) #TODO in add_repulsion_force ziehen
+            add_repulsion_force(ball, ball2, dist, dir)
     # compare with neighbor cells
-    cell_index = grid.get_cell_index_of_coord(ball.coordinate)
-    neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index)
+    cell_index_ball = grid.get_cell_index_of_coord(ball.coordinate)
+    neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
-        cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1]
+        cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1]*grid.division[0]
         cell = grid.cells[cell_index_short]
-        for neighbor in cell:
-            if (ball.fiber_label != neighbor.fiber_label or
-                    abs(ball.ball_label - neighbor.ball_label) >= MIN_REPULSION_DISTANCE):
-                dist, dir = periodic_distance(ball.coordinate, neighbor.coordinate, grid.image_size)
-                add_repulsion_force(ball, neighbor, dist, dir)
+        for ball2 in cell:
+            if (ball.fiber_label != ball2.fiber_label or
+                    abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+                dist, dir = periodic_distance(ball.coordinate, ball2.coordinate, grid.image_size)
+                add_repulsion_force(ball, ball2, dist, dir)
 
 
 def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray):
@@ -142,7 +144,7 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
         neighbor.overlap = max(neighbor.overlap, overlap)
 
 
-def add_recover_force(ball: Ball, force: np.ndarray):
+def add_recover_force(ball: Ball, force: np.ndarray, dist:float):
     """
     Adds a recovery force to a ball
 
@@ -154,6 +156,7 @@ def add_recover_force(ball: Ball, force: np.ndarray):
         The force that is added to the ball
     """
     ball.force = ball.force + force
+    ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
 
 def smoothing_factor(x: float, x_s: float, x_e: float):
@@ -199,17 +202,18 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
         indicates whether ball2 comes before or after ball1 in the fiber
     """
     # displacement
-    dist_is, dir = normalized(ball2.coordinate - ball1.coordinate)  # as original code - no periodicity necessary?
+    dist_is, dir = normalized(ball2.coordinate - ball1.coordinate)
     # distance to next ball is currently always radius
     # - may need to adapt for different random walks
-    dist_should = ball1.radius if is_next else ball2.radius
+    dist_should = ball1.radius/2.0 if is_next else ball2.radius/2.0 #TODO
     dist_displaced = dist_is - dist_should
-    ratio_displaced = dist_displaced / dist_should
+    ratio_displaced = abs(dist_displaced) / dist_should
+    #ratio_displaced = dist_displaced / dist_should
     # smoothing_factor
     s_f = smoothing_factor(ratio_displaced, X_S, X_E)
     # add to recoverforce
-    spring_force = s_f * rho * dist_displaced / 2 * dir
-    add_recover_force(ball1, spring_force)
+    spring_force = s_f * rho * dist_displaced * dir
+    add_recover_force(ball1, spring_force, dist_is)
 
 
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
@@ -231,7 +235,6 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         factor to balance forces, [0, 1]
         default 0.2 from Altendorf&Jeulin 2011
     """
-    # TODO: periodize distances here?
     # calculate current angle between ball triplet
     v1 = ball.coordinate - ball_next.coordinate
     v2 = ball.coordinate - ball_prev.coordinate
@@ -267,7 +270,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     angle_force = factor * force_strength * force_dir
 
     # add angle force to recover force
-    add_recover_force(ball, angle_force)
+    add_recover_force(ball, angle_force, ball.radius/2.0)
 
 
 def apply_forces(fiber_system: list[Fiber]):
@@ -288,3 +291,4 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.coordinate = new_coord
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
+            ball.neighbor_dist = ball.radius/2.

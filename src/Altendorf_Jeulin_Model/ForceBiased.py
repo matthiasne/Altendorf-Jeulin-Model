@@ -23,7 +23,7 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs)
-    force_strength, overlap = calculate_forces(grid, fiber_system=fs)
+    force_strength, overlap, neighbor_dist = calculate_forces(grid, fiber_system=fs)
 
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(MAX_STEPS):
@@ -32,7 +32,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs)
-        force_strength, overlap = calculate_forces(grid, fiber_system=fs)
+        force_strength, overlap, neighbor_dist = calculate_forces(grid, fiber_system=fs)
+        print("step ", i, " force ", force_strength, " overlap ", overlap, " neighbor dist ", neighbor_dist)
 
     if use_end_step_radius:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)

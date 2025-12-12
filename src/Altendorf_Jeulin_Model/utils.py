@@ -17,7 +17,7 @@ def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[
     """
     coord1mod = coord1 % image_size
     coord2mod = coord2 % image_size
-    dist = np.linalg.norm(coord2mod - coord1mod)
+    dist_orig = np.linalg.norm(coord2mod - coord1mod)
     delta = coord2mod - coord1mod
     for i in range(3):
         if (abs(delta[i]) > image_size[i] / 2.):
@@ -26,16 +26,11 @@ def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[
             else:
                 coord2mod[i] += image_size[i]
 
-    if (np.all(coord1mod == coord2mod)):
-        dir = np.array([1, 1, 1])
-    else:
-        dir = coord2mod - coord1mod
-        dir /= np.linalg.norm(dir)
+    dist, dir = normalized(coord2mod - coord1mod)
 
-    if (np.linalg.norm(coord2mod - coord1mod) > dist):
+    if (np.linalg.norm(coord2mod - coord1mod) > dist_orig):
         raise ValueError("There is an issue in the periodic distance calculation")
     else:
-        dist = np.linalg.norm(coord2mod - coord1mod)
         return dist, dir
 
 

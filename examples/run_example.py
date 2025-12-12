@@ -16,8 +16,8 @@ def main():
     # output fiber system
     print("We generated the following fibers")
     io.print_fiber_positions(fs, 10)
-    io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
-    io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
+    #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
+    #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
 
     # io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
 
