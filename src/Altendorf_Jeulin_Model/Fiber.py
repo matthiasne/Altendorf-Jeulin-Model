@@ -27,6 +27,7 @@ class Ball:
         self.overlap = 0
         self.angle = angle
         self.neighbor_dist = radius/2.0
+        self.angle_diff = 0
 
 
 class Fiber:

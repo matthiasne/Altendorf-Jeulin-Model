@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from skspatial.objects import Line, Plane
 
@@ -45,12 +47,14 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
     total_neighbor_dist = 0
+    total_angle_diff = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
             total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
-    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist
+            total_angle_diff = max(total_angle_diff, ball.angle_diff)
+    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist, total_angle_diff
 
 
 def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
@@ -158,6 +162,34 @@ def add_recover_force(ball: Ball, force: np.ndarray, dist:float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
+def add_spring_force(ball: Ball, force: np.ndarray, dist:float):
+    """
+    Adds a recovery force to a ball
+
+    Attributes
+    ---------------------
+    :param ball: Ball
+        The ball that the force is added to
+    :param force: np.ndarray
+        The force that is added to the ball
+    """
+    ball.force = ball.force + force
+    ball.neighbor_dist = max(ball.neighbor_dist, dist)
+
+def add_angle_force(ball: Ball, force: np.ndarray, angle_diff:float):
+    """
+    Adds a recovery force to a ball
+
+    Attributes
+    ---------------------
+    :param ball: Ball
+        The ball that the force is added to
+    :param force: np.ndarray
+        The force that is added to the ball
+    """
+    ball.force = ball.force + force
+    ball.angle_diff = max(ball.angle_diff, abs(angle_diff))
+
 
 def smoothing_factor(x: float, x_s: float, x_e: float):
     """
@@ -213,7 +245,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     s_f = smoothing_factor(ratio_displaced, X_S, X_E)
     # add to recoverforce
     spring_force = s_f * rho * dist_displaced * dir
-    add_recover_force(ball1, spring_force, dist_is)
+    add_spring_force(ball1, spring_force, dist_is)
 
 
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
@@ -235,43 +267,34 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         factor to balance forces, [0, 1]
         default 0.2 from Altendorf&Jeulin 2011
     """
-    # calculate current angle between ball triplet
-    v1 = ball.coordinate - ball_next.coordinate
-    v2 = ball.coordinate - ball_prev.coordinate
-    alpha0 = angle_between(v1, v2)
-    # print("alpha ", ball.angle, " alpha0 ", alpha0)
-    # Altendorf-Jeulin only fix angles that are too high
-    if alpha0 >= ball.angle:
-        return
-
+    alpha0 = ball.angle
     # m: line cutting plane
     line = Line(ball_prev.coordinate, direction=ball_next.coordinate - ball_prev.coordinate)
-    plane = Plane(ball.coordinate, normal=ball_next.coordinate - ball_prev.coordinate)
+    plane = Plane(ball.coordinate, normal=ball_prev.coordinate - ball_next.coordinate)
     m = plane.intersect_line(line)
-    h_prev = np.linalg.norm(m - ball_prev.coordinate)
-    h_next = np.linalg.norm(m - ball_next.coordinate)
-    z0 = np.linalg.norm(m - ball.coordinate)
-    if z0 == 0:
-        return
 
-    tan_alpha = np.tan(ball.angle)
-    if tan_alpha == 0:
-        force_strength = 0.5 * z0
+    # z, z0: calculate distances of ball.coordinate to m
+    h1 = np.linalg.norm(m - ball_prev.coordinate)
+    h2 = np.linalg.norm(m - ball_next.coordinate)
+    z = np.linalg.norm(m - ball.coordinate)
+    alpha1 = np.atan2(h1, z)
+    alpha2 = np.atan2(h2, z)
+
+    #tan_alpha = np.tan(alpha1 + alpha2)
+    tan_alpha = z*(h1 + h2)/(z**2 - h1*h2)
+
+    if math.isclose(tan_alpha, 0):
+        z0 = 0
     else:
-        sqroot = np.sqrt((h_prev + h_next) ** 2.0 + 4.0 * h_prev * h_next * tan_alpha ** 2)
-        z = (h_prev + h_next - sqroot) / (2.0 * tan_alpha)
-        force_strength = 0.5 * (z0 - z)
+        z0 = (h1 + h2 + np.sqrt((h1 + h2)**2 + 4*h1*h2*tan_alpha**2))/(2*tan_alpha)
 
-    # calculate force direction
+    # calculate force
     _, force_dir = normalized(m - ball.coordinate)
+    f = smoothing_factor(alpha0 - (alpha1 + alpha2), X_S, X_E)
+    #force = f*(z - z0)*force_dir
+    force = f * force_dir
 
-    # calculate force magnitude
-    factor = smoothing_factor(ball.angle - alpha0, ALPHA_S, ALPHA_E)
-    angle_force = factor * force_strength * force_dir
-
-    # add angle force to recover force
-    add_recover_force(ball, angle_force, ball.radius/2.0)
-
+    add_angle_force(ball, force, alpha0 - (alpha1 + alpha2))
 
 def apply_forces(fiber_system: list[Fiber]):
     """
@@ -292,3 +315,4 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
             ball.neighbor_dist = ball.radius/2.
+            ball.angle_diff = 0

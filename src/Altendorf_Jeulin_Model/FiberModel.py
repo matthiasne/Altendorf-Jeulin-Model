@@ -4,6 +4,8 @@ from scipy.stats import uniform
 from scipy.stats import vonmises_fisher
 import numpy as np
 from numpy.random import default_rng
+from skspatial.objects import Line, Plane
+
 
 class FiberModel:
     def __init__(self, initial_fiber_system):
@@ -82,11 +84,25 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         for j in range(1, l_fiber):
             if alpha > 0:
                 coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
+        for j in range(1, l_fiber):
             angle = np.pi
             if j < l_fiber - 1:
                 _, dir_prev = normalized(coord[j] - coord[j - 1])
                 _, dir_next = normalized(coord[j + 1] - coord[j])
-                angle = np.arccos(np.dot(dir_prev, dir_next))
+                #angle = np.arccos(np.dot(dir_prev, dir_next))
+                angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+                #line = Line(coord[j - 1], direction=coord[j + 1] - coord[j - 1])
+                #plane = Plane(coord[j], normal=coord[j - 1] - coord[j + 1])
+                #m = plane.intersect_line(line)
+
+                # z, z0: calculate distances of ball.coordinate to m
+                #h1 = np.linalg.norm(m - coord[j - 1])
+                #h2 = np.linalg.norm(m - coord[j + 1])
+                #z = np.linalg.norm(m - coord[j])
+                #alpha1 = np.atan2(h1, z)
+                #alpha2 = np.atan2(h2, z)
+                #angle = alpha1 + alpha2
+                #print("alpha1 ", alpha1, " alpha2 ", alpha2, " angle ", angle)
             fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
 
     return fiber_system
