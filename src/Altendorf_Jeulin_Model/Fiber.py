@@ -45,12 +45,31 @@ class Fiber:
         return len(self.balls)
 
     def get_min_radius(self):
-        min_radius = min([ball.radius for ball in self.balls])
+        min_radius = np.min([ball.radius for ball in self.balls])
         return min_radius
 
     def get_max_radius(self):
-        max_radius = max([ball.radius for ball in self.balls])
+        max_radius = np.max([ball.radius for ball in self.balls])
         return max_radius
+
+    def get_mean_radius(self):
+        mean_radius = np.mean([ball.radius for ball in self.balls])
+        return mean_radius
+
+    def get_length(self):
+        length = 0
+        for i in range(0, len(self.balls)):
+            if i == 0:
+                length += self.balls[0].radius
+                length += self.balls[-1].radius
+            else:
+                coord = self.balls[i].coordinate
+                prev_coord = self.balls[i-1].coordinate
+                length += np.linalg.norm(coord - prev_coord)
+        return length
+
+    def get_direction(self):
+        return self.balls[-1].coordinate - self.balls[0].coordinate
 
     def add_ball(self, ball: Ball):
         self.balls.append(ball)

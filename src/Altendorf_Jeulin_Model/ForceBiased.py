@@ -2,6 +2,7 @@ import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import numpy as np
 from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
+from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length
 
 MAX_STEPS = 1000
 MAX_OVERLAP = 0.1
@@ -24,6 +25,7 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs)
     force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
+    print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs))
 
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(MAX_STEPS):
@@ -33,8 +35,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs)
         force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
-        print("step ", i, " force ", force_strength, " overlap ", overlap, " neighbor dist ", neighbor_dist,
-              " diff angle ", angle_diff)
+        print("step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
+              " max angle diff ", angle_diff, " mean radius ", mean_radius(fs), " mean length ", mean_length(fs))
 
     if use_end_step_radius:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
