@@ -290,9 +290,9 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
 
     # calculate force
     _, force_dir = normalized(m - ball.coordinate)
-    f = smoothing_factor(alpha0 - (alpha1 + alpha2), X_S, X_E)
-    #force = f*(z - z0)*force_dir
-    force = f * force_dir
+    f = smoothing_factor(alpha0 - (alpha1 + alpha2), ALPHA_S, ALPHA_E)
+    force = f*(z - z0)*force_dir
+    #force = f * force_dir
 
     add_angle_force(ball, force, alpha0 - (alpha1 + alpha2))
 
