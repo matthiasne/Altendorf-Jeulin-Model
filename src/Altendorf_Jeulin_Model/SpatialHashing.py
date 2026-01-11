@@ -121,7 +121,7 @@ class SpatialHashing:
         """
         coord = ball.coordinate
         index = self.get_cell_index_of_coord(coord % self.image_size)
-        idx = index[0] + index[1] * self.division[0] + index[2] * self.division[1]
+        idx = index[0] + index[1] * self.division[0] + index[2]* self.division[0] * self.division[1]
         self.cells[idx].append(ball)
 
     def add_fiber(self, fiber: Fiber):
