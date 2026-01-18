@@ -42,7 +42,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
             if (i - 1 >= 0):
                 calculate_spring_force(ball, fiber.balls[i - 1], is_next=False, rho=rho)
             if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
-                calculate_angle_force2(ball, fiber.balls[i - 1], fiber.balls[i + 1], rho)
+                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1], rho)
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -268,54 +268,6 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         default 0.2 from Altendorf&Jeulin 2011
     """
     alpha0 = ball.angle
-    # m: line cutting plane
-    line = Line(ball_prev.coordinate, direction=ball_next.coordinate - ball_prev.coordinate)
-    plane = Plane(ball.coordinate, normal=ball_prev.coordinate - ball_next.coordinate)
-    m = plane.intersect_line(line)
-
-    # z, z0: calculate distances of ball.coordinate to m
-    h1 = np.linalg.norm(m - ball_prev.coordinate)
-    h2 = np.linalg.norm(m - ball_next.coordinate)
-    z = np.linalg.norm(m - ball.coordinate)
-    alpha1 = np.atan2(h1, z)
-    alpha2 = np.atan2(h2, z)
-
-    #tan_alpha = np.tan(alpha1 + alpha2)
-    tan_alpha = z*(h1 + h2)/(z**2 - h1*h2)
-
-    if math.isclose(tan_alpha, 0):
-        z0 = 0
-    else:
-        z0 = (h1 + h2 + np.sqrt((h1 + h2)**2 + 4*h1*h2*tan_alpha**2))/(2*tan_alpha)
-
-    # calculate force
-    _, force_dir = normalized(m - ball.coordinate)
-    f = smoothing_factor(alpha0 - (alpha1 + alpha2), ALPHA_S, ALPHA_E)
-    force = f*(z - z0)*force_dir
-    #force = f * force_dir
-
-    add_angle_force(ball, force, alpha0 - (alpha1 + alpha2))
-
-def calculate_angle_force2(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
-    """
-    Calculates angle force between 3 neighboring balls and adds it to the center ball
-    Note: this code does not directly follow the paper by Altendorf&Jeulin
-    because this caused strange errors. Instead, it uses an equivalent calculation
-    that was proposed yet undocumented in the original code (MAVIlib)
-
-    Attributes
-    ---------------------
-    :param ball: Ball
-        center ball - this is where the force will be applied
-    :param ball_prev: Ball
-        previous ball
-    :param ball_next: Ball
-        next ball
-    :param rho: float
-        factor to balance forces, [0, 1]
-        default 0.2 from Altendorf&Jeulin 2011
-    """
-    alpha0 = ball.angle
     _, dir_prev = normalized(ball.coordinate - ball_prev.coordinate)
     _, dir_next = normalized(ball_next.coordinate - ball.coordinate)
     alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
@@ -329,7 +281,11 @@ def calculate_angle_force2(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2
     h2 = np.linalg.norm(m - ball_next.coordinate)
     z = np.linalg.norm(m - ball.coordinate)
 
-    z0 = (h1 + h2 - np.sqrt((h1 + h2)**2 + 4*h1*h2*np.tan(alpha0)**2))/(2*np.tan(alpha0))
+    tan_alpha0 = np.tan(alpha0)
+    if tan_alpha0 < 0:
+        z0 = (h1 + h2 - np.sqrt((h1 + h2)**2 + 4*h1*h2*np.tan(alpha0)**2))/(2*np.tan(alpha0))
+    else:
+        z0 = (h1 + h2 + np.sqrt((h1 + h2) ** 2 + 4 * h1 * h2 * np.tan(alpha0) ** 2)) / (2 * np.tan(alpha0))
 
     # calculate force
     _, force_dir = normalized(m - ball.coordinate)
