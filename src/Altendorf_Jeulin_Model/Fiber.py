@@ -17,6 +17,7 @@ class Ball:
         angle: float
             angle between the incident edges of the ball
     """
+
     def __init__(self, coordinate: np.ndarray, radius: float,
                  fiber_label: int = -1, ball_label: int = -1, angle: float = np.pi):
         self.coordinate = coordinate
@@ -26,7 +27,7 @@ class Ball:
         self.force: np.ndarray = np.array([0.0, 0.0, 0.0])
         self.overlap = 0
         self.angle = angle
-        self.neighbor_dist = radius/2.0
+        self.neighbor_dist = radius / 2.0
         self.angle_diff = 0
 
 
@@ -38,6 +39,7 @@ class Fiber:
         balls: [Ball]
             list of the balls
     """
+
     def __init__(self, ball: Ball):
         self.balls = [ball]
 
@@ -64,7 +66,7 @@ class Fiber:
                 length += self.balls[-1].radius
             else:
                 coord = self.balls[i].coordinate
-                prev_coord = self.balls[i-1].coordinate
+                prev_coord = self.balls[i - 1].coordinate
                 length += np.linalg.norm(coord - prev_coord)
         return length
 

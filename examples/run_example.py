@@ -11,22 +11,22 @@ def main():
     N = 100
     L = poisson(35)
     R = uniform(loc=4, scale=1)
-    fs = fm.initialize_fiber_system(N, L, R, 1, image_size, 10, 100)
+    beta = 1
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100)
 
     # output fiber system
     print("We generated the following fibers")
     io.print_fiber_positions(fs, 10)
-    #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
-    #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
+    # io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
+    # io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
 
     # io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
 
-    print("We run the force-biased algorithm:")
-    run_force_biased(fs, image_size)
+    run_force_biased(fs, image_size, beta)
 
     io.print_fiber_positions(fs, 10)
     io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
-    #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
+    # io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
 
     # io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
 

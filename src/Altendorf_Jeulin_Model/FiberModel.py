@@ -1,10 +1,9 @@
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
-from Altendorf_Jeulin_Model.utils import normalized
+from Altendorf_Jeulin_Model.utils import normalized, spherical_to_cartesian
 from scipy.stats import uniform
 from scipy.stats import vonmises_fisher
 import numpy as np
 from numpy.random import default_rng
-from skspatial.objects import Line, Plane
 
 
 class FiberModel:
@@ -95,20 +94,6 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
             fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
 
     return fiber_system
-
-
-def cartesian_to_spherical(x, y, z):
-    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    theta = np.arctan2(y, x)
-    phi = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
-    return r, theta, phi
-
-
-def spherical_to_cartesian(r, theta, phi):
-    x = r * np.sin(phi) * np.cos(theta)
-    y = r * np.sin(phi) * np.sin(theta)
-    z = r * np.cos(phi)
-    return x, y, z
 
 
 def rot(mu, n, alpha):

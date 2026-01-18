@@ -54,6 +54,7 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     cos_angle = np.dot(v1, v2) / (l1 * l2)
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
 
+
 def normalized(v: np.ndarray):
     """
     normalizes a vector and returns both the original length and the normalized vector
@@ -68,4 +69,46 @@ def normalized(v: np.ndarray):
     if np.linalg.norm(v) == 0:
         return 0, v
     v_length = np.linalg.norm(v)
-    return v_length, v/v_length
+    return v_length, v / v_length
+
+
+def cartesian_to_spherical(x, y, z):
+    """
+    transform cartesian coordinates to spherical coordinates
+
+    Attributes
+    ---------------------
+    :param x: float
+        cartesian x coordinate
+    :param y: float
+        cartesian y coordinate
+    :param z: float
+        cartesian z coordinate
+    :return: float, float, float
+        radius, theta angle, phi angle in radian
+    """
+    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    theta = np.arctan2(y, x)
+    phi = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
+    return r, theta, phi
+
+
+def spherical_to_cartesian(r, theta, phi):
+    """
+    transform spherical coordinates (in radian) to cartesian coordinates
+
+    Attributes
+    ---------------------
+    :param r: float
+        radius
+    :param theta: float
+        polar theta angle
+    :param phi: float
+        polar phi angle
+    :return: float, float, float
+        cartesian coordinates
+    """
+    x = r * np.sin(phi) * np.cos(theta)
+    y = r * np.sin(phi) * np.sin(theta)
+    z = r * np.cos(phi)
+    return x, y, z

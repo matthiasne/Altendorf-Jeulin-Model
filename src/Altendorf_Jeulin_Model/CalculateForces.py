@@ -1,10 +1,8 @@
-import math
-
 import numpy as np
 from skspatial.objects import Line, Plane
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between, normalized
+from Altendorf_Jeulin_Model.utils import periodic_distance, normalized
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 
 MIN_REPULSION_DISTANCE = 5
@@ -109,13 +107,15 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
         # calculate repulsion forces
         if (ball.fiber_label != ball2.fiber_label
                 or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
-            dist, dir = periodic_distance(ball.coordinate, ball2.coordinate, grid.image_size) #TODO in add_repulsion_force ziehen
+            dist, dir = periodic_distance(ball.coordinate, ball2.coordinate,
+                                          grid.image_size)  # TODO in add_repulsion_force ziehen
             add_repulsion_force(ball, ball2, dist, dir)
     # compare with neighbor cells
     cell_index_ball = grid.get_cell_index_of_coord(ball.coordinate)
     neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
-        cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1]*grid.division[0]
+        cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1] * \
+                           grid.division[0]
         cell = grid.cells[cell_index_short]
         for ball2 in cell:
             if (ball.fiber_label != ball2.fiber_label or
@@ -148,7 +148,7 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
         neighbor.overlap = max(neighbor.overlap, overlap)
 
 
-def add_recover_force(ball: Ball, force: np.ndarray, dist:float):
+def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
     """
     Adds a recovery force to a ball
 
@@ -162,7 +162,8 @@ def add_recover_force(ball: Ball, force: np.ndarray, dist:float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
-def add_spring_force(ball: Ball, force: np.ndarray, dist:float):
+
+def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
     """
     Adds a recovery force to a ball
 
@@ -176,7 +177,8 @@ def add_spring_force(ball: Ball, force: np.ndarray, dist:float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
-def add_angle_force(ball: Ball, force: np.ndarray, angle_diff:float):
+
+def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
     """
     Adds a recovery force to a ball
 
@@ -237,10 +239,10 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     dist_is, dir = normalized(ball2.coordinate - ball1.coordinate)
     # distance to next ball is currently always radius
     # - may need to adapt for different random walks
-    dist_should = ball1.radius/2.0 if is_next else ball2.radius/2.0 #TODO
+    dist_should = ball1.radius / 2.0 if is_next else ball2.radius / 2.0  # TODO
     dist_displaced = dist_is - dist_should
     ratio_displaced = abs(dist_displaced) / dist_should
-    #ratio_displaced = dist_displaced / dist_should
+    # ratio_displaced = dist_displaced / dist_should
     # smoothing_factor
     s_f = smoothing_factor(ratio_displaced, X_S, X_E)
     # add to recoverforce
@@ -283,16 +285,17 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
-        z0 = (h1 + h2 - np.sqrt((h1 + h2)**2 + 4*h1*h2*np.tan(alpha0)**2))/(2*np.tan(alpha0))
+        z0 = (h1 + h2 - np.sqrt((h1 + h2) ** 2 + 4 * h1 * h2 * np.tan(alpha0) ** 2)) / (2 * np.tan(alpha0))
     else:
         z0 = (h1 + h2 + np.sqrt((h1 + h2) ** 2 + 4 * h1 * h2 * np.tan(alpha0) ** 2)) / (2 * np.tan(alpha0))
 
     # calculate force
     _, force_dir = normalized(m - ball.coordinate)
-    f = smoothing_factor(alpha0  - alpha, ALPHA_S, ALPHA_E)
-    force = f*(z - z0)*force_dir/2.
+    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)
+    force = f * (z - z0) * force_dir / 2.
 
     add_angle_force(ball, force, alpha0 - alpha)
+
 
 def apply_forces(fiber_system: list[Fiber]):
     """
@@ -312,5 +315,5 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.coordinate = new_coord
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
-            ball.neighbor_dist = ball.radius/2.
+            ball.neighbor_dist = ball.radius / 2.
             ball.angle_diff = 0

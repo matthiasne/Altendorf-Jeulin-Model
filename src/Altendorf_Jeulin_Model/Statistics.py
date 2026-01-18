@@ -1,10 +1,128 @@
 import Altendorf_Jeulin_Model.Fiber as Fiber
+from Altendorf_Jeulin_Model.utils import normalized, cartesian_to_spherical
 import numpy as np
 
-def mean_radius(fs:list[Fiber]):
+
+def mean_radius(fs: list[Fiber]):
+    """
+    Calculates the mean radius of the fiber system.
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :return: float mean radius
+    """
     mean_radius = np.mean([fiber.get_mean_radius() for fiber in fs])
     return mean_radius
 
-def mean_length(fs:list[Fiber]):
+
+def mean_length(fs: list[Fiber]):
+    """
+    Calculates the mean length of the fiber system.
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :return: float mean length
+    """
     mean_length = np.mean([fiber.get_length() for fiber in fs])
     return mean_length
+
+
+def mean_angle_error(fs: list[Fiber]):
+    """
+    Calculates the mean angle error of the fiber system
+    in comparison to the original fiber system upon generation.
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :return: float mean angle error
+    """
+    angle_errors = []
+
+    for fiber in fs:
+        angles = []
+        balls = fiber.balls
+
+        for i in range(1, len(balls) - 1):
+            ball = balls[i]
+            alpha0 = ball.angle
+            _, dir_prev = normalized(ball.coordinate - balls[i - 1].coordinate)
+            _, dir_next = normalized(balls[i + 1].coordinate - ball.coordinate)
+            alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+            angles.append(abs(alpha - alpha0))
+
+        # angle differences for the current fiber
+        angle_diff = np.mean(angles) if angles else 0
+        angle_errors.append(angle_diff)
+
+    # mean angle error across all fibers
+    return np.mean(angle_errors) if angle_errors else 0
+
+
+def estimate_beta(fs: list[Fiber], beta: float):
+    """
+    Estimates the beta parameter of the Schladitz distribution following Franke et al. 2016
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :param beta: float
+        start value for the beta estimation
+    :return:
+    """
+    accuracy = beta / 100.
+    beta_0 = beta
+    thetas = [
+        cartesian_to_spherical(*fiber.get_direction())[1]
+        for fiber in fs
+    ]
+
+    beta_last = beta_0 + 2 * accuracy
+    beta_next = beta_0
+
+    while abs(beta_next - beta_last) > accuracy:
+        beta_last = beta_next
+        beta_next = beta_last - h(beta_last, thetas) / h_dif(beta_last, thetas)
+    return beta_next
+
+
+def h(beta: float, thetas: list):
+    """
+    helper function for estimate_beta
+
+    Attributes
+    ---------------------
+    :param beta: float
+        last value in the beta estimation
+    :param thetas: list
+        list of polar angle theta of fibers
+    :return:
+    """
+    sum_h = 0
+    for theta in thetas:
+        sum_h += np.cos(theta) ** 2 / (1 + (beta ** 2 - 1) * np.cos(theta) ** 2)
+    return -len(thetas) + 3 * beta ** 2 * sum_h
+
+
+def h_dif(beta: float, thetas: list):
+    """
+    helper function for estimate_beta
+
+    Attributes
+    ---------------------
+    :param beta: float
+        last value in the beta estimation
+    :param thetas: list
+        list of polar angle theta of fibers
+    :return:
+    """
+    sum_h = 0
+    for theta in thetas:
+        sum_h += np.sin(2 * theta) ** 2 / (1 + (beta ** 2 - 1) * np.cos(theta) ** 2) ** 2
+    return 3 / 2 * beta * sum_h
