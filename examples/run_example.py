@@ -25,10 +25,33 @@ def main():
     run_force_biased(fs, image_size, beta)
 
     io.print_fiber_positions(fs, 10)
-    io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
+    #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
     # io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
 
     # io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
+
+
+def test_AJ_setup():
+    # create a fiber system
+    image_size = (100, 100, 100)
+    N = 100
+    L = 50
+    R = 5
+    beta = 1
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=1)
+    run_force_biased(fs, image_size, beta, output_file="results_beta1_1.csv")
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=2)
+    run_force_biased(fs, image_size, beta, output_file="results_beta1_2.csv")
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=3)
+    run_force_biased(fs, image_size, beta, output_file="results_beta1_3.csv")
+
+    beta = 0.1
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=1)
+    run_force_biased(fs, image_size, beta, output_file="results_beta0p1_1.csv")
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=2)
+    run_force_biased(fs, image_size, beta, output_file="results_beta0p1_2.csv")
+    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100, seed=3)
+    run_force_biased(fs, image_size, beta, output_file="results_beta0p1_3.csv")
 
 
 if __name__ == "__main__":

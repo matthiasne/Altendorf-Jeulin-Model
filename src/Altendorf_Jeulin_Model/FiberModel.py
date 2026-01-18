@@ -49,6 +49,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
+        l_fiber_discrete = int(2 * (l_fiber - 2*r_fiber)/r_fiber + 1)
         # 2. Simulate the mean orientation
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)
@@ -56,7 +57,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         theta0 = np.arccos((1 - 2 * u2) / np.sqrt(beta ** 2 - (beta ** 2 - 1) * (1 - 2 * u2) ** 2))
         mu0 = np.array(spherical_to_cartesian(1, theta0, phi0))
         # 3. Simulating a random walk for the fiber system
-        coord = np.zeros((l_fiber, 3))
+        coord = np.zeros((l_fiber_discrete, 3))
         coord[0, 0] = image_size[0] * U.rvs(random_state=rng)
         coord[0, 1] = image_size[1] * U.rvs(random_state=rng)
         coord[0, 2] = image_size[2] * U.rvs(random_state=rng)
@@ -64,7 +65,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
 
         cnt = 1
         mu_old = mu0
-        while cnt < l_fiber:
+        while cnt < l_fiber_discrete:
             kappa_new = np.linalg.norm(kappa1 * mu0 + kappa2 * mu_old)
             mu_new = (kappa1 * mu0 + kappa2 * mu_old) / kappa_new
             vmf = vonmises_fisher(mu_new, kappa_new)
@@ -76,18 +77,18 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
             cnt = cnt + 1
 
         # 4. Adjusting the fibers such that the mean orientation is maintained
-        _, mu_bar = normalized(coord[l_fiber - 1] - coord[0])
+        _, mu_bar = normalized(coord[l_fiber_discrete - 1] - coord[0])
         _, n_axis = normalized(np.cross(mu0, mu_bar))
         alpha = np.arccos(np.dot(mu0, mu_bar))
 
-        for j in range(1, l_fiber):
+        for j in range(1, l_fiber_discrete):
             if alpha > 0:
                 coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
 
         # saving balls in fiber_system
-        for j in range(1, l_fiber):
+        for j in range(1, l_fiber_discrete):
             angle = np.pi
-            if j < l_fiber - 1:
+            if j < l_fiber_discrete - 1:
                 _, dir_prev = normalized(coord[j] - coord[j - 1])
                 _, dir_next = normalized(coord[j + 1] - coord[j])
                 angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))

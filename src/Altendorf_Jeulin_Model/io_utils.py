@@ -1,4 +1,4 @@
-import tifffile
+import tifffile, csv
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
@@ -155,3 +155,11 @@ def print_grid(grid: sh):
                           f" {ball.coordinate[1]:.2f}, {ball.coordinate[2]:.2f}]"
                           for ball in cell)
         print("Cell ", i, ":", coords)
+
+
+def print_stats(output_file: str, rows):
+    with open(output_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Step', '#Fibers', 'Beta', 'EstimatedBeta', 'MeanRadius', 'MeanLength', 'MeanAngleError',
+                         'MaxOverlap', 'ForceStrength'])  # Header
+        writer.writerows(rows)
