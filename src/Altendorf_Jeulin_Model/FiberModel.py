@@ -79,11 +79,13 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         # 4. Adjusting the fibers such that the mean orientation is maintained
         _, mu_bar = normalized(coord[l_fiber_discrete - 1] - coord[0])
         _, n_axis = normalized(np.cross(mu0, mu_bar))
-        alpha = np.arccos(np.dot(mu0, mu_bar))
+        alpha = 2*np.pi - np.arccos(np.dot(mu0, mu_bar))
 
         for j in range(1, l_fiber_discrete):
             if alpha > 0:
                 coord[j] = coord[0] + rot(coord[j] - coord[0], n_axis, alpha)
+        _, mu_bar2 = normalized(coord[l_fiber_discrete - 1] - coord[0])
+        #print("mu0 ", mu0, " mubar ", mu_bar, " mubar2 ", mu_bar2)
 
         # saving balls in fiber_system
         for j in range(1, l_fiber_discrete):
