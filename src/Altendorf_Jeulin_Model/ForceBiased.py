@@ -29,7 +29,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
+    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+                                                                          max_step_size=max_radius/2)
     print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs), " beta estimate ", estimate_beta(fs, beta))
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
@@ -39,7 +40,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
+        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+                                                                              max_step_size=max_radius/2)
         print("step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
               " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
               mean_length(fs),

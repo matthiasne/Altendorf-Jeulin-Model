@@ -8,8 +8,8 @@ def main():
     # create a fiber system
     print("This is the Altendorf-Jeulin model")
     image_size = (200, 200, 200)
-    N = 100
-    L = poisson(35)
+    N = 50
+    L = poisson(120)
     R = uniform(loc=4, scale=1)
     beta = 1
     fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100)
@@ -17,8 +17,8 @@ def main():
     # output fiber system
     print("We generated the following fibers")
     io.print_fiber_positions(fs, 10)
-    # io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
-    # io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
+    #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
+    io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
 
     # io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
 
@@ -26,7 +26,7 @@ def main():
 
     io.print_fiber_positions(fs, 10)
     #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
-    # io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
+    io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
 
     # io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
 
@@ -55,4 +55,4 @@ def test_AJ_setup():
 
 
 if __name__ == "__main__":
-    main()
+    test_AJ_setup()

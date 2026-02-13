@@ -10,9 +10,10 @@ X_S = 0.05
 X_E = 0.1
 ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
+TAU = 0.25
 
 
-def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
+def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: float = 0.2):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -29,10 +30,9 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], rho: float = 0.2):
     :return: np.ndarray
         total force of the fiber system
     """
-
     for cell in grid.cells:
         for i, ball in enumerate(cell):
-            calculate_repulsion_force(i, ball, cell, grid)
+            calculate_repulsion_force(i, ball, cell, grid, max_step_size)
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
             if (i + 1 < len(fiber.balls)):
@@ -86,7 +86,7 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
     return np.linalg.norm(total_force), total_overlap
 
 
-def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
+def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, max_step_size):
     """
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball
@@ -109,7 +109,7 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
                 or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
             dist, dir = periodic_distance(ball.coordinate, ball2.coordinate,
                                           grid.image_size)  # TODO in add_repulsion_force ziehen
-            add_repulsion_force(ball, ball2, dist, dir)
+            add_repulsion_force(ball, ball2, dist, dir, max_step_size)
     # compare with neighbor cells
     cell_index_ball = grid.get_cell_index_of_coord(ball.coordinate)
     neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
@@ -121,10 +121,10 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh):
             if (ball.fiber_label != ball2.fiber_label or
                     abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
                 dist, dir = periodic_distance(ball.coordinate, ball2.coordinate, grid.image_size)
-                add_repulsion_force(ball, ball2, dist, dir)
+                add_repulsion_force(ball, ball2, dist, dir, max_step_size)
 
 
-def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray):
+def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray, max_step_size: float):
     """
     Adds repulsion force to the balls it applies to
 
@@ -138,13 +138,16 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
         The periodic distance between the balls
     :param dir: np.ndarray
         The direction vector of the periodic distance
+    :param max_step_size: float
+        discretization parameter from MAVIlib (??)
     """
+    #doesOverlap = (dist - ball.radius - neighbor.radius - max_step_size < 0)
     doesOverlap = (dist - ball.radius - neighbor.radius < 0)
     if doesOverlap:
         overlap = abs(dist - ball.radius - neighbor.radius)
-        ball.force = ball.force - overlap / 2.0 * dir
+        ball.force = ball.force - TAU*overlap / 2.0 * dir
         ball.overlap = max(ball.overlap, overlap)
-        neighbor.force = neighbor.force + overlap / 2.0 * dir
+        neighbor.force = neighbor.force + TAU*overlap / 2.0 * dir
         neighbor.overlap = max(neighbor.overlap, overlap)
 
 
@@ -292,7 +295,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     # calculate force
     _, force_dir = normalized(m - ball.coordinate)
     f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)
-    force = f * (z - z0) * force_dir / 2.
+    force = rho*f * (z - z0) * force_dir / 2.
 
     add_angle_force(ball, force, alpha0 - alpha)
 
