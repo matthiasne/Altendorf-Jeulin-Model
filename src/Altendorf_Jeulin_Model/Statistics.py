@@ -1,5 +1,5 @@
 import Altendorf_Jeulin_Model.Fiber as Fiber
-from Altendorf_Jeulin_Model.utils import normalized, cartesian_to_spherical
+from Altendorf_Jeulin_Model.utils import normalized, cartesian_to_spherical, discretize_spheres
 import numpy as np
 
 
@@ -126,3 +126,31 @@ def h_dif(beta: float, thetas: list):
     for theta in thetas:
         sum_h += np.sin(2 * theta) ** 2 / (1 + (beta ** 2 - 1) * np.cos(theta) ** 2) ** 2
     return 3 / 2 * beta * sum_h
+
+def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int]):
+    """
+    calculates the volume fraction of the fiber system in an image
+
+    Attributes
+    ---------------------
+    :param fiber_system: list[Fiber]
+        the fiber system
+    :param shape: tuple[int, int, int]
+        the shape of the image
+    :return: float
+        the volume fraction of the fiber system
+    """
+    coords = []
+    radii = []
+    for fiber in fiber_system:
+        for ball in fiber.balls:
+            coords.append(ball.coordinate)
+            radii.append(ball.radius)
+    coords = np.array(coords)
+    radii = np.array(radii)
+
+    min_coordinates = np.array([0, 0, 0])
+    max_coordinates = np.array(shape)
+
+    image = discretize_spheres(coords, radii, min_coordinates, max_coordinates)
+    return np.mean(image)

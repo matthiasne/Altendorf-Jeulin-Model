@@ -2,7 +2,7 @@ import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import numpy as np
 from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
-from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length, mean_angle_error, estimate_beta
+from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length, mean_angle_error, estimate_beta, volume_fraction
 from Altendorf_Jeulin_Model.io_utils import print_stats
 
 MAX_STEPS = 1000
@@ -22,7 +22,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
     :param image_size: tuple[int, int, int]
     """
     rows = []
-    rows.append([0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs), 'NaN', 'NaN'])
+    rows.append([0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+                 volume_fraction(fs, image_size),'NaN', 'NaN'])
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
     min_radius = min(fiber.get_max_radius() for fiber in fs)
@@ -31,7 +32,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
     grid.add_fiber_system(fs)
     force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
                                                                           max_step_size=max_radius/2)
-    print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs), " beta estimate ", estimate_beta(fs, beta))
+    print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs), " beta estimate ", estimate_beta(fs, beta),
+          " volume fraction ", volume_fraction(fs, image_size))
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(1, MAX_STEPS):
@@ -44,11 +46,11 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
                                                                               max_step_size=max_radius/2)
         print("step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
               " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
-              mean_length(fs),
+              mean_length(fs), " volume fraction ", volume_fraction(fs, image_size),
               " beta estimate ", estimate_beta(fs, beta))
         rows.append(
-            [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs), overlap,
-             force_strength])
+            [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+             volume_fraction(fs, image_size), overlap, force_strength])
 
     if use_end_step_radius:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)

@@ -112,3 +112,50 @@ def spherical_to_cartesian(r, theta, phi):
     y = r * np.sin(phi) * np.sin(theta)
     z = r * np.cos(phi)
     return x, y, z
+
+def discretize_spheres(coordinates: np.ndarray, radii: np.ndarray,
+                       min_coordinates: np.ndarray, max_coordinates: np.ndarray):
+    """
+    discretizes spheres to an image
+    :param coordinates: np.ndarray
+        sphere coordinates
+    :param radii: np.ndarray
+        sphere radii
+    :param min_coordinates: np.ndarray
+        smallest cooridnate of spheres
+    :param max_coordinates: np.ndarray
+        largest cooridnate of spheres
+    :return: np.ndarray
+        image containing spheres
+    """
+    L = max_coordinates - min_coordinates
+    coordinates = coordinates - min_coordinates
+    image = np.zeros(L, 'uint16')
+
+    for iota in range(len(coordinates)):
+        r_square = radii[iota]**2
+        for i in range(int(coordinates[iota, 0] - radii[iota]) - 1, int(coordinates[iota, 0] + radii[iota]) + 1):
+            i_corr = i
+            if i < 0:
+                i_corr = L[0] + i
+            if i >= L[0]:
+                i_corr = i - L[0]
+            delta_i = (i - coordinates[iota, 0])**2
+            for j in range(int(coordinates[iota, 1] - radii[iota]) - 1, int(coordinates[iota, 1] + radii[iota]) + 1):
+                j_corr = j
+                if j < 0:
+                    j_corr = L[1] + j
+                if j >= L[1]:
+                    j_corr = j - L[1]
+                delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
+                for k in range(int(coordinates[iota, 2] - radii[iota]) - 1, int(coordinates[iota, 2] + radii[iota]) + 1):
+                    k_corr = k
+                    if k < 0:
+                        k_corr = L[2] + k
+                    if k >= L[2]:
+                        k_corr = k - L[2]
+                    delta_ijk = delta_ij + (k - coordinates[iota, 2]) ** 2
+                    if delta_ijk <= r_square:
+                        image[i_corr, j_corr, k_corr] = 1
+    return image
+

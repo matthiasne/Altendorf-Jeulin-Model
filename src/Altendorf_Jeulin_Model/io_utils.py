@@ -1,6 +1,7 @@
 import tifffile, csv
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Fiber
+from Altendorf_Jeulin_Model.utils import discretize_spheres
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 
@@ -25,7 +26,6 @@ def print_fiber_positions(fiber_system: FiberModel,
                           for ball in fiber.balls[:max_balls])
         print("Fiber ", i, ":", coords)
 
-
 def save_fibers_as_tif(fiber_system: list[Fiber],
                        shape: tuple[int, int, int] = (64, 64, 64),
                        path: str = "spheres.tif"):
@@ -41,20 +41,20 @@ def save_fibers_as_tif(fiber_system: list[Fiber],
     :param path: string optional
         The path where the tif image will be saved
     """
-    volume = np.zeros(shape, dtype=np.uint8)
-    for i, fiber in enumerate(fiber_system):
+    coords = []
+    radii = []
+    for fiber in fiber_system:
         for ball in fiber.balls:
-            # create mesh grid
-            x = np.arange(shape[2])
-            y = np.arange(shape[1])
-            z = np.arange(shape[0])
-            X, Y, Z = np.meshgrid(x, y, z, indexing='xy')
+            coords.append(ball.coordinate)
+            radii.append(ball.radius)
+    coords = np.array(coords)
+    radii = np.array(radii)
 
-            # set pixels inside sphere to 255 (white)
-            x0, y0, z0 = ball.coordinate
-            dist = np.sqrt((X - x0) ** 2 + (Y - y0) ** 2 + (Z - z0) ** 2)
-            volume[dist <= ball.radius] = 255
-    tifffile.imwrite(path, volume)
+    min_coordinates = np.array([0, 0, 0])
+    max_coordinates = np.array(shape)
+
+    image = discretize_spheres(coords, radii, min_coordinates, max_coordinates)
+    tifffile.imwrite(path, image, photometric='minisblack')
 
 
 def plot_fibers_in_2D(fiber_system: list[Fiber],
@@ -161,5 +161,5 @@ def print_stats(output_file: str, rows):
     with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Step', '#Fibers', 'Beta', 'EstimatedBeta', 'MeanRadius', 'MeanLength', 'MeanAngleError',
-                         'MaxOverlap', 'ForceStrength'])  # Header
+                         'VolumeFraction', 'MaxOverlap', 'ForceStrength'])  # Header
         writer.writerows(rows)
