@@ -49,7 +49,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
-        l_fiber_discrete = int(2 * (l_fiber - 2*r_fiber)/r_fiber + 1)
+        l_fiber_discrete = int(2*l_fiber/r_fiber + 1)
         # 2. Simulate the mean orientation
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)

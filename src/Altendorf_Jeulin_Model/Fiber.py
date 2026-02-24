@@ -60,14 +60,14 @@ class Fiber:
 
     def get_length(self):
         length = 0
-        for i in range(0, len(self.balls)):
-            if i == 0:
-                length += self.balls[0].radius
-                length += self.balls[-1].radius
-            else:
-                coord = self.balls[i].coordinate
-                prev_coord = self.balls[i - 1].coordinate
-                length += np.linalg.norm(coord - prev_coord)
+        for i in range(1, len(self.balls)):
+            #if i == 0:
+            #    length += self.balls[0].radius
+            #    length += self.balls[-1].radius
+            #else:
+            coord = self.balls[i].coordinate
+            prev_coord = self.balls[i - 1].coordinate
+            length += np.linalg.norm(coord - prev_coord)
         return length
 
     def get_direction(self):
