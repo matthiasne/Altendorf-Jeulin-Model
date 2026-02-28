@@ -96,7 +96,7 @@ class SpatialHashing:
         return neighbor_cells
 
     @profile
-    def get_younger_neighbor_cell_indices(self, index: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    def get_younger_neighbor_cell_indices(self, index: tuple[int, int, int]):
         """
         Gets the indices of all neighboring cells
         :param index: tuple[int, int, int]
@@ -104,16 +104,13 @@ class SpatialHashing:
         :return: list[tuple[int, int, int]]
             The list of neighbor cells (indices)
         """
-        if not self._in_bounds(index):
-            raise ValueError(f"Index {index} outside of bounds")
 
-        neighbor_cells: list[tuple[int, int, int]] = []
+        neighbor_cells = set()
         for di, dj, dk in product((-1, 0, 1), repeat=3):
             if (di, dj, dk) < (0, 0, 0):
-                neighbor = ((index[0] + di) % self.division[0], (index[1] + dj) % self.division[1],
-                            (index[2] + dk) % self.division[2])
-                if self._in_bounds(neighbor) and neighbor not in neighbor_cells:
-                    neighbor_cells.append(neighbor)
+                neighbor = ((index[0] + di) % self.division[0] + ((index[1] + dj) % self.division[1])*self.division[0]
+                            + ((index[2] + dk) % self.division[2])*self.division[0]*self.division[1])
+                neighbor_cells.add(neighbor)
         return neighbor_cells
 
     @profile

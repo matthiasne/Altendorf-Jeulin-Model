@@ -106,6 +106,7 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ma
     """
     # compare within cell
     image_size = np.asarray(grid.image_size, dtype=float)
+    coord2mod = np.empty_like(image_size)
     coord = ball.coordinate%image_size
     label = ball.ball_label
     fiber_label = ball.fiber_label
@@ -113,23 +114,54 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ma
         # calculate repulsion forces
         if (fiber_label != ball2.fiber_label
                 or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
-            dist, dir = periodic_distance(coord, ball2.coordinate, image_size)  # TODO in add_repulsion_force ziehen
-            add_repulsion_force(ball, ball2, dist, dir, max_step_size)
+            np.mod(ball2.coordinate, image_size, out=coord2mod)
+
+            for i in range(3):
+                disp = coord2mod[i] - coord[i]
+                if abs(disp) > image_size[i] / 2.:
+                    if disp > 0:
+                        coord2mod[i] -= image_size[i]
+                    else:
+                        coord2mod[i] += image_size[i]
+                coord2mod[i] -= coord[i]
+            dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
+            overlap = ball.radius + ball2.radius - dist
+            if overlap > 0:
+                coord2mod = coord2mod / dist
+                ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
+                ball.overlap = max(ball.overlap, overlap)
+                ball2.force = ball2.force + TAU * overlap / 2.0 * coord2mod
+                ball2.overlap = max(ball2.overlap, overlap)
+
     # compare with neighbor cells
     cell_index_ball = grid.get_cell_index_of_coord(coord)
     neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
-        cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1] * \
-                           grid.division[0]
-        cell = grid.cells[cell_index_short]
+        cell = grid.cells[cell_index]
         for ball2 in cell:
             if (fiber_label != ball2.fiber_label or
                     abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
-                dist, dir = periodic_distance(coord, ball2.coordinate, image_size)
-                add_repulsion_force(ball, ball2, dist, dir, max_step_size)
+                np.mod(ball2.coordinate, image_size, out=coord2mod)
+
+                for i in range(3):
+                    disp = coord2mod[i] - coord[i]
+                    if abs(disp) > image_size[i] / 2.:
+                        if disp > 0:
+                            coord2mod[i] -= image_size[i]
+                        else:
+                            coord2mod[i] += image_size[i]
+                    coord2mod[i] -= coord[i]
+                dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
+                overlap = ball.radius + ball2.radius - dist
+                if overlap > 0:
+                    coord2mod = coord2mod / dist
+                    ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
+                    ball.overlap = max(ball.overlap, overlap)
+                    ball2.force = ball2.force + TAU * overlap / 2.0 * coord2mod
+                    ball2.overlap = max(ball2.overlap, overlap)
 
 @profile
-def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray, max_step_size: float):
+def add_repulsion_force(ball: Ball, neighbor: Ball, coord1mod, image_size):
     """
     Adds repulsion force to the balls it applies to
 
@@ -146,15 +178,23 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
     :param max_step_size: float
         discretization parameter from MAVIlib (??)
     """
-    #doesOverlap = (dist - ball.radius - neighbor.radius - max_step_size < 0)
+    coord2mod = neighbor.coordinate % image_size
+
+    for i in range(3):
+        disp = coord2mod[i] - coord1mod[i]
+        if abs(disp) > image_size[i] / 2.:
+            if disp > 0:
+                coord2mod[i] -= image_size[i]
+            else:
+                coord2mod[i] += image_size[i]
+        coord2mod[i] -= coord1mod[i]
+    dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
     overlap = ball.radius + neighbor.radius - dist
-    #doesOverlap = (overlap < 0)
     if overlap > 0:
-        #overlap = abs(dist - ball.radius - neighbor.radius)
-        dir = dir/dist
-        ball.force = ball.force - TAU*overlap / 2.0 * dir
+        coord2mod = coord2mod/dist
+        ball.force = ball.force - TAU*overlap / 2.0 * coord2mod
         ball.overlap = max(ball.overlap, overlap)
-        neighbor.force = neighbor.force + TAU*overlap / 2.0 * dir
+        neighbor.force = neighbor.force + TAU*overlap / 2.0 * coord2mod
         neighbor.overlap = max(neighbor.overlap, overlap)
 
 @profile
