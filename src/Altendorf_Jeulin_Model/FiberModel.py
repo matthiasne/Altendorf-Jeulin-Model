@@ -45,6 +45,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
     U = uniform(loc=0, scale=1)
 
     fiber_system = [None] * N
+    beta_sq = np.square(beta)
     for i in range(0, N):
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
@@ -54,7 +55,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         u1 = U.rvs(random_state=rng)
         u2 = U.rvs(random_state=rng)
         phi0 = np.pi * 2 * u1
-        theta0 = np.arccos((1 - 2 * u2) / np.sqrt(beta ** 2 - (beta ** 2 - 1) * (1 - 2 * u2) ** 2))
+        theta0 = np.arccos((1 - 2 * u2) / np.sqrt(beta_sq - (beta_sq - 1) * np.square(1 - 2 * u2)))
         mu0 = np.array(spherical_to_cartesian(1, theta0, phi0))
         # 3. Simulating a random walk for the fiber system
         coord = np.zeros((l_fiber_discrete, 3))
@@ -66,8 +67,8 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
         cnt = 1
         mu_old = mu0
         while cnt < l_fiber_discrete:
-            kappa_new = np.linalg.norm(kappa1 * mu0 + kappa2 * mu_old)
-            mu_new = (kappa1 * mu0 + kappa2 * mu_old) / kappa_new
+            mu_new = (kappa1 * mu0 + kappa2 * mu_old)
+            kappa_new, mu_new = normalized(mu_new)
             vmf = vonmises_fisher(mu_new, kappa_new)
 
             direction = vmf.rvs(random_state=rng)[0]

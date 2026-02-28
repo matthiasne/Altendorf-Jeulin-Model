@@ -2,6 +2,7 @@ from math import floor, ceil
 from itertools import product
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
+from line_profiler import profile
 
 
 class SpatialHashing:
@@ -22,6 +23,7 @@ class SpatialHashing:
         The cell size in each direction x, y, and z
     """
 
+    @profile
     def __init__(self, image_size: tuple[int, int, int], max_cell_size: int):
         """
         Initializes the SpatialHashing object, i.e. a grid for spatial hashing
@@ -40,6 +42,7 @@ class SpatialHashing:
         self.cells = [[] for _ in range(self.n_cells)]
         self.cell_width = tuple(ceil(size / div) for size, div in zip(image_size, self.division))
 
+    @profile
     def _in_bounds(self, index: tuple[int, int, int]) -> bool:
         """
         test whether an index is within bounds of the SpatialHashing
@@ -53,6 +56,7 @@ class SpatialHashing:
         """
         return all(0 <= c < m for c, m in zip(index, self.division))
 
+    @profile
     def get_cell_index_of_coord(self, position: np.ndarray) -> tuple[int, int, int]:
         """
         gets the cell index of a specific coordinate
@@ -69,6 +73,7 @@ class SpatialHashing:
                    position[2] % self.image_size[2])
         return tuple(floor(coord / width) for coord, width in zip(pos_mod, self.cell_width))
 
+    @profile
     def get_neighbor_cell_indices(self, index: tuple[int, int, int]) -> list[tuple[int, int, int]]:
         """
         Gets the indices of all neighboring cells
@@ -90,6 +95,7 @@ class SpatialHashing:
                 neighbor_cells.append(neighbor)
         return neighbor_cells
 
+    @profile
     def get_younger_neighbor_cell_indices(self, index: tuple[int, int, int]) -> list[tuple[int, int, int]]:
         """
         Gets the indices of all neighboring cells
@@ -110,6 +116,7 @@ class SpatialHashing:
                     neighbor_cells.append(neighbor)
         return neighbor_cells
 
+    @profile
     def add_ball(self, ball: Ball):
         """
         Adds a ball to the SpatialHashing
@@ -124,6 +131,7 @@ class SpatialHashing:
         idx = index[0] + index[1] * self.division[0] + index[2] * self.division[0] * self.division[1]
         self.cells[idx].append(ball)
 
+    @profile
     def add_fiber(self, fiber: Fiber):
         """
         Adds a fiber to the SpatialHashing
@@ -136,6 +144,7 @@ class SpatialHashing:
         for ball in fiber.balls:
             self.add_ball(ball)
 
+    @profile
     def add_fiber_system(self, fiber_system: list[Fiber]):
         """
         Adds a fiber system to the SpatialHashing

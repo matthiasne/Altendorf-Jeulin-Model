@@ -105,9 +105,10 @@ def h(beta: float, thetas: list):
     :return:
     """
     sum_h = 0
+    beta_sq = np.square(beta)
     for theta in thetas:
-        sum_h += np.cos(theta) ** 2 / (1 + (beta ** 2 - 1) * np.cos(theta) ** 2)
-    return -len(thetas) + 3 * beta ** 2 * sum_h
+        sum_h += np.square(np.cos(theta)) / (1 + (beta_sq - 1) * np.square(np.cos(theta)))
+    return -len(thetas) + 3 * beta_sq * sum_h
 
 
 def h_dif(beta: float, thetas: list):
@@ -123,8 +124,9 @@ def h_dif(beta: float, thetas: list):
     :return:
     """
     sum_h = 0
+    beta_sq = np.square(beta)
     for theta in thetas:
-        sum_h += np.sin(2 * theta) ** 2 / (1 + (beta ** 2 - 1) * np.cos(theta) ** 2) ** 2
+        sum_h += np.square(np.sin(2 * theta) / (1 + (beta_sq - 1) * np.square(np.cos(theta))))
     return 3 / 2 * beta * sum_h
 
 def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int]):

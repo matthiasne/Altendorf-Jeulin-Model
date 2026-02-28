@@ -5,6 +5,8 @@ import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.utils import periodic_distance, normalized
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 
+from line_profiler import profile
+
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
 X_E = 0.1
@@ -12,7 +14,7 @@ ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
 TAU = 0.25
 
-
+@profile
 def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: float = 0.2):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
@@ -85,7 +87,7 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
-
+@profile
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, max_step_size):
     """
     Calculates the repulsion force for the whole fiber system
@@ -103,27 +105,30 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ma
         The spatial hashing grid of the mdel
     """
     # compare within cell
+    image_size = np.asarray(grid.image_size, dtype=float)
+    coord = ball.coordinate%image_size
+    label = ball.ball_label
+    fiber_label = ball.fiber_label
     for ball2 in cell[i + 1:]:
         # calculate repulsion forces
-        if (ball.fiber_label != ball2.fiber_label
-                or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
-            dist, dir = periodic_distance(ball.coordinate, ball2.coordinate,
-                                          grid.image_size)  # TODO in add_repulsion_force ziehen
+        if (fiber_label != ball2.fiber_label
+                or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+            dist, dir = periodic_distance(coord, ball2.coordinate, image_size)  # TODO in add_repulsion_force ziehen
             add_repulsion_force(ball, ball2, dist, dir, max_step_size)
     # compare with neighbor cells
-    cell_index_ball = grid.get_cell_index_of_coord(ball.coordinate)
+    cell_index_ball = grid.get_cell_index_of_coord(coord)
     neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
         cell_index_short = cell_index[0] + cell_index[1] * grid.division[0] + cell_index[2] * grid.division[1] * \
                            grid.division[0]
         cell = grid.cells[cell_index_short]
         for ball2 in cell:
-            if (ball.fiber_label != ball2.fiber_label or
-                    abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
-                dist, dir = periodic_distance(ball.coordinate, ball2.coordinate, grid.image_size)
+            if (fiber_label != ball2.fiber_label or
+                    abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+                dist, dir = periodic_distance(coord, ball2.coordinate, image_size)
                 add_repulsion_force(ball, ball2, dist, dir, max_step_size)
 
-
+@profile
 def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray, max_step_size: float):
     """
     Adds repulsion force to the balls it applies to
@@ -142,15 +147,17 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, dist: float, dir: np.ndarray
         discretization parameter from MAVIlib (??)
     """
     #doesOverlap = (dist - ball.radius - neighbor.radius - max_step_size < 0)
-    doesOverlap = (dist - ball.radius - neighbor.radius < 0)
-    if doesOverlap:
-        overlap = abs(dist - ball.radius - neighbor.radius)
+    overlap = ball.radius + neighbor.radius - dist
+    #doesOverlap = (overlap < 0)
+    if overlap > 0:
+        #overlap = abs(dist - ball.radius - neighbor.radius)
+        dir = dir/dist
         ball.force = ball.force - TAU*overlap / 2.0 * dir
         ball.overlap = max(ball.overlap, overlap)
         neighbor.force = neighbor.force + TAU*overlap / 2.0 * dir
         neighbor.overlap = max(neighbor.overlap, overlap)
 
-
+@profile
 def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
     """
     Adds a recovery force to a ball
@@ -165,7 +172,7 @@ def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
-
+@profile
 def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
     """
     Adds a recovery force to a ball
@@ -180,7 +187,7 @@ def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
-
+@profile
 def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
     """
     Adds a recovery force to a ball
@@ -195,7 +202,7 @@ def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
     ball.force = ball.force + force
     ball.angle_diff = angle_diff
 
-
+@profile
 def smoothing_factor(x: float, x_s: float, x_e: float):
     """
     Calculate smoothing factor
@@ -221,7 +228,7 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
         factor = 0.5 * (1 - np.cos(ratio * np.pi))
         return factor
 
-
+@profile
 def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float = 0.2):
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
@@ -252,7 +259,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     spring_force = s_f * rho * dist_displaced * dir
     add_spring_force(ball1, spring_force, dist_is)
 
-
+@profile
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
@@ -288,9 +295,9 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
-        z0 = (h1 + h2 - np.sqrt((h1 + h2) ** 2 + 4 * h1 * h2 * np.tan(alpha0) ** 2)) / (2 * np.tan(alpha0))
+        z0 = (h1 + h2 - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(np.tan(alpha0)))) / (2 * np.tan(alpha0))
     else:
-        z0 = (h1 + h2 + np.sqrt((h1 + h2) ** 2 + 4 * h1 * h2 * np.tan(alpha0) ** 2)) / (2 * np.tan(alpha0))
+        z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(np.tan(alpha0)))) / (2 * np.tan(alpha0))
 
     # calculate force
     _, force_dir = normalized(m - ball.coordinate)
@@ -299,7 +306,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
 
     add_angle_force(ball, force, alpha0 - alpha)
 
-
+@profile
 def apply_forces(fiber_system: list[Fiber]):
     """
     Applies forces to the fiber system

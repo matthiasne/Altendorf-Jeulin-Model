@@ -2,31 +2,39 @@ import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 from scipy.stats import poisson, uniform
+import time
 
 
 def main():
     # create a fiber system
     print("This is the Altendorf-Jeulin model")
-    image_size = (200, 200, 200)
-    N = 50
-    L = poisson(120)
-    R = uniform(loc=4, scale=1)
+    image_size = (100, 100, 100)
+    N = 100
+    L = 50#poisson(120)
+    R = 5#uniform(loc=4, scale=1)
     beta = 1
+
+    start_time = time.time()
     fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
 
     # output fiber system
-    print("We generated the following fibers")
-    io.print_fiber_positions(fs, 10)
+    #print("We generated the following fibers")
+    #io.print_fiber_positions(fs, 10)
     #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres.png")
-    io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
+    #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres_mod.png")
 
     # io.save_fibers_as_tif(fs, path = "examples/outputs/spheres++.png")
-
+    start_time = time.time()
     run_force_biased(fs, image_size, beta)
-
-    io.print_fiber_positions(fs, 10)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+    #io.print_fiber_positions(fs, 10)
     #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
-    io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
+    #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
 
     # io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
 
@@ -55,4 +63,4 @@ def test_AJ_setup():
 
 
 if __name__ == "__main__":
-    test_AJ_setup()
+    main()
