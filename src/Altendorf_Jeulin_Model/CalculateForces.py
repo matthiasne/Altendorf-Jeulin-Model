@@ -2,7 +2,6 @@ import numpy as np
 from skspatial.objects import Line, Plane
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.utils import periodic_distance, normalized
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
 
 from line_profiler import profile
@@ -286,18 +285,21 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
         indicates whether ball2 comes before or after ball1 in the fiber
     """
     # displacement
-    dist_is, dir = normalized(ball2.coordinate - ball1.coordinate)
+    force_dir = ball2.coordinate - ball1.coordinate
+    dist_is = np.sqrt(np.square(force_dir[0]) + np.square(force_dir[1]) + np.square(force_dir[2]))
+
     # distance to next ball is currently always radius
     # - may need to adapt for different random walks
     dist_should = ball1.radius / 2.0 if is_next else ball2.radius / 2.0  # TODO
     dist_displaced = dist_is - dist_should
     ratio_displaced = abs(dist_displaced) / dist_should
-    # ratio_displaced = dist_displaced / dist_should
     # smoothing_factor
-    s_f = smoothing_factor(ratio_displaced, X_S, X_E)
+    s_f = smoothing_factor(ratio_displaced, X_S, X_E) * rho * dist_displaced / dist_is
     # add to recoverforce
-    spring_force = s_f * rho * dist_displaced * dir
-    add_spring_force(ball1, spring_force, dist_is)
+    for i in range(0,3):
+        force_dir[i] = s_f * force_dir[i]
+    ball1.force = ball1.force + force_dir
+    ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
 
 @profile
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
