@@ -319,19 +319,31 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         factor to balance forces, [0, 1]
         default 0.2 from Altendorf&Jeulin 2011
     """
+    coord = ball.coordinate
+    coord_prev = ball_prev.coordinate
+    coord_next = ball_next.coordinate
+    dir_next = np.empty_like(coord)
+    dir_prev = np.empty_like(coord)
+    a = np.empty_like(coord)
+
+
     alpha0 = ball.angle
-    _, dir_prev = normalized(ball.coordinate - ball_prev.coordinate)
-    _, dir_next = normalized(ball_next.coordinate - ball.coordinate)
+    norm_prev = np.sqrt(np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
+    norm_next = np.sqrt(np.square(coord_next[0] - coord[0]) + np.square(coord_next[1] - coord[1]) + np.square(coord_next[2] - coord[2]))
+    for i in range(0,3):
+        dir_next[i] = (coord_next[i] - coord[i]) / norm_next
+        dir_prev[i] = (coord[i] - coord_prev[i]) / norm_prev
+        a[i] = coord_next[i] - coord_prev[i]
     alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
     # m: line cutting plane
-    line = Line(ball_prev.coordinate, direction=ball_next.coordinate - ball_prev.coordinate)
-    plane = Plane(ball.coordinate, normal=ball_prev.coordinate - ball_next.coordinate)
+    line = Line(coord_prev, direction=a)
+    plane = Plane(coord, normal=a)
     m = plane.intersect_line(line)
 
     # z, z0: calculate distances of ball.coordinate to m
-    h1 = np.linalg.norm(m - ball_prev.coordinate)
-    h2 = np.linalg.norm(m - ball_next.coordinate)
-    z = np.linalg.norm(m - ball.coordinate)
+    h1 = np.sqrt(np.square(m[0] - coord_prev[0]) + np.square(m[1] - coord_prev[1]) + np.square(m[2] - coord_prev[2]))
+    h2 = np.sqrt(np.square(m[0] - coord_next[0]) + np.square(m[1] - coord_next[1]) + np.square(m[2] - coord_next[2]))
+    z = np.sqrt(np.square(m[0] - coord[0]) + np.square(m[1] - coord[1]) + np.square(m[2] - coord[2]))
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
@@ -340,11 +352,10 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(np.tan(alpha0)))) / (2 * np.tan(alpha0))
 
     # calculate force
-    _, force_dir = normalized(m - ball.coordinate)
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)
-    force = rho*f * (z - z0) * force_dir / 2.
-
-    add_angle_force(ball, force, alpha0 - alpha)
+    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)/ z*rho * (z - z0)/2.
+    for i in range(0,3):
+        ball.force[i] += (m[i] - coord[i]) * f
+    ball.angle_diff = alpha0 - alpha
 
 @profile
 def apply_forces(fiber_system: list[Fiber]):
