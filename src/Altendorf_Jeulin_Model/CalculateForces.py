@@ -32,8 +32,11 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: fl
         total force of the fiber system
     """
     for cell in grid.cells:
-        for i, ball in enumerate(cell):
-            calculate_repulsion_force(i, ball, cell, grid, max_step_size)
+        if len(cell) > 0:
+            neighbor_cells = grid.get_younger_neighbor_cell_indices(
+                grid.get_cell_index_of_coord(cell[0].coordinate))
+            for i, ball in enumerate(cell):
+                calculate_repulsion_force(i, ball, cell, grid, neighbor_cells)
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
             if (i + 1 < len(fiber.balls)):
@@ -87,7 +90,7 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
     return np.linalg.norm(total_force), total_overlap
 
 @profile
-def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, max_step_size):
+def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells):
     """
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball
@@ -133,8 +136,8 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ma
                 ball2.overlap = max(ball2.overlap, overlap)
 
     # compare with neighbor cells
-    cell_index_ball = grid.get_cell_index_of_coord(coord)
-    neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
+    #cell_index_ball = grid.get_cell_index_of_coord(coord)
+    #neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
