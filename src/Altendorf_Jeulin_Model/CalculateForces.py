@@ -330,23 +330,30 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     dir_next = np.empty_like(coord)
     dir_prev = np.empty_like(coord)
     a = np.empty_like(coord)
-
+    m = np.empty_like(coord)
 
     alpha0 = ball.angle
     norm_prev = np.sqrt(np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
     norm_next = np.sqrt(np.square(coord_next[0] - coord[0]) + np.square(coord_next[1] - coord[1]) + np.square(coord_next[2] - coord[2]))
+    norm_a = np.sqrt(
+        np.square(coord_next[0] - coord_prev[0]) + np.square(coord_next[1] - coord_prev[1]) + np.square(coord_next[2] - coord_prev[2]))
     for i in range(0,3):
         dir_next[i] = (coord_next[i] - coord[i]) / norm_next
-        dir_prev[i] = (coord[i] - coord_prev[i]) / norm_prev
-        a[i] = coord_next[i] - coord_prev[i]
-    alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+        dir_prev[i] = (coord[i] - coord_prev[i])# / norm_prev
+        a[i] = (coord_next[i] - coord_prev[i])/norm_a
+
     # m: line cutting plane
-    line = Line(coord_prev, direction=a)
-    plane = Plane(coord, normal=a)
-    m = plane.intersect_line(line)
+    #line = Line(coord_prev, direction=a)
+    #plane = Plane(coord, normal=a)
+    #m = plane.intersect_line(line)
+    d = dir_prev[0]*a[0] + dir_prev[1]*a[1] + dir_prev[2]*a[2]
+    for i in range(0,3):
+        dir_prev[i] = dir_prev[i] / norm_prev
+        m[i] = coord_prev[i] + d*a[i]
+    alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
 
     # z, z0: calculate distances of ball.coordinate to m
-    h1 = np.sqrt(np.square(m[0] - coord_prev[0]) + np.square(m[1] - coord_prev[1]) + np.square(m[2] - coord_prev[2]))
+    h1 = d
     h2 = np.sqrt(np.square(m[0] - coord_next[0]) + np.square(m[1] - coord_next[1]) + np.square(m[2] - coord_next[2]))
     z = np.sqrt(np.square(m[0] - coord[0]) + np.square(m[1] - coord[1]) + np.square(m[2] - coord[2]))
 
