@@ -1,10 +1,8 @@
 import numpy as np
-from skspatial.objects import Line, Plane
+from line_profiler import profile
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
-
-from line_profiler import profile
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
@@ -12,6 +10,7 @@ X_E = 0.1
 ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
 TAU = 0.25
+
 
 @profile
 def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: float = 0.2):
@@ -89,6 +88,7 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
+
 @profile
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells):
     """
@@ -109,7 +109,7 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
     # compare within cell
     image_size = np.asarray(grid.image_size, dtype=float)
     coord2mod = np.empty_like(image_size)
-    coord = ball.coordinate%image_size
+    coord = ball.coordinate % image_size
     label = ball.ball_label
     fiber_label = ball.fiber_label
     for ball2 in cell[i + 1:]:
@@ -136,8 +136,8 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
                 ball2.overlap = max(ball2.overlap, overlap)
 
     # compare with neighbor cells
-    #cell_index_ball = grid.get_cell_index_of_coord(coord)
-    #neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
+    # cell_index_ball = grid.get_cell_index_of_coord(coord)
+    # neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
@@ -157,10 +157,12 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
                 overlap = ball.radius + ball2.radius - dist
                 if overlap > 0:
                     coord2mod = coord2mod / dist
-                    ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
+                    force = TAU * overlap / 2.0 * coord2mod
+                    ball.force = ball.force - force
                     ball.overlap = max(ball.overlap, overlap)
-                    ball2.force = ball2.force + TAU * overlap / 2.0 * coord2mod
+                    ball2.force = ball2.force + force
                     ball2.overlap = max(ball2.overlap, overlap)
+
 
 @profile
 def add_repulsion_force(ball: Ball, neighbor: Ball, coord1mod, image_size):
@@ -193,11 +195,12 @@ def add_repulsion_force(ball: Ball, neighbor: Ball, coord1mod, image_size):
     dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
     overlap = ball.radius + neighbor.radius - dist
     if overlap > 0:
-        coord2mod = coord2mod/dist
-        ball.force = ball.force - TAU*overlap / 2.0 * coord2mod
+        coord2mod = coord2mod / dist
+        ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
         ball.overlap = max(ball.overlap, overlap)
-        neighbor.force = neighbor.force + TAU*overlap / 2.0 * coord2mod
+        neighbor.force = neighbor.force + TAU * overlap / 2.0 * coord2mod
         neighbor.overlap = max(neighbor.overlap, overlap)
+
 
 @profile
 def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
@@ -214,6 +217,7 @@ def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
+
 @profile
 def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
     """
@@ -229,6 +233,7 @@ def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
     ball.force = ball.force + force
     ball.neighbor_dist = max(ball.neighbor_dist, dist)
 
+
 @profile
 def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
     """
@@ -243,6 +248,7 @@ def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
     """
     ball.force = ball.force + force
     ball.angle_diff = angle_diff
+
 
 @profile
 def smoothing_factor(x: float, x_s: float, x_e: float):
@@ -266,9 +272,10 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
     elif x > x_e:
         return 1
     else:
-        ratio = (abs(x) - x_s) / (x_e - x_s)
+        ratio = (x - x_s) / (x_e - x_s)
         factor = 0.5 * (1 - np.cos(ratio * np.pi))
         return factor
+
 
 @profile
 def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float = 0.2):
@@ -299,10 +306,11 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     # smoothing_factor
     s_f = smoothing_factor(ratio_displaced, X_S, X_E) * rho * dist_displaced / dist_is
     # add to recoverforce
-    for i in range(0,3):
+    for i in range(0, 3):
         force_dir[i] = s_f * force_dir[i]
     ball1.force = ball1.force + force_dir
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
+
 
 @profile
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
@@ -333,41 +341,45 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     m = np.empty_like(coord)
 
     alpha0 = ball.angle
-    norm_prev = np.sqrt(np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
-    norm_next = np.sqrt(np.square(coord_next[0] - coord[0]) + np.square(coord_next[1] - coord[1]) + np.square(coord_next[2] - coord[2]))
+    norm_prev = np.sqrt(
+        np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
+    norm_next = np.sqrt(
+        np.square(coord_next[0] - coord[0]) + np.square(coord_next[1] - coord[1]) + np.square(coord_next[2] - coord[2]))
     norm_a = np.sqrt(
-        np.square(coord_next[0] - coord_prev[0]) + np.square(coord_next[1] - coord_prev[1]) + np.square(coord_next[2] - coord_prev[2]))
-    for i in range(0,3):
+        np.square(coord_next[0] - coord_prev[0]) + np.square(coord_next[1] - coord_prev[1]) + np.square(
+            coord_next[2] - coord_prev[2]))
+    for i in range(0, 3):
         dir_next[i] = (coord_next[i] - coord[i]) / norm_next
-        dir_prev[i] = (coord[i] - coord_prev[i])# / norm_prev
-        a[i] = (coord_next[i] - coord_prev[i])/norm_a
+        dir_prev[i] = (coord[i] - coord_prev[i])  # / norm_prev
+        a[i] = (coord_next[i] - coord_prev[i]) / norm_a
 
     # m: line cutting plane
-    #line = Line(coord_prev, direction=a)
-    #plane = Plane(coord, normal=a)
-    #m = plane.intersect_line(line)
-    d = dir_prev[0]*a[0] + dir_prev[1]*a[1] + dir_prev[2]*a[2]
-    for i in range(0,3):
+    # line = Line(coord_prev, direction=a)
+    # plane = Plane(coord, normal=a)
+    # m = plane.intersect_line(line)
+    d = dir_prev[0] * a[0] + dir_prev[1] * a[1] + dir_prev[2] * a[2]
+    for i in range(0, 3):
         dir_prev[i] = dir_prev[i] / norm_prev
-        m[i] = coord_prev[i] + d*a[i]
+        m[i] = coord_prev[i] + d * a[i]
     alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
 
     # z, z0: calculate distances of ball.coordinate to m
-    h1 = d
+    h1 = abs(d)
     h2 = np.sqrt(np.square(m[0] - coord_next[0]) + np.square(m[1] - coord_next[1]) + np.square(m[2] - coord_next[2]))
     z = np.sqrt(np.square(m[0] - coord[0]) + np.square(m[1] - coord[1]) + np.square(m[2] - coord[2]))
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
-        z0 = (h1 + h2 - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(np.tan(alpha0)))) / (2 * np.tan(alpha0))
+        z0 = (h1 + h2 - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0))) / (2 * tan_alpha0)
     else:
-        z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(np.tan(alpha0)))) / (2 * np.tan(alpha0))
+        z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(tan_alpha0))) / (2 * tan_alpha0)
 
     # calculate force
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)/ z*rho * (z - z0)/2.
-    for i in range(0,3):
+    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * rho * (z - z0) / 2.
+    for i in range(0, 3):
         ball.force[i] += (m[i] - coord[i]) * f
     ball.angle_diff = alpha0 - alpha
+
 
 @profile
 def apply_forces(fiber_system: list[Fiber]):
