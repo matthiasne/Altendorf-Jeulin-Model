@@ -1,14 +1,14 @@
-import Altendorf_Jeulin_Model.SpatialHashing as sh
-import Altendorf_Jeulin_Model.Fiber as Fiber
 import numpy as np
-from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
-from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length, mean_angle_error, estimate_beta, volume_fraction
-from Altendorf_Jeulin_Model.io_utils import print_stats
 from line_profiler import profile
 
+import Altendorf_Jeulin_Model.Fiber as Fiber
+import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
+from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length, mean_angle_error, estimate_beta, volume_fraction
 
 MAX_STEPS = 1000
 MAX_OVERLAP = 0.1
+
 
 @profile
 def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
@@ -23,8 +23,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
         the fiber system to be packed
     :param image_size: tuple[int, int, int]
     """
-    #rows = []
-    #rows.append([0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+    # rows = []
+    # rows.append([0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
     #             volume_fraction(fs, image_size),'NaN', 'NaN'])
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
@@ -32,11 +32,10 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
-                                                                          max_step_size=max_radius/2)
-    #print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs), " beta estimate ", estimate_beta(fs, beta),
+    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
+    # print("mean radius ", mean_radius(fs), " mean length ", mean_length(fs), " beta estimate ", estimate_beta(fs, beta),
     #      " volume fraction ", volume_fraction(fs, image_size))
-    #print("We run the force-biased algorithm:")
+    # print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(1, MAX_STEPS):
         if force_strength < end_force_biased and overlap < 0.1 * min_radius:
@@ -44,14 +43,13 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
-                                                                              max_step_size=max_radius/2)
-        if i%100 == 0:
+        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)
+        if i % 100 == 0:
             print("step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
                   " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
                   mean_length(fs), " volume fraction ", volume_fraction(fs, image_size),
                   " beta estimate ", estimate_beta(fs, beta))
-        #rows.append(
+        # rows.append(
         #    [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
         #     volume_fraction(fs, image_size), overlap, force_strength])
     print("iterations ", i)
@@ -60,7 +58,7 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
     if use_end_step_repulsion:
         end_step_repulsion(fs, max_radius, overlap, image_size)
 
-    #print_stats(output_file, rows)
+    # print_stats(output_file, rows)
 
 
 def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):

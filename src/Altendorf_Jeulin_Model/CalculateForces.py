@@ -9,11 +9,13 @@ X_S = 0.05
 X_E = 0.1
 ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
+# factors to balance forces, see Altendorf & Jeulin
 TAU = 0.25
+RHO = 0.2
 
 
 @profile
-def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: float = 0.2):
+def calculate_forces(grid: sh, fiber_system: list[Fiber]):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -23,10 +25,6 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: fl
         The spatial hashing grid for the model
     :param fiber_system: list[list[Ball]])
         The fiber system that contains all balls
-    :param rho: float
-        factor to balance forces, [0, 1]
-        0 means no recover forces
-        default 0.2 from Altendorf&Jeulin 2011
     :return: np.ndarray
         total force of the fiber system
     """
@@ -39,11 +37,11 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], max_step_size, rho: fl
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
             if (i + 1 < len(fiber.balls)):
-                calculate_spring_force(ball, fiber.balls[i + 1], is_next=True, rho=rho)
+                calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
             if (i - 1 >= 0):
-                calculate_spring_force(ball, fiber.balls[i - 1], is_next=False, rho=rho)
+                calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
             if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
-                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1], rho)
+                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -68,10 +66,6 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
         The spatial hashing grid for the model
     :param fiber_system: list[list[Ball]])
         The fiber system that contains all balls
-    :param rho: float
-        factor to balance forces, [0, 1]
-        0 means no recover forces
-        default 0.2 from Altendorf&Jeulin 2011
     :return: np.ndarray
         total force of the fiber system
     """
@@ -90,21 +84,22 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
 
 
 @profile
-def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells):
+def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells: set[int]):
     """
-    Calculates the repulsion force for the whole fiber system
-    and adds it to corresponding ball
+    Calculates the repulsion force for the whole fiber system and adds it to the corresponding ball
 
     Attributes
     ---------------------
     :param i: int
-        cell index of the current cell
+        The cell index of the current cell
     :param ball: Ball
         The ball whose neighbors are currently considered
     :param cell: list[Ball]
         The cell that the ball is saved in
     :param grid: SpatialHashing
-        The spatial hashing grid of the mdel
+        The spatial hashing grid of the model
+    :param neighbor_cells: set[int]
+        The set of indices of the younger neighbor cells
     """
     # compare within cell
     image_size = np.asarray(grid.image_size, dtype=float)
@@ -113,11 +108,11 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
     label = ball.ball_label
     fiber_label = ball.fiber_label
     for ball2 in cell[i + 1:]:
-        # calculate repulsion forces
+        # calculate repulsion forces (if balls overlap and aren't next to each other in the same fiber)
         if (fiber_label != ball2.fiber_label
                 or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+            # calculate periodic distance of the balls' coordinates
             np.mod(ball2.coordinate, image_size, out=coord2mod)
-
             for i in range(3):
                 disp = coord2mod[i] - coord[i]
                 if abs(disp) > image_size[i] / 2.:
@@ -127,24 +122,26 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
                         coord2mod[i] += image_size[i]
                 coord2mod[i] -= coord[i]
             dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
+
+            # calculate the force if balls are indeed overlapping
             overlap = ball.radius + ball2.radius - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
-                ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
+                force = TAU * overlap / 2.0 * coord2mod
+                ball.force = ball.force - force
                 ball.overlap = max(ball.overlap, overlap)
-                ball2.force = ball2.force + TAU * overlap / 2.0 * coord2mod
+                ball2.force = ball2.force + force
                 ball2.overlap = max(ball2.overlap, overlap)
 
     # compare with neighbor cells
-    # cell_index_ball = grid.get_cell_index_of_coord(coord)
-    # neighbor_cells = grid.get_younger_neighbor_cell_indices(cell_index_ball)
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
+            # calculate repulsion forces (if balls overlap and aren't next to each other in the same fiber)
             if (fiber_label != ball2.fiber_label or
                     abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE):
+                # calculate periodic distance of the balls' coordinates
                 np.mod(ball2.coordinate, image_size, out=coord2mod)
-
                 for i in range(3):
                     disp = coord2mod[i] - coord[i]
                     if abs(disp) > image_size[i] / 2.:
@@ -154,6 +151,8 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
                             coord2mod[i] += image_size[i]
                     coord2mod[i] -= coord[i]
                 dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
+
+                # calculate the force if balls are indeed overlapping
                 overlap = ball.radius + ball2.radius - dist
                 if overlap > 0:
                     coord2mod = coord2mod / dist
@@ -165,101 +164,15 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
 
 
 @profile
-def add_repulsion_force(ball: Ball, neighbor: Ball, coord1mod, image_size):
-    """
-    Adds repulsion force to the balls it applies to
-
-    Attributes
-    ---------------------
-    :param ball: Ball
-        One of the balls
-    :param neighbor: Ball
-        The other ball
-    :param dist: float
-        The periodic distance between the balls
-    :param dir: np.ndarray
-        The direction vector of the periodic distance
-    :param max_step_size: float
-        discretization parameter from MAVIlib (??)
-    """
-    coord2mod = neighbor.coordinate % image_size
-
-    for i in range(3):
-        disp = coord2mod[i] - coord1mod[i]
-        if abs(disp) > image_size[i] / 2.:
-            if disp > 0:
-                coord2mod[i] -= image_size[i]
-            else:
-                coord2mod[i] += image_size[i]
-        coord2mod[i] -= coord1mod[i]
-    dist = np.sqrt(np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2]))
-    overlap = ball.radius + neighbor.radius - dist
-    if overlap > 0:
-        coord2mod = coord2mod / dist
-        ball.force = ball.force - TAU * overlap / 2.0 * coord2mod
-        ball.overlap = max(ball.overlap, overlap)
-        neighbor.force = neighbor.force + TAU * overlap / 2.0 * coord2mod
-        neighbor.overlap = max(neighbor.overlap, overlap)
-
-
-@profile
-def add_recover_force(ball: Ball, force: np.ndarray, dist: float):
-    """
-    Adds a recovery force to a ball
-
-    Attributes
-    ---------------------
-    :param ball: Ball
-        The ball that the force is added to
-    :param force: np.ndarray
-        The force that is added to the ball
-    """
-    ball.force = ball.force + force
-    ball.neighbor_dist = max(ball.neighbor_dist, dist)
-
-
-@profile
-def add_spring_force(ball: Ball, force: np.ndarray, dist: float):
-    """
-    Adds a recovery force to a ball
-
-    Attributes
-    ---------------------
-    :param ball: Ball
-        The ball that the force is added to
-    :param force: np.ndarray
-        The force that is added to the ball
-    """
-    ball.force = ball.force + force
-    ball.neighbor_dist = max(ball.neighbor_dist, dist)
-
-
-@profile
-def add_angle_force(ball: Ball, force: np.ndarray, angle_diff: float):
-    """
-    Adds a recovery force to a ball
-
-    Attributes
-    ---------------------
-    :param ball: Ball
-        The ball that the force is added to
-    :param force: np.ndarray
-        The force that is added to the ball
-    """
-    ball.force = ball.force + force
-    ball.angle_diff = angle_diff
-
-
-@profile
 def smoothing_factor(x: float, x_s: float, x_e: float):
     """
-    Calculate smoothing factor
+    Calculate the smoothing factor
     (arguments named after Altendorf&Jeulin 2011)
 
     Attributes
     ---------------------
     :param x: float
-        ratio that is argument of smoothing factor
+        The ratio that is the argument of smoothing factor
     :param x_s: float
         if x < x_y, the factor is 0
     :param x_e: float
@@ -278,7 +191,7 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
 
 
 @profile
-def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float = 0.2):
+def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
 
@@ -288,9 +201,6 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
         the ball that the force is added to
     :param ball2: Ball
         neighbor to ball1
-    :param rho: float
-        factor to balance forces, [0, 1]
-        default 0.2 from Altendorf&Jeulin 2011
     :param is_next: bool
         indicates whether ball2 comes before or after ball1 in the fiber
     """
@@ -298,14 +208,14 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
     force_dir = ball2.coordinate - ball1.coordinate
     dist_is = np.sqrt(np.square(force_dir[0]) + np.square(force_dir[1]) + np.square(force_dir[2]))
 
-    # distance to next ball is currently always radius
+    # distance to the next ball is currently always radius/2.0
     # - may need to adapt for different random walks
-    dist_should = ball1.radius / 2.0 if is_next else ball2.radius / 2.0  # TODO
+    dist_should = ball1.radius / 2.0 if is_next else ball2.radius / 2.0
     dist_displaced = dist_is - dist_should
     ratio_displaced = abs(dist_displaced) / dist_should
     # smoothing_factor
-    s_f = smoothing_factor(ratio_displaced, X_S, X_E) * rho * dist_displaced / dist_is
-    # add to recoverforce
+    s_f = smoothing_factor(ratio_displaced, X_S, X_E) * RHO * dist_displaced / dist_is
+    # add to recover force
     for i in range(0, 3):
         force_dir[i] = s_f * force_dir[i]
     ball1.force = ball1.force + force_dir
@@ -313,7 +223,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool, rho: float =
 
 
 @profile
-def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2):
+def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
     Note: this code does not directly follow the paper by Altendorf&Jeulin
@@ -323,14 +233,11 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     Attributes
     ---------------------
     :param ball: Ball
-        center ball - this is where the force will be applied
+        The center ball - this is where the force will be applied
     :param ball_prev: Ball
-        previous ball
+        The previous ball
     :param ball_next: Ball
-        next ball
-    :param rho: float
-        factor to balance forces, [0, 1]
-        default 0.2 from Altendorf&Jeulin 2011
+        The next ball
     """
     coord = ball.coordinate
     coord_prev = ball_prev.coordinate
@@ -340,6 +247,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
     a = np.empty_like(coord)
     m = np.empty_like(coord)
 
+    # calculate and normalize vectors
     alpha0 = ball.angle
     norm_prev = np.sqrt(
         np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
@@ -350,13 +258,10 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
             coord_next[2] - coord_prev[2]))
     for i in range(0, 3):
         dir_next[i] = (coord_next[i] - coord[i]) / norm_next
-        dir_prev[i] = (coord[i] - coord_prev[i])  # / norm_prev
+        dir_prev[i] = (coord[i] - coord_prev[i])
         a[i] = (coord_next[i] - coord_prev[i]) / norm_a
 
-    # m: line cutting plane
-    # line = Line(coord_prev, direction=a)
-    # plane = Plane(coord, normal=a)
-    # m = plane.intersect_line(line)
+    # calculate m, the point where the line hits the plane
     d = dir_prev[0] * a[0] + dir_prev[1] * a[1] + dir_prev[2] * a[2]
     for i in range(0, 3):
         dir_prev[i] = dir_prev[i] / norm_prev
@@ -375,7 +280,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball, rho=0.2)
         z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(tan_alpha0))) / (2 * tan_alpha0)
 
     # calculate force
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * rho * (z - z0) / 2.
+    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.
     for i in range(0, 3):
         ball.force[i] += (m[i] - coord[i]) * f
     ball.angle_diff = alpha0 - alpha
