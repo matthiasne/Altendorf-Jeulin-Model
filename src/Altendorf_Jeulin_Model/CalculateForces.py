@@ -1,5 +1,6 @@
 import numpy as np
 from line_profiler import profile
+from multiprocessing import Pool, Manager, cpu_count, shared_memory
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
@@ -34,14 +35,20 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber]):
                 grid.get_cell_index_of_coord(cell[0].coordinate))
             for i, ball in enumerate(cell):
                 calculate_repulsion_force(i, ball, cell, grid, neighbor_cells)
-    for fiber in fiber_system:
-        for i, ball in enumerate(fiber.balls):
-            if (i + 1 < len(fiber.balls)):
-                calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
-            if (i - 1 >= 0):
-                calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
-            if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
-                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
+
+    #TODO: remove modified?
+    with Pool(processes=cpu_count()) as pool:
+        modified = pool.map(calculate_recovery_forces, fiber_system)
+    fiber_system[:] = modified
+    #for fiber in fiber_system:
+    #    calculate_recovery_forces(fiber)
+    #    for i, ball in enumerate(fiber.balls):
+    #        if (i + 1 < len(fiber.balls)):
+    #            calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
+    #        if (i - 1 >= 0):
+    #            calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
+    #        if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
+    #            calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -81,6 +88,16 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
+
+def calculate_recovery_forces(fiber):
+    for i, ball in enumerate(fiber.balls):
+        if (i + 1 < len(fiber.balls)):
+            calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
+        if (i - 1 >= 0):
+            calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
+        if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
+            calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
+    return fiber
 
 
 @profile
