@@ -1,4 +1,4 @@
--e git+ssh://git@github.com/matthiasne/Altendorf-Jeulin-Model.git@c6ecfb97e679d094d23f791e037c5583af9dca4d#egg=Altendorf_Jeulin_Model
+-e git+ssh://git@github.com/matthiasne/Altendorf-Jeulin-Model.git@72bc602bbb01a70ab1e8e6796e6d0f8a29864cbf#egg=Altendorf_Jeulin_Model
 contourpy==1.3.3
 cycler==0.12.1
 fonttools==4.60.1
