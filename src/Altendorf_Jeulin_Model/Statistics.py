@@ -1,5 +1,6 @@
 import Altendorf_Jeulin_Model.Fiber as Fiber
-from Altendorf_Jeulin_Model.utils import normalized, cartesian_to_spherical, discretize_spheres
+from Altendorf_Jeulin_Model.utils import (normalized, cartesian_to_spherical, discretize_spheres_periodic,
+                                          discretize_spheres_nonperiodic)
 import numpy as np
 
 
@@ -129,7 +130,7 @@ def h_dif(beta: float, thetas: list):
         sum_h += np.square(np.sin(2 * theta) / (1 + (beta_sq - 1) * np.square(np.cos(theta))))
     return 3 / 2 * beta * sum_h
 
-def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int]):
+def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int], is_periodic: bool = True):
     """
     calculates the volume fraction of the fiber system in an image
 
@@ -139,6 +140,8 @@ def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int]):
         the fiber system
     :param shape: tuple[int, int, int]
         the shape of the image
+    :param is_periodic: bool
+        boundary conditions of the image
     :return: float
         the volume fraction of the fiber system
     """
@@ -154,5 +157,8 @@ def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int]):
     min_coordinates = np.array([0, 0, 0])
     max_coordinates = np.array(shape)
 
-    image = discretize_spheres(coords, radii, min_coordinates, max_coordinates)
+    if is_periodic:
+        image = discretize_spheres_periodic(coords, radii, min_coordinates, max_coordinates)
+    else:
+        image = discretize_spheres_nonperiodic(coords, radii, min_coordinates, max_coordinates)
     return np.mean(image)
