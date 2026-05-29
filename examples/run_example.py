@@ -36,7 +36,7 @@ def main():
     #io.plot_fibers_in_2D(fs, path="examples/outputs/spheres++.png")
     #io.plot_fibers_in_2D_mod(fs, image_size, path="examples/outputs/spheres++mod.png")
 
-    # io.save_fibers_as_tif(fs, path="examples/outputs/spheres++.tif")
+    io.save_fibers_as_tif(fs, shape=image_size, path="examples/outputs/spheres++.tif")
 
 
 def test_AJ_setup():

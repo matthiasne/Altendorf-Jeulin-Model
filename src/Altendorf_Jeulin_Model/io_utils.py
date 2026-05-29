@@ -1,7 +1,7 @@
 import tifffile, csv
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils import discretize_spheres
+from Altendorf_Jeulin_Model.utils import discretize_spheres_periodic
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 
@@ -53,7 +53,7 @@ def save_fibers_as_tif(fiber_system: list[Fiber],
     min_coordinates = np.array([0, 0, 0])
     max_coordinates = np.array(shape)
 
-    image = discretize_spheres(coords, radii, min_coordinates, max_coordinates)
+    image = discretize_spheres_periodic(coords, radii, min_coordinates, max_coordinates)
     tifffile.imwrite(path, image, photometric='minisblack')
 
 
