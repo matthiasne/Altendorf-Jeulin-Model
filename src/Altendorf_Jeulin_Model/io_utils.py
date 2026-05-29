@@ -27,8 +27,8 @@ def print_fiber_positions(fiber_system: FiberModel,
         print("Fiber ", i, ":", coords)
 
 def save_fibers_as_tif(fiber_system: list[Fiber],
-                       shape: tuple[int, int, int] = (64, 64, 64),
-                       path: str = "spheres.tif"):
+                       shape: tuple[int, int, int],
+                       path: str = "spheres.tif", scale:float = 1, is_periodic:bool = True):
     """
     Save fibers as tif-image
 
@@ -36,10 +36,16 @@ def save_fibers_as_tif(fiber_system: list[Fiber],
     ---------------------
     :param fiber_system: list[list[Ball]]
         A list of fibers, each represented as a list of 3D np.arrays
-    :param shape: tuple(int, int, int) optional
+    :param shape: tuple(int, int, int)
         z,y,x coordinate of the image
     :param path: string optional
         The path where the tif image will be saved
+        (default: "spheres.tif")
+    :param scale: float optional
+        The scale of the image, e.g., when the data is given in um and the image has voxel size 4um, the scale is 4
+        (default: 1)
+    :param is_periodic: bool optional
+        Whether the system is periodic or not (default: True)
     """
     coords = []
     radii = []
@@ -47,13 +53,16 @@ def save_fibers_as_tif(fiber_system: list[Fiber],
         for ball in fiber.balls:
             coords.append(ball.coordinate)
             radii.append(ball.radius)
-    coords = np.array(coords)
-    radii = np.array(radii)
+    coords = np.array(coords)/scale
+    radii = np.array(radii)/scale
 
     min_coordinates = np.array([0, 0, 0])
     max_coordinates = np.array(shape)
 
-    image = discretize_spheres_periodic(coords, radii, min_coordinates, max_coordinates)
+    if is_periodic:
+        image = discretize_spheres_periodic(coords, radii, min_coordinates, max_coordinates)
+    else:
+        image = discretize_spheres_nonperiodic(coords, radii, min_coordinates, max_coordinates)
     tifffile.imwrite(path, image, photometric='minisblack')
 
 
@@ -157,9 +166,13 @@ def print_grid(grid: sh):
         print("Cell ", i, ":", coords)
 
 
-def print_stats(output_file: str, rows):
+def print_stats(output_file: str, rows, has_beta:bool = True):
     with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Step', '#Fibers', 'Beta', 'EstimatedBeta', 'MeanRadius', 'MeanLength', 'MeanAngleError',
-                         'VolumeFraction', 'MaxOverlap', 'ForceStrength'])  # Header
+        if has_beta:
+            writer.writerow(['Step', '#Fibers', 'Beta', 'EstimatedBeta', 'MeanRadius', 'MeanLength', 'MeanAngleError',
+                             'MaxOverlap', 'ForceStrength'])  # Header
+        else:
+            writer.writerow(['Step', '#Fibers', 'MeanRadius', 'MeanLength', 'MeanAngleError',
+                             'MaxOverlap', 'ForceStrength'])
         writer.writerows(rows)
