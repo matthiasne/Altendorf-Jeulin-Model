@@ -1,7 +1,7 @@
 import tifffile, csv
 import numpy as np
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils import discretize_spheres_periodic
+from Altendorf_Jeulin_Model.utils import discretize_spheres_periodic, discretize_spheres_nonperiodic
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 
