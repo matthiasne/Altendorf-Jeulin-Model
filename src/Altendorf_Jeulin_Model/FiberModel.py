@@ -11,7 +11,6 @@ from Altendorf_Jeulin_Model.utils import (
     is_in_image,
     normalized,
     schladitz_distribution,
-    spherical_to_cartesian,
     spherical_to_matrix,
 )
 

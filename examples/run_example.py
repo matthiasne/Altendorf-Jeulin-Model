@@ -1,7 +1,5 @@
 import time
-
 import numpy as np
-from scipy.stats import poisson, uniform
 
 import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io

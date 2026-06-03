@@ -13,7 +13,6 @@ from Altendorf_Jeulin_Model.Statistics import (
     mean_angle_error,
     mean_length,
     mean_radius,
-    volume_fraction,
 )
 
 MAX_STEPS = 1000
