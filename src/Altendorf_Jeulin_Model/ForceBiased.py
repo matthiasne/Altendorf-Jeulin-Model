@@ -60,8 +60,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         grid.add_fiber_system(fs, is_periodic)
         force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
                                                                               is_periodic=is_periodic)
-        if(verbose):
-            if i % 100 == 0:
+        if verbose and i % 100 == 0:
+            if has_beta:
                 print(
                     "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
                     " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
@@ -70,6 +70,14 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
                 rows.append(
                     [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
                     overlap, force_strength])
+            else:
+                print(
+                    "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
+                    " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
+                    mean_length(fs)
+                )
+                rows.append(
+                    [i, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs), overlap, force_strength])
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:
