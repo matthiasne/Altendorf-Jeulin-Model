@@ -1,9 +1,15 @@
-import tifffile, csv
+import csv
+
 import numpy as np
-from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils import discretize_spheres_periodic, discretize_spheres_nonperiodic
-import Altendorf_Jeulin_Model.SpatialHashing as sh
+import tifffile
+
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
+import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.Fiber import Fiber
+from Altendorf_Jeulin_Model.utils import (
+    discretize_spheres_nonperiodic,
+    discretize_spheres_periodic,
+)
 
 
 def print_fiber_positions(fiber_system: FiberModel,
@@ -79,8 +85,8 @@ def plot_fibers_in_2D(fiber_system: list[Fiber],
         The path where the image will be saved
     :return:
     """
-    import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -121,8 +127,8 @@ def plot_fibers_in_2D_mod(fiber_system: list[Fiber], image_size: tuple[int, int,
         The path where the image will be saved
     :return:
     """
-    import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')

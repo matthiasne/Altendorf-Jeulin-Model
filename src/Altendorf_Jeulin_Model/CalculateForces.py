@@ -1,7 +1,7 @@
 import numpy as np
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
+from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05

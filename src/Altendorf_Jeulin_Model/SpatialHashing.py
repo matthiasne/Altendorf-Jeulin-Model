@@ -1,6 +1,8 @@
-from math import floor, ceil
 from itertools import product
+from math import ceil, floor
+
 import numpy as np
+
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 
 

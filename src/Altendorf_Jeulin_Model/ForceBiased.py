@@ -1,9 +1,20 @@
 import numpy as np
+
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.CalculateForces import calculate_forces, apply_forces, calculate_forces_endstep
-from Altendorf_Jeulin_Model.Statistics import mean_radius, mean_length, mean_angle_error, estimate_beta, volume_fraction
+from Altendorf_Jeulin_Model.CalculateForces import (
+    apply_forces,
+    calculate_forces,
+    calculate_forces_endstep,
+)
 from Altendorf_Jeulin_Model.io_utils import print_stats
+from Altendorf_Jeulin_Model.Statistics import (
+    estimate_beta,
+    mean_angle_error,
+    mean_length,
+    mean_radius,
+    volume_fraction,
+)
 
 MAX_STEPS = 1000
 MAX_OVERLAP = 0.1

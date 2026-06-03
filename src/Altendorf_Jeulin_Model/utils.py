@@ -1,9 +1,11 @@
 import copy
+
 import numpy as np
 from scipy.linalg import cholesky
-from scipy.stats import uniform, norm
+from scipy.stats import norm, uniform
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
+
 
 def periodic_distance(coord1mod: np.ndarray, coord2: np.ndarray, image_size):# tuple[int, int, int]):
     """

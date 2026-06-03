@@ -1,7 +1,12 @@
-import Altendorf_Jeulin_Model.Fiber as Fiber
-from Altendorf_Jeulin_Model.utils import (normalized, cartesian_to_spherical, discretize_spheres_periodic,
-                                          discretize_spheres_nonperiodic)
 import numpy as np
+
+import Altendorf_Jeulin_Model.Fiber as Fiber
+from Altendorf_Jeulin_Model.utils import (
+    cartesian_to_spherical,
+    discretize_spheres_nonperiodic,
+    discretize_spheres_periodic,
+    normalized,
+)
 
 
 def mean_radius(fs: list[Fiber]):
