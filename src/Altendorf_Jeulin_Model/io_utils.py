@@ -93,8 +93,8 @@ def print_stats(output_file: str, rows, has_beta:bool = True):
         writer = csv.writer(file)
         if has_beta:
             writer.writerow(['Step', '#Fibers', 'Beta', 'EstimatedBeta', 'MeanRadius', 'MeanLength', 'MeanAngleError',
-                             'MaxOverlap', 'ForceStrength'])  # Header
+                             "Kappa1Estimate", "Kappa2Estimate", 'MaxOverlap', 'ForceStrength'])  # Header
         else:
             writer.writerow(['Step', '#Fibers', 'MeanRadius', 'MeanLength', 'MeanAngleError',
-                             'MaxOverlap', 'ForceStrength'])
+                             "Kappa1Estimate", "Kappa2Estimate", 'MaxOverlap', 'ForceStrength'])
         writer.writerows(rows)

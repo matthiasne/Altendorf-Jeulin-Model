@@ -13,6 +13,8 @@ from Altendorf_Jeulin_Model.Statistics import (
     mean_angle_error,
     mean_length,
     mean_radius,
+    estimate_kappa2,
+    estimate_kappa1
 )
 
 MAX_STEPS = 1000
@@ -44,11 +46,12 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
     if verbose:
         if has_beta:
             rows.append(
-                [0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs), 'NaN',
-                 'NaN'])
+                [0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+                 estimate_kappa1(fs), estimate_kappa2(fs), 'NaN', 'NaN'])
         else:
             rows.append(
-                [0, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs), 'NaN', 'NaN'])
+                [0, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+                 estimate_kappa1(fs), estimate_kappa2(fs), 'NaN', 'NaN'])
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
     min_radius = min(fiber.get_max_radius() for fiber in fs)
@@ -70,24 +73,26 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         grid.add_fiber_system(fs, is_periodic)
         force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
                                                                               is_periodic=is_periodic)
-        if verbose and i % 100 == 0:
+        if verbose and i % 100 == 0: # TODO: output kappas everywhere
             if has_beta:
                 print(
                     "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
                     " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
-                    mean_length(fs), " beta estimate ", estimate_beta(fs, beta)
+                    mean_length(fs), " beta estimate ", estimate_beta(fs, beta),
+                    " kappa1 estimate ", estimate_kappa1(fs), " kappa2 estimate ", estimate_kappa2(fs)
                 )
                 rows.append(
                     [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
-                    overlap, force_strength])
+                    estimate_kappa1(fs), estimate_kappa2(fs), overlap, force_strength])
             else:
                 print(
                     "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
                     " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
-                    mean_length(fs)
+                    mean_length(fs), " kappa1 estimate ", estimate_kappa1(fs), " kappa2 estimate ", estimate_kappa2(fs)
                 )
                 rows.append(
-                    [i, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs), overlap, force_strength])
+                    [i, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
+                     estimate_kappa1(fs), estimate_kappa2(fs), overlap, force_strength])
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:

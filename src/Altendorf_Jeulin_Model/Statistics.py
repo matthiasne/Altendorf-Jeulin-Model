@@ -167,3 +167,65 @@ def volume_fraction(fiber_system: list[Fiber], shape: tuple[int, int, int], is_p
     else:
         image = discretize_spheres_nonperiodic(coords, radii, min_coordinates, max_coordinates)
     return np.mean(image)
+
+
+def estimate_kappa1(fs: list[Fiber]):
+    """
+    Calculates the curvature parameter kappa1 for the whole fiber system.
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :return: float
+        estimate for kappa1
+    """
+    diff_sum = []
+
+    for fiber in fs:
+        diff = []
+        balls = fiber.balls
+        _, dir_main = normalized(balls[-1].coordinate - balls[0].coordinate)
+        for i in range(0, len(balls) - 1):
+            _, dir_current = normalized(balls[i + 1].coordinate - balls[i].coordinate)
+            diff.append(np.square(dir_current[0] - dir_main[0]) + np.square(dir_current[1] - dir_main[1]) +
+                        np.square(dir_current[2] - dir_main[2]))
+
+        # angle differences for the current fiber
+        diff_inner_sum = np.mean(diff) if diff else 0
+        diff_sum.append(diff_inner_sum)
+    # mean angle error across all fibers
+    return 1/np.mean(diff_sum) if diff_sum else 0
+
+
+def estimate_kappa2(fs: list[Fiber]):
+    """
+    Calculates the curvature parameter kappa2 for the whole fiber system.
+
+    Attributes
+    ---------------------
+    :param fs: list[Fiber]
+        the fiber system
+    :return: float
+        estimate for kappa2
+    """
+    diff_sum = []
+
+    for fiber in fs:
+        diff = []
+        balls = fiber.balls
+
+        for i in range(1, len(balls) - 1):
+            ball = balls[i]
+            _, dir_prev = normalized(ball.coordinate - balls[i - 1].coordinate)
+            _, dir_next = normalized(balls[i + 1].coordinate - ball.coordinate)
+            diff.append(np.square(dir_prev[0] - dir_next[0]) + np.square(dir_prev[1] - dir_next[1]) +
+                        np.square(dir_prev[2] - dir_next[2]))
+
+        # angle differences for the current fiber
+        diff_inner_sum = np.mean(diff) if diff else 0
+        diff_sum.append(diff_inner_sum)
+
+    # mean angle error across all fibers
+    return 2/np.mean(diff_sum) if diff_sum else 0
+
