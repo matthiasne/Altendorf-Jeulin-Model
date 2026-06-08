@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
-from Altendorf_Jeulin_Model.utils import periodic_distance, angle_between, normalized
+from Altendorf_Jeulin_Model.utils import (periodic_distance, angle_between, normalized, cartesian_to_spherical, 
+                                          spherical_to_cartesian, spherical_to_matrix, periodic_distance)
 
 
 class test_utils(unittest.TestCase):
@@ -52,3 +53,47 @@ class test_utils(unittest.TestCase):
         l5, vl = normalized(2*v1)
         np.testing.assert_array_equal(vl, v1)
         self.assertEqual(l5, 2)
+
+    def test_cartesian_to_spherical(self):
+        r, theta, phi = cartesian_to_spherical(1,0,0)
+        self.assertAlmostEqual(r, 1)
+        self.assertAlmostEqual(theta, 0)
+        self.assertAlmostEqual(phi, np.pi / 2.0)
+        r, theta, phi = cartesian_to_spherical(0, 1, 0)
+        self.assertAlmostEqual(r, 1)
+        self.assertAlmostEqual(theta, np.pi / 2.0)
+        self.assertAlmostEqual(phi, np.pi / 2.0)
+        r, theta, phi = cartesian_to_spherical(0, 0, 2)
+        self.assertAlmostEqual(r, 2)
+        self.assertAlmostEqual(theta, 0)
+        self.assertAlmostEqual(phi, 0)
+        r, theta, phi = cartesian_to_spherical(0, 0, 0)
+        self.assertAlmostEqual(r, 0)
+        self.assertAlmostEqual(theta, 0)
+        self.assertAlmostEqual(phi, 0)
+        
+    def test_spherical_to_cartesian(self):
+        x, y, z = spherical_to_cartesian(1, 0, np.pi/2.0)
+        self.assertAlmostEqual(x, 1)
+        self.assertAlmostEqual(y, 0)
+        self.assertAlmostEqual(z, 0)
+        x, y, z = spherical_to_cartesian(1, np.pi/2.0, np.pi / 2.0)
+        self.assertAlmostEqual(x, 0)
+        self.assertAlmostEqual(y, 1)
+        self.assertAlmostEqual(z, 0)
+        x, y, z = spherical_to_cartesian(2, 0, 0)
+        self.assertAlmostEqual(x, 0)
+        self.assertAlmostEqual(y, 0)
+        self.assertAlmostEqual(z, 2)
+        x, y, z = spherical_to_cartesian(0, 0, np.pi / 2.0)
+        self.assertAlmostEqual(x, 0)
+        self.assertAlmostEqual(y, 0)
+        self.assertAlmostEqual(z, 0)
+
+    def test_spherical_to_matrix(self):
+        mat = spherical_to_matrix(0,0)
+        mat_test = np.array([[1, 0, 0],
+                     [0, 1, 0],
+                     [0, 0, 1]])
+        np.testing.assert_array_equal(mat, mat_test)
+    
