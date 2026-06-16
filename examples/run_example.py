@@ -7,6 +7,10 @@ from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 
 
 def main():
+    example_AJ_finite()
+    example_AJ_endless()
+
+def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = (100, 100, 100)
     N = 100
@@ -32,10 +36,11 @@ def main():
         fs, shape=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )
 
+def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (800, 800, 800)
-    VV = 0.095
-    R = 12
+    image_size = (1800, 1800, 1800)
+    VV = 0.12
+    R = 17
     L = np.sqrt(3) / 2 * VV * (image_size[0] + 200) ** 2 / R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 200) / image_size[0]
     N = int(mu)  # TODO
@@ -62,7 +67,7 @@ def main():
     io.save_fibers_as_tif(
         fs,
         scale=4,
-        shape=(200, 200, 200),
+        shape=(450, 450, 450),
         path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,
     )
