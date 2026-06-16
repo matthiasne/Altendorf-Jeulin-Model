@@ -158,8 +158,8 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
             else:
                 n_lines += 1
                 save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
-    if len(fiber_system) > 0:
-        fiber_system = cut_border(fiber_system, ext_image_size, 0)
+    #if len(fiber_system) > 0:
+    #    fiber_system = cut_border(fiber_system, ext_image_size, 0)
     return fiber_system
 
 
@@ -228,38 +228,26 @@ def generate_poisson_line(rng, beta: float, image_size: tuple[int, int, int], ha
     :return: np.ndarray, np.ndarray
         the line's position (center of the line) and direction
     """
-    # U = uniform(loc=0, scale=1)
     U = uniform(loc=-1, scale=2)
-    # is_cut = False
-    # while not is_cut:
     # 2. Simulate the mean orientation (Schladitz distribution)
     if has_beta:
         mu0, theta0, phi0 = schladitz_distribution(beta, rng)
-        # print("theta ", theta0, " phi ", phi0)
     else:
         mu0 = acg_distribution(beta, rng)
         _, theta0, phi0 = cartesian_to_spherical(mu0[0], mu0[1], mu0[2])
     # 3. Generate Poisson line
     M = spherical_to_matrix(theta0, phi0)
-    is_cut = False
-    # while not is_cut:
     r = 2
     while r > 3 / 2:
-        u1 = np.sqrt(3) * U.rvs(random_state=rng)
-        u2 = np.sqrt(3) * U.rvs(random_state=rng)
-        r = u1 ** 2 + u2 ** 2
-    # u2 = np.sign(u1)*np.sqrt(abs(u1))
-    # linepos = np.array([np.sqrt(3 * U.rvs(random_state=rng))/ 2, 0, 0])
-    # linepos = np.array([np.sqrt(3)/ 2*u2, 0, 0])
+        r = 3/2 * np.sqrt(abs(U.rvs(random_state=rng)))
+        phi = 2*np.pi*U.rvs(random_state=rng)
+        u1 = r*np.cos(phi)
+        u2 = r*np.sin(phi)
     linepos = np.array([u1, u2, 0])
-    linepos = np.matvec(M, linepos) + mu0 + np.array([0.5, 0.5, 0.5])
-    # 4. Test whether Poisson line cuts the window
-    ## if it cuts 2 planes, calculate midpoint
+    linepos = np.matvec(M, linepos) + np.array([0.5, 0.5, 0.5])
+    # 4. if it cuts 2 planes, calculate midpoint
     is_cut, mid_pos, length = line_cut_cube(linepos, mu0)
-    # length = line_cut_sphere_length(linepos, mu0)
-    # mid_pos = mid_pos * np.array(image_size)
     mid_pos = linepos * np.array(image_size)
-    ## otherwise, sample again
     return mid_pos, mu0, length
 
 

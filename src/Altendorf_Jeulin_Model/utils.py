@@ -1,16 +1,17 @@
 import copy
 
 import numpy as np
+from line_profiler import profile
 from scipy.linalg import cholesky
-from scipy.stats import norm, uniform
+from scipy.stats import uniform, norm
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
 
-def periodic_distance(coord1mod: np.ndarray, coord2: np.ndarray, image_size):
+def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[int, int, int]):
     """
     Calculates the periodic distance between two coordinates and the normalized direction vector between them
-    TODO: rename variables and fix documentation
+
     Attributes
     ---------------------
     :param coord1: np.ndarray
@@ -21,20 +22,26 @@ def periodic_distance(coord1mod: np.ndarray, coord2: np.ndarray, image_size):
         The size of the image, thus, the periodicity
     :return: distance between coordinates, direction vector
     """
+    coord1mod = coord1 % image_size
     coord2mod = coord2 % image_size
-
+    dist_orig = np.linalg.norm(coord2mod - coord1mod)
+    delta = coord2mod - coord1mod
     for i in range(3):
-        disp = coord2mod[i] - coord1mod[i]
-        if abs(disp) > image_size[i] / 2.:
-            if disp > 0:
+        if (abs(delta[i]) > image_size[i] / 2.):
+            if (delta[i] > 0):
                 coord2mod[i] -= image_size[i]
             else:
                 coord2mod[i] += image_size[i]
-        coord2mod[i] -= coord1mod[i]
 
-    return np.linalg.norm(coord2mod), coord2mod#dist, dir
+    dist, dir = normalized(coord2mod - coord1mod)
+
+    if (np.linalg.norm(coord2mod - coord1mod) > dist_orig):
+        raise ValueError("There is an issue in the periodic distance calculation")
+    else:
+        return dist, dir
 
 
+@profile
 def angle_between(v1: np.ndarray, v2: np.ndarray):
     """
     Calculates the angle between two vectors v1 and v2
@@ -56,6 +63,7 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
 
 
+@profile
 def normalized(v: np.ndarray):
     """
     normalizes a vector and returns both the original length and the normalized vector
@@ -67,9 +75,9 @@ def normalized(v: np.ndarray):
     :return: float, np.ndarray
         original length, normalized vector
     """
-    v_length = np.linalg.norm(v)
-    if v_length == 0:
+    if np.linalg.norm(v) == 0:
         return 0, v
+    v_length = np.linalg.norm(v)
     return v_length, v / v_length
 
 
@@ -88,11 +96,9 @@ def cartesian_to_spherical(x, y, z):
     :return: float, float, float
         radius, theta angle, phi angle in radian
     """
-    r = np.sqrt(np.square(x) + np.square(y) + np.square(z))
-    if r == 0:
-        return 0, 0, 0
-    theta = np.arctan2(y, x)
-    phi = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
+    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    phi = np.arctan2(y, x)
+    theta = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
     return r, theta, phi
 
 
@@ -116,6 +122,7 @@ def spherical_to_cartesian(r, theta, phi):
     z = r * np.cos(phi)
     return x, y, z
 
+
 def spherical_to_matrix(theta: float, phi: float):
     """
     tranforms spherical coordinates to a rotation matrix
@@ -133,6 +140,7 @@ def spherical_to_matrix(theta: float, phi: float):
                      [np.cos(theta) * np.sin(phi), np.cos(phi), np.sin(theta) * np.sin(phi)],
                      [-np.sin(theta), 0, np.cos(theta)]])
 
+
 def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
     """
     rotation of a vector mu around normal n and angle alpha
@@ -149,6 +157,7 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
         rotated vector
     """
     return np.dot(n, mu) * n + np.cos(alpha) * np.cross(np.cross(n, mu), n) + np.sin(alpha) * np.cross(n, mu)
+
 
 def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int = 100) -> bool:
     """
@@ -172,6 +181,8 @@ def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int =
     else:
         return True
 
+
+@profile
 def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     """
     cuts fibers when they cross image/observation window borders
@@ -201,6 +212,7 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
                 break
         fiber.balls = fiber.balls[j_start + 1:j_end - 1]
     return fs_cut
+
 
 def schladitz_distribution(beta: float, rng):
     """
@@ -304,7 +316,6 @@ def discretize_spheres_nonperiodic(coordinates: np.ndarray, radii: np.ndarray,
         The image containing spheres
     """
     L = max_coordinates - min_coordinates
-    coordinates = coordinates - min_coordinates
     image = np.zeros(L, 'uint16')
 
     for iota in range(len(coordinates)):
