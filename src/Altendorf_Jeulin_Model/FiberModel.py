@@ -7,14 +7,11 @@ from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils import (
     acg_distribution,
     cartesian_to_spherical,
-    cut_border,
     is_in_image,
     normalized,
     schladitz_distribution,
     spherical_to_matrix,
 )
-
-BOUNDARY_SIZE = 100
 
 class FiberModel:
     def __init__(self, initial_fiber_system):
@@ -101,6 +98,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
     return fiber_system
 
 def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, int, int],
+                                    boundary_size: int,
                                     kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
@@ -115,6 +113,7 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
     :param beta: float
         direction parameter for the Schladitz distribution
     :param image_size: tuple[int, int, int]
+    :param boundary_size: int
     :param kappa1: float
         curvature parameter for the random walk
     :param kappa2: float
@@ -126,12 +125,9 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
     :return: list[Fiber]
         the generated fiber system
     """
-    # if beta < 0:
-    #    raise TypeError('beta must be non-negative')
-
     rng = default_rng(seed)
     n = int(scipy.stats.poisson(mu).rvs(random_state=rng))
-    boundary_size_vec = np.array([BOUNDARY_SIZE, BOUNDARY_SIZE, BOUNDARY_SIZE])
+    boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     ext_image_size = image_size + 2 * boundary_size_vec
     print("image size ", ext_image_size)
     fiber_system = []
@@ -158,8 +154,6 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
             else:
                 n_lines += 1
                 save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
-    #if len(fiber_system) > 0:
-    #    fiber_system = cut_border(fiber_system, ext_image_size, 0)
     return fiber_system
 
 
@@ -235,6 +229,7 @@ def generate_poisson_line(rng, beta: float, image_size: tuple[int, int, int], ha
     else:
         mu0 = acg_distribution(beta, rng)
         _, theta0, phi0 = cartesian_to_spherical(mu0[0], mu0[1], mu0[2])
+        #print(mu0, theta0, phi0, spherical_to_cartesian(1, theta0, phi0))
     # 3. Generate Poisson line
     M = spherical_to_matrix(theta0, phi0)
     r = 2
