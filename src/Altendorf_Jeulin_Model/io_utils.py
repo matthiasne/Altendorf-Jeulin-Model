@@ -2,6 +2,7 @@ import csv
 
 import numpy as np
 import tifffile
+from pathlib import Path
 
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 import Altendorf_Jeulin_Model.SpatialHashing as sh
@@ -9,6 +10,7 @@ from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
     discretize_spheres_periodic,
+    normalized
 )
 
 
@@ -34,6 +36,7 @@ def print_fiber_positions(fiber_system: FiberModel,
 
 def save_fibers_as_tif(fiber_system: list[Fiber],
                        shape: tuple[int, int, int],
+                       boundary: tuple[int, int, int],
                        path: str = "spheres.tif", scale:float = 1, is_periodic:bool = True):
     """
     Save fibers as tif-image
@@ -98,3 +101,133 @@ def print_stats(output_file: str, rows, has_beta:bool = True):
             writer.writerow(['Step', '#Fibers', 'MeanRadius', 'MeanLength', 'MeanAngleError',
                              "Kappa1Estimate", "Kappa2Estimate", 'MaxOverlap', 'ForceStrength'])
         writer.writerows(rows)
+
+def save_fibers_as_graph(file_path: str, fs: sh):
+    """
+    Prints the fiber system according to input file format of
+    TexMathVisualizer. Each edge is the original AJ edge.
+
+    Parameters
+    ---------------------
+    :param file_path: string
+        base path for the output file
+    :param fs: list[Fiber]
+        fiber system to be printed
+    """
+    base = Path(file_path)
+    nod_file = base.with_suffix(base.suffix + ".fft.nod")
+    elm_file = base.with_suffix(base.suffix + ".fft.elm")
+    thread_file = base.with_suffix(base.suffix + ".fft.threads")
+    numnod_file = base.with_suffix(base.suffix + ".fft.ndn")
+    numelm_file = base.with_suffix(base.suffix + ".fft.eln")
+    numthread_file = base.with_suffix(base.suffix + ".fft.threads.number")
+
+    node_label = 0
+    edge_label = 0
+    with nod_file.open("w", newline="") as fnod, \
+            elm_file.open("w", newline="") as felm, \
+            thread_file.open("w", newline="") as fthreads:
+        for fiber in fs:
+            parts = ["acyclic", str(len(fiber.balls) - 1)]
+            if len(fiber.balls) < 3:
+                continue
+            for i, ball in enumerate(fiber.balls):
+                x, y, z = ball.coordinate
+                print(x, " ", y, " ", z, file=fnod)
+                parts.append(str(node_label))
+                if i < len(fiber.balls) - 1:
+                    print(node_label, " ", node_label + 1, " ", ball.radius, file=felm)
+                    parts.append(str(edge_label))
+                    edge_label += 1
+                node_label += 1
+            print(" ".join(parts), file=fthreads)
+
+    with numnod_file.open("w", newline="") as fn:
+        print(node_label, file=fn)
+
+    with numelm_file.open("w", newline="") as fe:
+        print(edge_label, file=fe)
+
+    with numthread_file.open("w", newline="") as ft:
+        print(len(fs), file=ft)
+
+
+def save_fibers_as_small_graph(file_path, fs):
+    """
+    Prints the fiber system according to input file format of
+    TexMathVisualizer but removes edges for a maximal curvature of
+    0.2 radian
+
+    Parameters
+    ---------------------
+    :param file_path: string
+        base path for the output file
+    :param fs: list[Fiber]
+        fiber system to be printed
+    """
+    base = Path(file_path)
+    nod_file = base.with_suffix(base.suffix + ".fft.nod")
+    elm_file = base.with_suffix(base.suffix + ".fft.elm")
+    thread_file = base.with_suffix(base.suffix + ".fft.threads")
+    numnod_file = base.with_suffix(base.suffix + ".fft.ndn")
+    numelm_file = base.with_suffix(base.suffix + ".fft.eln")
+    numthread_file = base.with_suffix(base.suffix + ".fft.threads.number")
+
+    node_label = 0
+    edge_label = 0
+    with nod_file.open("w", newline="") as fnod, \
+            elm_file.open("w", newline="") as felm, \
+            thread_file.open("w", newline="") as fthreads:
+        for fiber in fs:
+            # TODO replace this part
+            if len(fiber.balls) < 3:
+                continue
+            prev_node_label = node_label
+            x, y, z = fiber.balls[0].coordinate
+            print(x, " ", y, " ", z, file=fnod)
+            print(node_label, " ", node_label + 1, " ", fiber.balls[0].radius, file=felm)
+            parts = [str(node_label), str(edge_label)]
+            node_label += 1
+            edge_label += 1
+
+            i_end = len(fiber.balls) - 1
+            i = find_next_node(fiber, 0, i_end)
+            while i < i_end - 1:
+                x, y, z = fiber.balls[i].coordinate
+                print(x, " ", y, " ", z, file=fnod)
+                print(node_label, " ", node_label + 1, " ", fiber.balls[i].radius, file=felm)
+                parts.append(str(node_label))
+                parts.append(str(edge_label))
+                node_label += 1
+                edge_label += 1
+                i = find_next_node(fiber, i, i_end)
+            x, y, z = fiber.balls[i].coordinate
+            print(x, " ", y, " ", z, file=fnod)
+            parts.append(str(node_label))
+            node_label += 1
+            parts.insert(0, str(node_label - prev_node_label - 1))
+            parts.insert(0, "acyclic")
+            print(" ".join(parts), file=fthreads)
+
+    with numnod_file.open("w", newline="") as fn:
+        print(node_label, file=fn)
+
+    with numelm_file.open("w", newline="") as fe:
+        print(edge_label, file=fe)
+
+    with numthread_file.open("w", newline="") as ft:
+        print(len(fs), file=ft)
+
+
+def find_next_node(fiber, i_start, i_end):
+    curvature = 0
+    i = i_start
+    while i + 2 <= i_end and curvature < 0.2:
+        _, dir_prev = normalized(fiber.balls[i+1].coordinate - fiber.balls[i].coordinate)
+        _, dir_next = normalized(fiber.balls[i+2].coordinate - fiber.balls[i+1].coordinate)
+        angle = np.arccos(np.dot(dir_prev, dir_next))
+        curvature += angle
+        i += 1
+    if i == i_start:
+        return i + 1
+    return i
