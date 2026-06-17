@@ -36,7 +36,7 @@ def print_fiber_positions(fiber_system: FiberModel,
 
 def save_fibers_as_tif(fiber_system: list[Fiber],
                        shape: tuple[int, int, int],
-                       boundary: tuple[int, int, int],
+                       boundary: tuple[int, int, int] = (0,0,0),
                        path: str = "spheres.tif", scale:float = 1, is_periodic:bool = True):
     """
     Save fibers as tif-image
@@ -65,14 +65,15 @@ def save_fibers_as_tif(fiber_system: list[Fiber],
     coords = np.array(coords)/scale
     radii = np.array(radii)/scale
 
-    min_coordinates = np.array([0, 0, 0])
+    min_coordinates = np.array(boundary)
     max_coordinates = np.array(shape)
 
     if is_periodic:
         image = discretize_spheres_periodic(coords, radii, min_coordinates, max_coordinates)
     else:
         image = discretize_spheres_nonperiodic(coords, radii, min_coordinates, max_coordinates)
-    tifffile.imwrite(path, image, photometric='minisblack')
+    image = np.transpose(image, (2, 1, 0))
+    tifffile.imwrite(path, image, photometric='minisblack', metadata={'axes': 'XYZ'})
 
 
 def print_grid(grid: sh):
