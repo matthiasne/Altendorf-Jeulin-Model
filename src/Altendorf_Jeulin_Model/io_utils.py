@@ -1,8 +1,8 @@
 import csv
+from pathlib import Path
 
 import numpy as np
 import tifffile
-from pathlib import Path
 
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 import Altendorf_Jeulin_Model.SpatialHashing as sh
@@ -10,7 +10,7 @@ from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
     discretize_spheres_periodic,
-    normalized
+    normalized,
 )
 
 
@@ -220,7 +220,22 @@ def save_fibers_as_small_graph(file_path, fs):
         print(len(fs), file=ft)
 
 
-def find_next_node(fiber, i_start, i_end):
+def find_next_node(fiber, i_start: int, i_end:int) -> int:
+    """
+    Helper function for save_fibers_as_small_graph: finds next node to remove
+    superfluous edges indirectly
+
+    Parameters
+    ----------
+    :param fiber:   list[Ball]
+    :param i_start: int
+        index to start searching from
+    :param i_end: int
+        last index in fiber
+    :return: int
+        index of next node
+
+    """
     curvature = 0
     i = i_start
     while i + 2 <= i_end and curvature < 0.2:

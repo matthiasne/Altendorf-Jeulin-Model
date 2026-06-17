@@ -3,7 +3,7 @@ import copy
 import numpy as np
 from line_profiler import profile
 from scipy.linalg import cholesky
-from scipy.stats import uniform, norm
+from scipy.stats import norm, uniform
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 

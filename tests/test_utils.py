@@ -1,7 +1,15 @@
 import unittest
+
 import numpy as np
-from Altendorf_Jeulin_Model.utils import (periodic_distance, angle_between, normalized, cartesian_to_spherical, 
-                                          spherical_to_cartesian, spherical_to_matrix, periodic_distance)
+
+from Altendorf_Jeulin_Model.utils import (
+    angle_between,
+    cartesian_to_spherical,
+    normalized,
+    periodic_distance,
+    spherical_to_cartesian,
+    spherical_to_matrix,
+)
 
 
 class test_utils(unittest.TestCase):

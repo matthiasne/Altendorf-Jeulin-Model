@@ -13,6 +13,7 @@ from Altendorf_Jeulin_Model.utils import (
     spherical_to_matrix,
 )
 
+
 class FiberModel:
     def __init__(self, initial_fiber_system):
         if not (isinstance(initial_fiber_system, list) and all(isinstance(x, Fiber) for x in initial_fiber_system)):

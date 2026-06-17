@@ -10,11 +10,11 @@ from Altendorf_Jeulin_Model.CalculateForces import (
 from Altendorf_Jeulin_Model.io_utils import print_stats
 from Altendorf_Jeulin_Model.Statistics import (
     estimate_beta,
+    estimate_kappa1,
+    estimate_kappa2,
     mean_angle_error,
     mean_length,
     mean_radius,
-    estimate_kappa2,
-    estimate_kappa1
 )
 
 MAX_STEPS = 1000

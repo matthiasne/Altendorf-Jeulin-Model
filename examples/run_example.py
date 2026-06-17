@@ -1,4 +1,5 @@
 import time
+
 import numpy as np
 
 import Altendorf_Jeulin_Model.FiberModel as fm
@@ -11,6 +12,7 @@ from Altendorf_Jeulin_Model.utils import cut_border
 def main():
     example_AJ_finite()
     example_AJ_endless()
+
 
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
@@ -37,6 +39,7 @@ def example_AJ_finite():
     io.save_fibers_as_tif(
         fs, shape=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )
+
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
@@ -78,7 +81,6 @@ def example_AJ_endless():
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
     io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
-    
 
 
 if __name__ == "__main__":

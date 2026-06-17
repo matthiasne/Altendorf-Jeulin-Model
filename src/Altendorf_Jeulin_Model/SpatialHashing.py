@@ -40,7 +40,9 @@ class SpatialHashing:
         self.n_cells = self.division[0] * self.division[1] * self.division[2]
         "TODO: this must be implemented as spheres instead"
         self.cells = [[] for _ in range(self.n_cells)]
-        self.cell_width = tuple(ceil(size / div) for size, div in zip(image_size, self.division))
+        self.cell_width = tuple(
+            ceil(size / div) for size, div in zip(image_size, self.division)
+        )
 
     def _in_bounds(self, index: tuple[int, int, int]) -> bool:
         """
@@ -55,7 +57,9 @@ class SpatialHashing:
         """
         return all(0 <= c < m for c, m in zip(index, self.division))
 
-    def get_cell_index_of_coord(self, position: np.ndarray, is_periodic: bool = True) -> tuple[int, int, int]:
+    def get_cell_index_of_coord(
+        self, position: np.ndarray, is_periodic: bool = True
+    ) -> tuple[int, int, int]:
         """
         gets the cell index of a specific coordinate
 
@@ -67,14 +71,20 @@ class SpatialHashing:
             The cell index
         """
         if is_periodic:
-            pos_mod = (position[0] % self.image_size[0], position[1] % self.image_size[1],
-                       position[2] % self.image_size[2])
+            pos_mod = (
+                position[0] % self.image_size[0],
+                position[1] % self.image_size[1],
+                position[2] % self.image_size[2],
+            )
         else:
             pos_mod = (position[0], position[1], position[2])
-        return tuple(floor(coord / width) for coord, width in zip(pos_mod, self.cell_width))
+        return tuple(
+            floor(coord / width) for coord, width in zip(pos_mod, self.cell_width)
+        )
 
-    def get_neighbor_cell_indices(self, index: tuple[int, int, int], is_periodic: bool = True) -> list[
-        tuple[int, int, int]]:
+    def get_neighbor_cell_indices(
+        self, index: tuple[int, int, int], is_periodic: bool = True
+    ) -> list[tuple[int, int, int]]:
         """
         Gets the indices of all neighboring cells
         :param index: tuple[int, int, int]
@@ -90,16 +100,20 @@ class SpatialHashing:
             if di == dj == dk == 0:
                 continue  # skip the cell itself
             if is_periodic:
-                neighbor = ((index[0] + di) % self.division[0], (index[1] + dj) % self.division[1],
-                            (index[2] + dk) % self.division[2])
+                neighbor = (
+                    (index[0] + di) % self.division[0],
+                    (index[1] + dj) % self.division[1],
+                    (index[2] + dk) % self.division[2],
+                )
             else:
                 neighbor = ((index[0] + di), (index[1] + dj), (index[2] + dk))
             if self._in_bounds(neighbor) and neighbor not in neighbor_cells:
                 neighbor_cells.append(neighbor)
         return neighbor_cells
 
-    def get_younger_neighbor_cell_indices(self, index: tuple[int, int, int], is_periodic: bool = True) -> list[
-        tuple[int, int, int]]:
+    def get_younger_neighbor_cell_indices(
+        self, index: tuple[int, int, int], is_periodic: bool = True
+    ) -> list[tuple[int, int, int]]:
         """
         Gets the indices of all neighboring cells
         :param index: tuple[int, int, int]
@@ -111,8 +125,13 @@ class SpatialHashing:
         neighbor_cells = set()
         for di, dj, dk in product((-1, 0, 1), repeat=3):
             if (di, dj, dk) < (0, 0, 0):
-                neighbor = ((index[0] + di) % self.division[0] + ((index[1] + dj) % self.division[1]) * self.division[0]
-                            + ((index[2] + dk) % self.division[2]) * self.division[0] * self.division[1])
+                neighbor = (
+                    (index[0] + di) % self.division[0]
+                    + ((index[1] + dj) % self.division[1]) * self.division[0]
+                    + ((index[2] + dk) % self.division[2])
+                    * self.division[0]
+                    * self.division[1]
+                )
                 neighbor_cells.add(neighbor)
         return neighbor_cells
 
@@ -130,7 +149,11 @@ class SpatialHashing:
             index = self.get_cell_index_of_coord(coord % self.image_size)
         else:
             index = self.get_cell_index_of_coord(coord)
-        idx = index[0] + index[1] * self.division[0] + index[2] * self.division[0] * self.division[1]
+        idx = (
+            index[0]
+            + index[1] * self.division[0]
+            + index[2] * self.division[0] * self.division[1]
+        )
         self.cells[idx].append(ball)
 
     def add_fiber(self, fiber: Fiber, is_periodic: bool = True):
