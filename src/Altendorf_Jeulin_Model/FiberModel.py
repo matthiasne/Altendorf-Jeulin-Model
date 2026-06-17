@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 from numpy.random import default_rng
-from scipy.stats import uniform, vonmises_fisher
+from scipy.stats import uniform, poisson, vonmises_fisher
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils import (
@@ -20,7 +20,7 @@ class FiberModel:
             raise TypeError('Initial_fiber_system must be a list of fibers')
 
 
-def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, int, int],
+def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tuple[int, int, int],
                             kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
@@ -28,8 +28,8 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
 
     Parameters
     ---------------------
-    :param N: int
-        number of fibers
+    :param intensity: float
+        expected number of fibers
     :param L: float or random variable
         length of the fiber
     :param R: float or random variable
@@ -51,6 +51,7 @@ def initialize_fiber_system(N: int, L, R, beta: float, image_size: tuple[int, in
 
     rng = default_rng(seed)
     U = uniform(loc=0, scale=1)
+    N = poisson(intensity).rvs(random_state=rng)
 
     fiber_system = []
     for i in range(0, N):
@@ -127,14 +128,14 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
         the generated fiber system
     """
     rng = default_rng(seed)
-    n = int(scipy.stats.poisson(mu).rvs(random_state=rng))
+    n = scipy.stats.poisson(mu).rvs(random_state=rng)
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     ext_image_size = image_size + 2 * boundary_size_vec
     print("image size ", ext_image_size)
     fiber_system = []
     n_lines = 0
     for i in range(0, n):
-        # 1. Simulate the radius of the ith Fiber
+        # 1. Simulate the radius of the ith fiber
         r_fiber = set_value(R, rng)
         # 2. Generate Poisson line
         mid_pos, mu0, length = generate_poisson_line(rng, beta, image_size, has_beta)

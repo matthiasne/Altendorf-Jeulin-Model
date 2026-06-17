@@ -17,21 +17,21 @@ def main():
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = (100, 100, 100)
-    N = 100
+    intensity = 100
     L = 50
     R = 5
     beta = 1
 
     # create a fiber system
     start_time = time.time()
-    fs = fm.initialize_fiber_system(N, L, R, beta, image_size, 10, 100)
+    fs = fm.initialize_fiber_system(intensity, L, R, beta, image_size, 10, 100)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, beta, verbose=True)
+    #run_force_biased(fs, image_size, beta, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
