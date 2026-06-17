@@ -57,8 +57,8 @@ class test_utils(unittest.TestCase):
     def test_cartesian_to_spherical(self):
         r, theta, phi = cartesian_to_spherical(1,0,0)
         self.assertAlmostEqual(r, 1)
-        self.assertAlmostEqual(theta, 0)
-        self.assertAlmostEqual(phi, np.pi / 2.0)
+        self.assertAlmostEqual(theta, np.pi / 2.0)
+        self.assertAlmostEqual(phi, 0)
         r, theta, phi = cartesian_to_spherical(0, 1, 0)
         self.assertAlmostEqual(r, 1)
         self.assertAlmostEqual(theta, np.pi / 2.0)
@@ -73,7 +73,7 @@ class test_utils(unittest.TestCase):
         self.assertAlmostEqual(phi, 0)
         
     def test_spherical_to_cartesian(self):
-        x, y, z = spherical_to_cartesian(1, 0, np.pi/2.0)
+        x, y, z = spherical_to_cartesian(1, np.pi/2.0, 0)
         self.assertAlmostEqual(x, 1)
         self.assertAlmostEqual(y, 0)
         self.assertAlmostEqual(z, 0)
@@ -89,6 +89,16 @@ class test_utils(unittest.TestCase):
         self.assertAlmostEqual(x, 0)
         self.assertAlmostEqual(y, 0)
         self.assertAlmostEqual(z, 0)
+
+        x = 1
+        y = 2
+        z = 3
+        r, theta, phi = cartesian_to_spherical(x, y, z)
+        xt, yt, zt = spherical_to_cartesian(r, theta, phi)
+        self.assertAlmostEqual(xt, x)
+        self.assertAlmostEqual(yt, y)
+        self.assertAlmostEqual(zt, z)
+
 
     def test_spherical_to_matrix(self):
         mat = spherical_to_matrix(0,0)

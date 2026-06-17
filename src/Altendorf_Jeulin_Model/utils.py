@@ -85,6 +85,9 @@ def cartesian_to_spherical(x, y, z):
     """
     transform cartesian coordinates to spherical coordinates
 
+    Spherical coordinates theta and phi are used as the geographical
+    coordinates in Fisher et al. (1987).
+
     Attributes
     ---------------------
     :param x: float
@@ -97,6 +100,8 @@ def cartesian_to_spherical(x, y, z):
         radius, theta angle, phi angle in radian
     """
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    if r == 0:
+        return 0, 0, 0
     phi = np.arctan2(y, x)
     theta = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
     return r, theta, phi
@@ -106,20 +111,23 @@ def spherical_to_cartesian(r, theta, phi):
     """
     transform spherical coordinates (in radian) to cartesian coordinates
 
+    Spherical coordinates theta and phi are used as the geographical
+    coordinates in Fisher et al. (1987).
+
     Attributes
     ---------------------
     :param r: float
         radius
     :param theta: float
-        polar theta angle
+        polar theta angle (down from z-axis)
     :param phi: float
-        polar phi angle
+        polar phi angle (within x-y-plane)
     :return: float, float, float
         cartesian coordinates
     """
-    x = r * np.sin(phi) * np.cos(theta)
-    y = r * np.sin(phi) * np.sin(theta)
-    z = r * np.cos(phi)
+    x = r * np.sin(theta) * np.cos(phi)
+    y = r * np.sin(theta) * np.sin(phi)
+    z = r * np.cos(theta)
     return x, y, z
 
 
@@ -127,12 +135,15 @@ def spherical_to_matrix(theta: float, phi: float):
     """
     tranforms spherical coordinates to a rotation matrix
 
+    Spherical coordinates theta and phi are used as the geographical
+    coordinates in Fisher et al. (1987).
+
     Attributes
     ---------------------
     :param theta: float
-        first rotation angle (see Fisher)
+        first rotation angle (down from z-axis)
     :param phi: float
-        second rotation angle
+        second rotation angle (within x-y-plane)
     :return: np.ndarray
         rotation matrix
     """
@@ -182,7 +193,6 @@ def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int =
         return True
 
 
-@profile
 def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     """
     cuts fibers when they cross image/observation window borders
@@ -217,6 +227,9 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
 def schladitz_distribution(beta: float, rng):
     """
     generate random direction following the Schladitz distribution
+
+    Spherical coordinates theta and phi are used as the geographical
+    coordinates in Fisher et al. (1987).
 
     Attributes
     ---------------------
