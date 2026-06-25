@@ -1,9 +1,9 @@
 import numpy as np
-import scipy
 from numpy.random import default_rng
-from scipy.stats import uniform, poisson, vonmises_fisher
+from scipy.stats import poisson, uniform, vonmises_fisher
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
+from Altendorf_Jeulin_Model.Statistics import mean_length
 from Altendorf_Jeulin_Model.utils import (
     acg_distribution,
     cartesian_to_spherical,
@@ -21,7 +21,8 @@ class FiberModel:
 
 
 def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tuple[int, int, int],
-                            kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True):
+                            kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True,
+                            is_poisson: bool = True, volume_fraction_should: float = 1.0):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
     Altendorf&Jeulin (2011), further systems tbd
@@ -43,6 +44,11 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         curvature parameter for the random walk
     :param seed: int, default 42
         seed for the random variables
+    :param is_poisson: bool, default True
+        whether to sample the number of fibers from a Poisson distribution (Poisson line process)
+    :param volume_fraction_should: float, default 1.0
+        volume fraction that should not be exceeded. When it is set to 1.0, the volume fraction is not tested.
+        In general, the number of fibers will not be exceeded.
     :return: list[Fiber]
         the generated fiber system
     """
@@ -51,9 +57,13 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
 
     rng = default_rng(seed)
     U = uniform(loc=0, scale=1)
-    N = poisson(intensity).rvs(random_state=rng)
+    if is_poisson:
+        N = poisson(intensity).rvs(random_state=rng)
+    else:
+        N = intensity
 
     fiber_system = []
+    volume = 0
     for i in range(0, N):
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
@@ -96,12 +106,18 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         _, mu_bar2 = normalized(coord[l_fiber_discrete - 1] - coord[0])
 
         save_balls_in_fiber_system(fiber_system, coord, i, r_fiber)
-
+        
+        volume += l_fiber*r_fiber**2*np.pi
+        volume_fraction_is = volume/(image_size[0] * image_size[1] * image_size[2])
+        if volume_fraction_is > volume_fraction_should:
+            break
+    print("number of fibers ", len(fiber_system), " volume fraction ", volume_fraction_is)
     return fiber_system
 
 def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, int, int],
                                     boundary_size: int,
-                                    kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True):
+                                    kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True,
+                                    is_poisson: bool = True, volume_fraction_should: float = 1.0):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
     This method follows the initial fiber system by Prakash Easwaran
@@ -124,11 +140,19 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
         seed for the random variables
     :param has_beta: bool, default True
         whether to use the beta parameter for the Schladitz distribution or A for the ACG distribution
+    :param is_poisson: bool, default True
+        whether to sample the number of fibers from a Poisson distribution (Poisson line process)
+    :param volume_fraction_should: float, default 1.0
+        volume fraction that should not be exceeded. When it is set to 1.0, the volume fraction is not tested.
+        In general, the number of fibers will not be exceeded.
     :return: list[Fiber]
         the generated fiber system
     """
     rng = default_rng(seed)
-    n = scipy.stats.poisson(mu).rvs(random_state=rng)
+    if is_poisson:
+        n = poisson(mu).rvs(random_state=rng)
+    else:
+        n = mu
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     ext_image_size = image_size + 2 * boundary_size_vec
     print("image size ", ext_image_size)
@@ -156,6 +180,12 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
             else:
                 n_lines += 1
                 save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
+        # test for volume fraction starting late and only every tenth trial to save time
+        if volume_fraction_should != 1 and i > 3/4*n and i%10 == 0:
+            volume_fraction_is = len(fiber_system)*mean_length(fiber_system)*R**2*np.pi
+            volume_fraction_is /= ext_image_size[0]*ext_image_size[1]*ext_image_size[2]
+            if volume_fraction_is > volume_fraction_should:
+                break
     return fiber_system
 
 

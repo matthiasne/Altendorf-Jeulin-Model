@@ -33,6 +33,8 @@ def mean_length(fs: list[Fiber]):
         the fiber system
     :return: float mean length
     """
+    if len(fs) == 0:
+        return 0
     mean_length = np.mean([fiber.get_length() for fiber in fs])
     return mean_length
 
