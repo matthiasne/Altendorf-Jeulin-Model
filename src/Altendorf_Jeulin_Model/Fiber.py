@@ -18,8 +18,14 @@ class Ball:
             angle between the incident edges of the ball
     """
 
-    def __init__(self, coordinate: np.ndarray, radius: float,
-                 fiber_label: int = -1, ball_label: int = -1, angle: float = np.pi):
+    def __init__(
+        self,
+        coordinate: np.ndarray,
+        radius: float,
+        fiber_label: int = -1,
+        ball_label: int = -1,
+        angle: float = np.pi,
+    ):
         self.coordinate = coordinate
         self.radius = radius
         self.fiber_label = fiber_label
@@ -61,10 +67,10 @@ class Fiber:
     def get_length(self):
         length = 0
         for i in range(1, len(self.balls)):
-            #if i == 0:
+            # if i == 0:
             #    length += self.balls[0].radius
             #    length += self.balls[-1].radius
-            #else:
+            # else:
             coord = self.balls[i].coordinate
             prev_coord = self.balls[i - 1].coordinate
             length += np.linalg.norm(coord - prev_coord)
