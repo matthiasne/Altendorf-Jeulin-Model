@@ -1,9 +1,9 @@
+from multiprocessing import Manager, Pool, cpu_count, shared_memory
+
 import numpy as np
-from line_profiler import profile
-from multiprocessing import Pool, Manager, cpu_count, shared_memory
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.Fiber import Fiber, Ball
+from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 
 MIN_REPULSION_DISTANCE = 5
 X_S = 0.05
@@ -15,7 +15,6 @@ TAU = 0.25
 RHO = 0.2
 
 
-@profile
 def calculate_forces(grid: sh, fiber_system: list[Fiber]):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
@@ -109,7 +108,6 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber]):
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
-@profile
 def calculate_recovery_forces(fiber):
     for i, ball in enumerate(fiber.balls):
         if (i + 1 < len(fiber.balls)):
@@ -120,7 +118,6 @@ def calculate_recovery_forces(fiber):
             calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
     return fiber
 
-@profile
 def calculate_repulsion_forces_multiprocessor(grid, min, max):
     ball_dictionary = dict()
     for idx in range(min, max):
@@ -132,7 +129,6 @@ def calculate_repulsion_forces_multiprocessor(grid, min, max):
                 ball_dictionary = calculate_repulsion_force_multi(i, ball, cell, grid, neighbor_cells, ball_dictionary)
     return ball_dictionary
 
-@profile
 def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells: set[int]):
     """
     Calculates the repulsion force for the whole fiber system and adds it to the corresponding ball
@@ -211,7 +207,6 @@ def calculate_repulsion_force(i: int, ball: Ball, cell: list[Ball], grid: sh, ne
                     ball2.force = ball2.force + force
                     ball2.overlap = max(ball2.overlap, overlap)
 
-@profile
 def calculate_repulsion_force_multi(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells: set[int], ball_dictionary):
     """
     Calculates the repulsion force for the whole fiber system and adds it to the corresponding ball
@@ -310,7 +305,6 @@ def calculate_repulsion_force_multi(i: int, ball: Ball, cell: list[Ball], grid: 
     return ball_dictionary
 
 
-@profile
 def smoothing_factor(x: float, x_s: float, x_e: float):
     """
     Calculate the smoothing factor
@@ -337,7 +331,6 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
         return factor
 
 
-@profile
 def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
@@ -369,7 +362,6 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
 
 
-@profile
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
@@ -433,7 +425,6 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     ball.angle_diff = alpha0 - alpha
 
 
-@profile
 def apply_forces(fiber_system: list[Fiber]):
     """
     Applies forces to the fiber system

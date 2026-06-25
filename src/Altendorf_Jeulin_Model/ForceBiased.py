@@ -1,5 +1,4 @@
 import numpy as np
-from line_profiler import profile
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
@@ -10,7 +9,6 @@ MAX_STEPS = 1000
 MAX_OVERLAP = 0.1
 
 
-@profile
 def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int], beta,
                      use_end_step_radius: bool = False, use_end_step_repulsion: bool = False,
                      output_file: str = 'results.csv'):

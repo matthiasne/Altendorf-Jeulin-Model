@@ -1,9 +1,9 @@
 import numpy as np
-from line_profiler import profile
 
 
-@profile
-def periodic_distance(coord1mod: np.ndarray, coord2: np.ndarray, image_size):# tuple[int, int, int]):
+def periodic_distance(
+    coord1mod: np.ndarray, coord2: np.ndarray, image_size
+):  # tuple[int, int, int]):
     """
     Calculates the periodic distance between two coordinates and the normalized direction vector between them
     TODO: rename variables and fix documentation
@@ -21,14 +21,14 @@ def periodic_distance(coord1mod: np.ndarray, coord2: np.ndarray, image_size):# t
 
     for i in range(3):
         disp = coord2mod[i] - coord1mod[i]
-        if abs(disp) > image_size[i] / 2.:
+        if abs(disp) > image_size[i] / 2.0:
             if disp > 0:
                 coord2mod[i] -= image_size[i]
             else:
                 coord2mod[i] += image_size[i]
         coord2mod[i] -= coord1mod[i]
 
-    return np.linalg.norm(coord2mod), coord2mod#dist, dir
+    return np.linalg.norm(coord2mod), coord2mod  # dist, dir
 
 
 def angle_between(v1: np.ndarray, v2: np.ndarray):
@@ -110,8 +110,13 @@ def spherical_to_cartesian(r, theta, phi):
     z = r * np.cos(phi)
     return x, y, z
 
-def discretize_spheres(coordinates: np.ndarray, radii: np.ndarray,
-                       min_coordinates: np.ndarray, max_coordinates: np.ndarray):
+
+def discretize_spheres(
+    coordinates: np.ndarray,
+    radii: np.ndarray,
+    min_coordinates: np.ndarray,
+    max_coordinates: np.ndarray,
+):
     """
     discretizes spheres to an image
     :param coordinates: np.ndarray
@@ -127,25 +132,34 @@ def discretize_spheres(coordinates: np.ndarray, radii: np.ndarray,
     """
     L = max_coordinates - min_coordinates
     coordinates = coordinates - min_coordinates
-    image = np.zeros(L, 'uint16')
+    image = np.zeros(L, "uint16")
 
     for iota in range(len(coordinates)):
-        r_square = radii[iota]**2
-        for i in range(int(coordinates[iota, 0] - radii[iota]) - 1, int(coordinates[iota, 0] + radii[iota]) + 1):
+        r_square = radii[iota] ** 2
+        for i in range(
+            int(coordinates[iota, 0] - radii[iota]) - 1,
+            int(coordinates[iota, 0] + radii[iota]) + 1,
+        ):
             i_corr = i
             if i < 0:
                 i_corr = L[0] + i
             if i >= L[0]:
                 i_corr = i - L[0]
-            delta_i = (i - coordinates[iota, 0])**2
-            for j in range(int(coordinates[iota, 1] - radii[iota]) - 1, int(coordinates[iota, 1] + radii[iota]) + 1):
+            delta_i = (i - coordinates[iota, 0]) ** 2
+            for j in range(
+                int(coordinates[iota, 1] - radii[iota]) - 1,
+                int(coordinates[iota, 1] + radii[iota]) + 1,
+            ):
                 j_corr = j
                 if j < 0:
                     j_corr = L[1] + j
                 if j >= L[1]:
                     j_corr = j - L[1]
                 delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
-                for k in range(int(coordinates[iota, 2] - radii[iota]) - 1, int(coordinates[iota, 2] + radii[iota]) + 1):
+                for k in range(
+                    int(coordinates[iota, 2] - radii[iota]) - 1,
+                    int(coordinates[iota, 2] + radii[iota]) + 1,
+                ):
                     k_corr = k
                     if k < 0:
                         k_corr = L[2] + k
@@ -155,4 +169,3 @@ def discretize_spheres(coordinates: np.ndarray, radii: np.ndarray,
                     if delta_ijk <= r_square:
                         image[i_corr, j_corr, k_corr] = 1
     return image
-
