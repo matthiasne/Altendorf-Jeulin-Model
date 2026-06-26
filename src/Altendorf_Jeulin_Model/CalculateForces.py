@@ -15,7 +15,7 @@ TAU = 0.25
 RHO = 0.2
 
 
-def calculate_forces(grid: sh, fiber_system: list[Fiber]):
+def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -30,7 +30,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber]):
     """
     n_chunks = cpu_count()
     chunksize = grid.n_cells // n_chunks
-    tasks = [(grid, i*chunksize, (i+1)*chunksize) for i in range(n_chunks)]
+    tasks = [(grid, i*chunksize, (i+1)*chunksize, is_periodic) for i in range(n_chunks)]
     with Pool(processes=cpu_count()) as pool:
         modified_balls = pool.starmap(calculate_repulsion_forces_multiprocessor, tasks)
     #print("processors: ", cpu_count(), " processes: ", len(modified_balls))
@@ -102,7 +102,7 @@ def calculate_recovery_forces(fiber):
             calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
     return fiber
 
-def calculate_repulsion_forces_multiprocessor(grid, min, max):
+def calculate_repulsion_forces_multiprocessor(grid, min, max, is_periodic: bool):
     ball_dictionary = dict()
     for idx in range(min, max):
         cell = grid.cells[idx]
@@ -110,7 +110,7 @@ def calculate_repulsion_forces_multiprocessor(grid, min, max):
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
                 grid.get_cell_index_of_coord(cell[0].coordinate))
             for i, ball in enumerate(cell):
-                ball_dictionary = calculate_repulsion_forces_multi(i, ball, cell, grid, neighbor_cells, ball_dictionary)
+                ball_dictionary = calculate_repulsion_forces_multi(i, ball, cell, grid, neighbor_cells, ball_dictionary, is_periodic)
     return ball_dictionary
 
 def calculate_repulsion_forces(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells, is_periodic: bool = True):
@@ -191,7 +191,7 @@ def calculate_repulsion_force(ball, ball2, fiber_label:int, label:int, is_period
                 ball2.overlap = max(ball2.overlap, overlap)
 
                 
-def calculate_repulsion_forces_multi(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells: set[int], ball_dictionary):
+def calculate_repulsion_forces_multi(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells: set[int], ball_dictionary, is_periodic):
     """
     Calculates the repulsion force for the whole fiber system and adds it to the corresponding ball
 
@@ -215,14 +215,14 @@ def calculate_repulsion_forces_multi(i: int, ball: Ball, cell: list[Ball], grid:
     fiber_label = ball.fiber_label
     for ball2 in cell[i + 1:]:
         calculate_repulsion_force_multi(
-            ball, ball2, fiber_label, label, True, coord, grid.image_size, ball_dictionary
+            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, ball_dictionary
         )
     # compare with neighbor cells
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
             calculate_repulsion_force_multi(
-                ball, ball2, fiber_label, label, True, coord, grid.image_size, ball_dictionary
+                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, ball_dictionary
             )
     return ball_dictionary
 
@@ -232,45 +232,81 @@ def calculate_repulsion_force_multi(ball, ball2, fiber_label:int, label:int, is_
         fiber_label != ball2.fiber_label
         or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
     ):
-        # calculate periodic distance of the balls' coordinates
-        coord2mod = np.mod(ball2.coordinate, image_size)
-        for i in range(3):
-            disp = coord2mod[i] - coord[i]
-            if abs(disp) > image_size[i] / 2.0:
-                if disp > 0:
-                    coord2mod[i] -= image_size[i]
+        if is_periodic:
+            # calculate periodic distance of the balls' coordinates
+            coord2mod = np.mod(ball2.coordinate, image_size)
+            for i in range(3):
+                disp = coord2mod[i] - coord[i]
+                if abs(disp) > image_size[i] / 2.0:
+                    if disp > 0:
+                        coord2mod[i] -= image_size[i]
+                    else:
+                        coord2mod[i] += image_size[i]
+                coord2mod[i] -= coord[i]
+            dist = np.sqrt(
+                np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2])
+            )
+    
+            # calculate the force if balls are indeed overlapping
+            overlap = ball.radius + ball2.radius - dist
+            if overlap > 0:
+                coord2mod = coord2mod / dist
+                force = TAU * overlap / 2.0 * coord2mod
+                ball.force = ball.force - force
+                ball.overlap = max(ball.overlap, overlap)
+                idx = (label, fiber_label)
+                if idx not in ball_dictionary:
+                    ball_dictionary[idx] = (-force, overlap)
                 else:
-                    coord2mod[i] += image_size[i]
-            coord2mod[i] -= coord[i]
-        dist = np.sqrt(
-            np.square(coord2mod[0]) + np.square(coord2mod[1]) + np.square(coord2mod[2])
-        )
+                    ball_dictionary[idx] = (
+                        ball_dictionary[idx][0] - force,
+                        max(ball_dictionary[idx][1], overlap),
+                    )
+                ball2.force = ball2.force + force
+                ball2.overlap = max(ball2.overlap, overlap)
+                idx = (ball2.ball_label, ball2.fiber_label)
+                if idx not in ball_dictionary:
+                    ball_dictionary[idx] = (force, overlap)
+                else:
+                    ball_dictionary[idx] = (
+                        ball_dictionary[idx][0] + force,
+                        max(ball_dictionary[idx][1], overlap),
+                    )
+        else:
+            coord2 = ball2.coordinate
+            dist = np.sqrt(
+                np.square(coord2[0] - coord[0])
+                + np.square(coord2[1] - coord[1])
+                + np.square(coord2[2] - coord[2])
+            )
 
-        # calculate the force if balls are indeed overlapping
-        overlap = ball.radius + ball2.radius - dist
-        if overlap > 0:
-            coord2mod = coord2mod / dist
-            force = TAU * overlap / 2.0 * coord2mod
-            ball.force = ball.force - force
-            ball.overlap = max(ball.overlap, overlap)
-            idx = (label, fiber_label)
-            if idx not in ball_dictionary:
-                ball_dictionary[idx] = (-force, overlap)
-            else:
-                ball_dictionary[idx] = (
-                    ball_dictionary[idx][0] - force,
-                    max(ball_dictionary[idx][1], overlap),
-                )
-            ball2.force = ball2.force + force
-            ball2.overlap = max(ball2.overlap, overlap)
-            idx = (ball2.ball_label, ball2.fiber_label)
-            if idx not in ball_dictionary:
-                ball_dictionary[idx] = (force, overlap)
-            else:
-                ball_dictionary[idx] = (
-                    ball_dictionary[idx][0] + force,
-                    max(ball_dictionary[idx][1], overlap),
-                )
+            # calculate the force if balls are indeed overlapping
+            overlap = ball.radius + ball2.radius - dist
+            if overlap > 0:
+                dir = np.empty_like(coord2)
+                for i in range(0, 3):
+                    dir[i] = (coord2[i] - coord[i]) / dist
+                force = TAU * overlap / 2.0 * dir
+                ball.force = ball.force - force
+                ball.overlap = max(ball.overlap, overlap)
+                idx = (label, fiber_label)
+                if idx not in ball_dictionary:
+                    ball_dictionary[idx] = (-force, overlap)
+                else:
+                    ball_dictionary[idx] = (
+                        ball_dictionary[idx][0] - force,
+                        max(ball_dictionary[idx][1], overlap),
+                    )
+                ball2.force = ball2.force + force
+                ball2.overlap = max(ball2.overlap, overlap)
+                idx = (ball2.ball_label, ball2.fiber_label)
+                if idx not in ball_dictionary:
+                    ball_dictionary[idx] = (force, overlap)
+                else:
+                    ball_dictionary[idx] = (
+                        ball_dictionary[idx][0] + force,
+                        max(ball_dictionary[idx][1], overlap),
+                    )
 
 
 def smoothing_factor(x: float, x_s: float, x_e: float):

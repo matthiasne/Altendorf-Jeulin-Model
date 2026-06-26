@@ -61,8 +61,8 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         image_size = image_size + 2 * boundary_size_vec
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)#,
-                                                                          #is_periodic=is_periodic) TODO!
+    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+                                                                          is_periodic=is_periodic)
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(1, MAX_STEPS):
@@ -71,9 +71,9 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs)#,
-                                                                              #is_periodic=is_periodic) TODO
-        if verbose and i % 100 == 0: # TODO: output kappas everywhere
+        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+                                                                              is_periodic=is_periodic)
+        if verbose and i % 10 == 0:
             if has_beta:
                 print(
                     "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
