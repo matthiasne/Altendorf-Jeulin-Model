@@ -21,7 +21,7 @@ MAX_STEPS = 1000
 MAX_OVERLAP = 0.1
 BOUNDARY_SIZE = 100
 
-def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
+def run_force_biased(n_cores: int, fs: list[Fiber], image_size: tuple[int, int, int],
                      use_end_step_radius: bool = False, use_end_step_repulsion: bool = False,
                      output_file: str = 'results.csv', verbose: bool = False,
                      is_periodic: bool = True, has_beta:bool = True, beta = 1.0):
@@ -61,7 +61,7 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         image_size = image_size + 2 * boundary_size_vec
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs, n_cores=n_cores,
                                                                           is_periodic=is_periodic)
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
@@ -71,7 +71,7 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
+        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs, n_cores=n_cores,
                                                                               is_periodic=is_periodic)
         if verbose and i % 10 == 0:
             if has_beta:

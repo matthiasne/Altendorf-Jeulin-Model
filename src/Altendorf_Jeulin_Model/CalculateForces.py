@@ -15,7 +15,7 @@ TAU = 0.25
 RHO = 0.2
 
 
-def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
+def calculate_forces(grid: sh, fiber_system: list[Fiber], n_cores:int, is_periodic: bool = True):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -28,7 +28,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
-    n_chunks = cpu_count()
+    n_chunks = min(n_cores, cpu_count())
     chunksize = grid.n_cells // n_chunks
     tasks = [(grid, i*chunksize, (i+1)*chunksize, is_periodic) for i in range(n_chunks)]
     with Pool(processes=cpu_count()) as pool:

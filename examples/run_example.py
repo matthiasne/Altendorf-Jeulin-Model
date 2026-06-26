@@ -74,8 +74,9 @@ def example_AJ_endless():
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
 
     # pack the fibers
+    n_cores = 4
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, has_beta=False, verbose=True)
+    run_force_biased(n_cores, fs, image_size, is_periodic=False, has_beta=False, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
