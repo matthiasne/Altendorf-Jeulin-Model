@@ -31,7 +31,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], n_cores:int, is_period
     n_chunks = min(n_cores, cpu_count())
     chunksize = grid.n_cells // n_chunks
     tasks = [(grid, i*chunksize, (i+1)*chunksize, is_periodic) for i in range(n_chunks)]
-    with Pool(processes=cpu_count()) as pool:
+    with Pool(processes=n_chunks) as pool:
         modified_balls = pool.starmap(calculate_repulsion_forces_multiprocessor, tasks)
     #print("processors: ", cpu_count(), " processes: ", len(modified_balls))
     pooled_dictionary = dict()
@@ -49,7 +49,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], n_cores:int, is_period
 
 
 
-    with Pool(processes=cpu_count()) as pool:
+    with Pool(processes=n_chunks) as pool:
         modified_fibers = pool.map(calculate_recovery_forces, fiber_system)
     fiber_system[:] = modified_fibers
 
