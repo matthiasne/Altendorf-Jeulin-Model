@@ -9,7 +9,7 @@ from Altendorf_Jeulin_Model.utils import cut_border
 
 
 def main():
-    #example_AJ_finite()
+    example_AJ_finite()
     example_AJ_endless()
 
 
@@ -31,8 +31,9 @@ def example_AJ_finite():
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
 
     # pack the fibers
+    n_cores = 4
     start_time = time.time()
-    run_force_biased(fs, image_size, beta, verbose=True)
+    run_force_biased(n_cores, fs, image_size, beta, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -44,7 +45,7 @@ def example_AJ_finite():
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (800, 800, 800)
+    image_size = (1200, 1200, 1200)
     boundary_size = 50
     VV = 0.12
     R = 17 / 2.0
@@ -84,8 +85,8 @@ def example_AJ_endless():
     io.save_fibers_as_tif(
         fs,
         scale=4,
-        shape=(225, 225, 225),
-        boundary=(boundary_size, boundary_size, boundary_size),
+        shape=(325, 325, 325),
+        boundary=(12, 12, 12),
         path="examples/outputs/0p12_1/AJ_model_endless.tif",
         is_periodic=False,
     )
