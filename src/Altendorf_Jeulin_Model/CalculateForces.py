@@ -1,4 +1,4 @@
-from multiprocessing import Manager, Pool, cpu_count, shared_memory
+from multiprocessing import Pool, cpu_count
 
 import numpy as np
 
@@ -65,7 +65,7 @@ def calculate_forces(
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
-    total_neighbor_dist = 0tuple[int, int, int]
+    total_neighbor_dist = 0
     total_angle_diff = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
