@@ -10,7 +10,7 @@ ALPHA_S = 0.1 * np.pi / 180
 ALPHA_E = 0.2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU = 0.25
-RHO = 0.2
+RHO = 0.25
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
     """
@@ -44,13 +44,15 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     total_overlap = 0
     total_neighbor_dist = 0
     total_angle_diff = 0
+    overlap_sum = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
             total_force = total_force + ball.force
             total_overlap = max(total_overlap, ball.overlap)
             total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
             total_angle_diff = max(total_angle_diff, abs(ball.angle_diff))
-    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist, total_angle_diff
+            overlap_sum = overlap_sum + ball.optim_sum
+    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist, total_angle_diff, overlap_sum
 
 
 def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
@@ -130,14 +132,20 @@ def calculate_repulsion_force(ball, ball2, fiber_label:int, label:int, is_period
             )
 
             # calculate the force if balls are indeed overlapping
-            overlap = ball.radius + ball2.radius - dist
+            overlap_true = ball.radius + ball2.radius - dist
+            overlap = 1.1*(ball.radius + ball2.radius) - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
-                force = TAU * overlap / 2.0 * coord2mod
+                force = (TAU * overlap / 2.0 * coord2mod
+                         *smoothing_factor(overlap/(ball.radius + ball2.radius), 0.025, 0.075)
+                         *(1.-coord2mod*smoothing_factor(overlap/(ball.radius + ball2.radius), 0.95, 1)))
                 ball.force = ball.force - force
-                ball.overlap = max(ball.overlap, overlap)
+                ball.overlap = max(ball.overlap, overlap_true)
+                overlap_sq = np.square(overlap/(ball.radius + ball2.radius))/4.
+                ball.optim_sum += overlap_sq
                 ball2.force = ball2.force + force
-                ball2.overlap = max(ball2.overlap, overlap)
+                ball2.overlap = max(ball2.overlap, overlap_true)
+                ball2.optim_sum += overlap_sq
 
         else:
             coord2 = ball2.coordinate
@@ -212,6 +220,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
         force_dir[i] = s_f * force_dir[i]
     ball1.force = ball1.force + force_dir
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
+    ball1.optim_sum += np.square(ratio_displaced)*RHO*smoothing_factor(ratio_displaced, X_S, X_E)/2.
 
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     """
@@ -274,6 +283,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     for i in range(0, 3):
         ball.force[i] += (m[i] - coord[i]) * f
     ball.angle_diff = alpha0 - alpha
+    ball.optim_sum += np.square(np.cos(alpha0) - np.cos(alpha))*RHO/2./np.square(ball.radius)#*smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E)
 
 
 def apply_forces(fiber_system: list[Fiber]):
@@ -294,5 +304,6 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.coordinate = new_coord
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
+            ball.optim_sum = 0
             ball.neighbor_dist = ball.radius / 2.
             ball.angle_diff = 0
