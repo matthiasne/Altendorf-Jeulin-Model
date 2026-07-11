@@ -136,9 +136,7 @@ def calculate_repulsion_force(ball, ball2, fiber_label:int, label:int, is_period
             overlap = 1.1*(ball.radius + ball2.radius) - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
-                force = (TAU * overlap / 2.0 * coord2mod
-                         *smoothing_factor(overlap/(ball.radius + ball2.radius), 0.025, 0.075)
-                         *(1.-coord2mod*smoothing_factor(overlap/(ball.radius + ball2.radius), 0.95, 1)))
+                force = TAU * overlap / 2.0 * coord2mod
                 ball.force = ball.force - force
                 ball.overlap = max(ball.overlap, overlap_true)
                 overlap_sq = np.square(overlap/(ball.radius + ball2.radius))/4.
