@@ -34,6 +34,26 @@ def print_fiber_positions(fiber_system: FiberModel,
                           for ball in fiber.balls[:max_balls])
         print("Fiber ", i, ":", coords)
 
+
+def print_fiber_positions_to_file(fiber_system: FiberModel,
+                          output_file: str):
+    """
+    Print fibers as positions.
+
+    Parameters
+    ---------------------
+    :param fiber_system: list[Fiber]
+        A list of fibers, each represented as a list of balls
+    :param output_file: str
+        path for the output file
+    """
+    with open(output_file, mode='w', newline='') as file:
+        for i, fiber in enumerate(fiber_system):
+            coords = ' '.join(f"[{ball.coordinate[0]:.2f},"
+                              f" {ball.coordinate[1]:.2f}, {ball.coordinate[2]:.2f}]"
+                              for ball in fiber.balls)
+            print("Fiber ", i, ":", coords, file=file)
+
 def save_fibers_as_tif(fiber_system: list[Fiber],
                        shape: tuple[int, int, int],
                        boundary: tuple[int, int, int] = (0,0,0),
