@@ -21,7 +21,7 @@ class FiberModel:
 
 
 def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tuple[int, int, int],
-                            kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True,
+                            kappa1: float, kappa2: float, seed: int = None, has_beta: bool = True,
                             is_poisson: bool = True, volume_fraction_should: float = 1.0):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
@@ -52,9 +52,6 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
     :return: list[Fiber]
         the generated fiber system
     """
-    if beta < 0:
-        raise TypeError('beta must be non-negative')
-
     rng = default_rng(seed)
     U = uniform(loc=0, scale=1)
     if is_poisson:
@@ -116,7 +113,7 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
 
 def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, int, int],
                                     boundary_size: int,
-                                    kappa1: float, kappa2: float, seed: int = 42, has_beta: bool = True,
+                                    kappa1: float, kappa2: float, seed: int = None, has_beta: bool = True,
                                     is_poisson: bool = True, volume_fraction_should: float = 1.0):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
