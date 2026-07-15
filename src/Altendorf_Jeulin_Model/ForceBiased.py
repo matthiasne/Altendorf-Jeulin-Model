@@ -7,7 +7,7 @@ from Altendorf_Jeulin_Model.CalculateForces import (
     calculate_forces,
     calculate_forces_endstep,
 )
-from Altendorf_Jeulin_Model.io_utils import print_stats
+from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 from Altendorf_Jeulin_Model.Statistics import (
     estimate_beta,
     estimate_kappa1,
@@ -15,16 +15,25 @@ from Altendorf_Jeulin_Model.Statistics import (
     mean_angle_error,
     mean_length,
     mean_radius,
+    calculate_fot
 )
 
 MAX_STEPS = 1000
 MAX_OVERLAP = 0.1
 BOUNDARY_SIZE = 100
 
-def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
-                     use_end_step_radius: bool = False, use_end_step_repulsion: bool = False,
-                     output_file: str = 'results.csv', verbose: bool = False,
-                     is_periodic: bool = True, has_beta:bool = True, beta = 1.0):
+
+def run_force_biased(
+    fs: list[Fiber],
+    image_size: tuple[int, int, int],
+    use_end_step_radius: bool = False,
+    use_end_step_repulsion: bool = False,
+    output_file: str = "results.csv",
+    verbose: bool = False,
+    is_periodic: bool = True,
+    has_beta: bool = True,
+    beta=1.0,
+):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
 
@@ -43,15 +52,6 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
     :param beta: float                          parameter of direction distribution
     """
     rows = []
-    if verbose:
-        if has_beta:
-            rows.append(
-                [0, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
-                 estimate_kappa1(fs), estimate_kappa2(fs), 'NaN', 'NaN'])
-        else:
-            rows.append(
-                [0, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
-                 estimate_kappa1(fs), estimate_kappa2(fs), 'NaN', 'NaN'])
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
     min_radius = min(fiber.get_max_radius() for fiber in fs)
@@ -61,8 +61,11 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         image_size = image_size + 2 * boundary_size_vec
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
-                                                                          is_periodic=is_periodic)
+    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
+        grid, fiber_system=fs, is_periodic=is_periodic
+    )
+    if verbose:
+        rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist))
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
     for i in range(1, MAX_STEPS):
@@ -71,35 +74,19 @@ def run_force_biased(fs: list[Fiber], image_size: tuple[int, int, int],
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(grid, fiber_system=fs,
-                                                                              is_periodic=is_periodic)
-        if verbose and i % 100 == 0: # TODO: output kappas everywhere
-            if has_beta:
-                print(
-                    "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
-                    " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
-                    mean_length(fs), " beta estimate ", estimate_beta(fs, beta),
-                    " kappa1 estimate ", estimate_kappa1(fs), " kappa2 estimate ", estimate_kappa2(fs)
-                )
-                rows.append(
-                    [i, len(fs), beta, estimate_beta(fs, beta), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
-                    estimate_kappa1(fs), estimate_kappa2(fs), overlap, force_strength])
-            else:
-                print(
-                    "step ", i, " force ", force_strength, " max overlap ", overlap, " neighbor dist ", neighbor_dist,
-                    " mean angle diff ", mean_angle_error(fs), " mean radius ", mean_radius(fs), " mean length ",
-                    mean_length(fs), " kappa1 estimate ", estimate_kappa1(fs), " kappa2 estimate ", estimate_kappa2(fs)
-                )
-                rows.append(
-                    [i, len(fs), mean_radius(fs), mean_length(fs), mean_angle_error(fs),
-                     estimate_kappa1(fs), estimate_kappa2(fs), overlap, force_strength])
+        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
+            grid, fiber_system=fs, is_periodic=is_periodic
+        )
+        if verbose and i % 100 == 0:
+            rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:
         end_step_repulsion(fs, max_radius, overlap, image_size)
 
     if verbose:
-        print_stats(output_file, rows, has_beta)
+        rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
+        print_stats(output_file, rows)
 
 
 def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):
@@ -125,8 +112,9 @@ def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):
                 ball.overlap = 0
 
 
-def end_step_repulsion(fs: list[Fiber], max_radius: float,
-                       overlap: float, image_size: tuple[int, int, int]):
+def end_step_repulsion(
+    fs: list[Fiber], max_radius: float, overlap: float, image_size: tuple[int, int, int]
+):
     """
     The end step where only the repulsion force is applied
 

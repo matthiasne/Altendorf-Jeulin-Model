@@ -12,6 +12,7 @@ from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_periodic,
     normalized,
 )
+from Altendorf_Jeulin_Model.Statistics import (calculate_fot, mean_angle_error)
 
 
 def print_fiber_positions(
@@ -125,41 +126,73 @@ def print_grid(grid: sh):
         print("Cell ", i, ":", coords)
 
 
-def print_stats(output_file: str, rows, has_beta: bool = True):
+def print_stats(output_file: str, rows):
+    """
+    Prints the statistics into an output file
+    :param output_file: str
+        path to the output file
+    :param rows: list
+        rows to be printed, containing
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength"
+    """
     with open(output_file, mode="w", newline="") as file:
         writer = csv.writer(file)
-        if has_beta:
-            writer.writerow(
-                [
-                    "Step",
-                    "#Fibers",
-                    "Beta",
-                    "EstimatedBeta",
-                    "MeanRadius",
-                    "MeanLength",
-                    "MeanAngleError",
-                    "Kappa1Estimate",
-                    "Kappa2Estimate",
-                    "MaxOverlap",
-                    "ForceStrength",
-                ]
-            )  # Header
-        else:
-            writer.writerow(
-                [
-                    "Step",
-                    "#Fibers",
-                    "MeanRadius",
-                    "MeanLength",
-                    "MeanAngleError",
-                    "Kappa1Estimate",
-                    "Kappa2Estimate",
-                    "MaxOverlap",
-                    "ForceStrength",
-                ]
-            )
+        writer.writerow(
+            [
+                "Step",
+                "#Fibers",
+                "FOTxx",
+                "FOTxy",
+                "FOTxz",
+                "FOTyy",
+                "FOTyz",
+                "FOTzz",
+                "MeanAngleError",
+                "MaxNeighborDist",
+                "MaxOverlap",
+                "ForceStrength",
+            ]
+        )  # Header
         writer.writerows(rows)
 
+def print_stats_row(fs: list[Fiber], i, force_strength: float, overlap: float, neighbor_dist: float):
+    """
+    Prints the statistics into the console and returns a list of them
+    :param fs: list[Fiber]
+        fiber system
+    :param i: int
+        iteration step of force-biased algorithm
+    :param force_strength: float
+        force strength, length of vector of displacements
+    :param overlap: float
+        maximal overlap between balls
+    :param neighbor_dist: float
+        maximal distance between neighbors (should be half the radius)
+    :return: rows to be printed, containing
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength"
+    """
+    FOT = calculate_fot(fs)
+    mae = mean_angle_error(fs)
+    print(
+        f"step {i} force {force_strength:.3f} max overlap {overlap:.3f} "
+        f"neighbor dist {neighbor_dist:.3f} mean angle diff {mae:.3f} "
+        f"FOT xx {FOT[0, 0]:.3f} xy {FOT[0, 1]:.3f} xz {FOT[0, 2]:.3f} "
+        f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
+    )
+    return [
+            i,
+            len(fs),
+            FOT[0, 0],
+            FOT[0, 1],
+            FOT[0, 2],
+            FOT[1, 1],
+            FOT[1, 2],
+            FOT[2, 2],
+            mae,
+            neighbor_dist,
+            overlap,
+            force_strength,
+        ]
 
 def save_fibers_as_graph(file_path: str, fs: sh):
     """

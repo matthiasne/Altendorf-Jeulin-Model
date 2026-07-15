@@ -10,6 +10,7 @@ from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
 )
 from Altendorf_Jeulin_Model.utils import cut_border
+from Altendorf_Jeulin_Model.Statistics import calculate_fot
 
 
 def main():
