@@ -8,15 +8,6 @@ from Altendorf_Jeulin_Model.CalculateForces import (
     calculate_forces_endstep,
 )
 from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
-from Altendorf_Jeulin_Model.Statistics import (
-    estimate_beta,
-    estimate_kappa1,
-    estimate_kappa2,
-    mean_angle_error,
-    mean_length,
-    mean_radius,
-    calculate_fot
-)
 
 MAX_STEPS = 1000
 MAX_OVERLAP = 0.1

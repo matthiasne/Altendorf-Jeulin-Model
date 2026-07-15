@@ -6,11 +6,9 @@ import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 from Altendorf_Jeulin_Model.io_utils import (
-    print_fiber_positions,
     print_fiber_positions_to_file,
 )
 from Altendorf_Jeulin_Model.utils import cut_border
-from Altendorf_Jeulin_Model.Statistics import calculate_fot
 
 
 def main():

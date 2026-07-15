@@ -7,12 +7,12 @@ import tifffile
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber
+from Altendorf_Jeulin_Model.Statistics import calculate_fot, mean_angle_error
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
     discretize_spheres_periodic,
     normalized,
 )
-from Altendorf_Jeulin_Model.Statistics import (calculate_fot, mean_angle_error)
 
 
 def print_fiber_positions(

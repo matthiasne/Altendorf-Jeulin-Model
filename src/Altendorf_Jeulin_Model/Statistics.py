@@ -227,6 +227,7 @@ def estimate_kappa2(fs: list[Fiber]):
     # mean angle error across all fibers
     return 2 / np.mean(diff_sum) if diff_sum else 0
 
+
 def calculate_fot(fs: list[Fiber]) -> np.ndarray:
     """
     Calculates the fiber orientation tensor (FOT) of second order of the fiber system.

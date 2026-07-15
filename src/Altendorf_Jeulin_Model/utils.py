@@ -8,7 +8,9 @@ from scipy.stats import norm, uniform
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
 
-def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[int, int, int]):
+def periodic_distance(
+    coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[int, int, int]
+):
     """
     Calculates the periodic distance between two coordinates and the normalized direction vector between them
 
@@ -25,15 +27,15 @@ def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[
     dist_orig = np.linalg.norm(coord2mod - coord1mod)
     delta = coord2mod - coord1mod
     for i in range(3):
-        if (abs(delta[i]) > image_size[i] / 2.):
-            if (delta[i] > 0):
+        if abs(delta[i]) > image_size[i] / 2.0:
+            if delta[i] > 0:
                 coord2mod[i] -= image_size[i]
             else:
                 coord2mod[i] += image_size[i]
 
     dist, dir = normalized(coord2mod - coord1mod)
 
-    if (np.linalg.norm(coord2mod - coord1mod) > dist_orig):
+    if np.linalg.norm(coord2mod - coord1mod) > dist_orig:
         raise ValueError("There is an issue in the periodic distance calculation")
     else:
         return dist, dir
@@ -91,7 +93,7 @@ def cartesian_to_spherical(x, y, z):
     :return: float, float, float
         radius, theta angle, phi angle in radian
     """
-    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    r = np.sqrt(x**2 + y**2 + z**2)
     if r == 0:
         return 0, 0, 0
     phi = np.arctan2(y, x)
@@ -135,9 +137,13 @@ def spherical_to_matrix(theta: float, phi: float):
     :return: np.ndarray
         rotation matrix
     """
-    return np.array([[np.cos(theta) * np.cos(phi), -np.sin(phi), np.sin(theta) * np.cos(phi)],
-                     [np.cos(theta) * np.sin(phi), np.cos(phi), np.sin(theta) * np.sin(phi)],
-                     [-np.sin(theta), 0, np.cos(theta)]])
+    return np.array(
+        [
+            [np.cos(theta) * np.cos(phi), -np.sin(phi), np.sin(theta) * np.cos(phi)],
+            [np.cos(theta) * np.sin(phi), np.cos(phi), np.sin(theta) * np.sin(phi)],
+            [-np.sin(theta), 0, np.cos(theta)],
+        ]
+    )
 
 
 def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
@@ -153,10 +159,16 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
     :return: np.ndarray
         rotated vector
     """
-    return np.dot(n, mu) * n + np.cos(alpha) * np.cross(np.cross(n, mu), n) + np.sin(alpha) * np.cross(n, mu)
+    return (
+        np.dot(n, mu) * n
+        + np.cos(alpha) * np.cross(np.cross(n, mu), n)
+        + np.sin(alpha) * np.cross(n, mu)
+    )
 
 
-def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int = 100) -> bool:
+def is_in_image(
+    pos: np.ndarray, image_size: tuple[int, int, int], buffer: int = 100
+) -> bool:
     """
     calculates whether a coordinate lies within an image/observation window
 
@@ -171,7 +183,11 @@ def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int =
     """
     if pos[0] < -buffer or pos[1] < -buffer or pos[2] < -buffer:
         return False
-    elif pos[0] > image_size[0] + buffer or pos[1] > image_size[1] + buffer or pos[2] > image_size[2] + buffer:
+    elif (
+        pos[0] > image_size[0] + buffer
+        or pos[1] > image_size[1] + buffer
+        or pos[2] > image_size[2] + buffer
+    ):
         return False
     else:
         return True
@@ -197,12 +213,16 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
         j_end = len(fiber.balls) - 1
         for j in range(0, len(fiber.balls)):
             fiber.balls[j].coordinate = fiber.balls[j].coordinate - boundary_size_vec
-            if j_start == j - 1 and not is_in_image(fiber.balls[j].coordinate, image_size, 0):
+            if j_start == j - 1 and not is_in_image(
+                fiber.balls[j].coordinate, image_size, 0
+            ):
                 j_start = j
-            elif j_start < j and not is_in_image(fiber.balls[j].coordinate, image_size, 0):
+            elif j_start < j and not is_in_image(
+                fiber.balls[j].coordinate, image_size, 0
+            ):
                 j_end = j + 1
                 break
-        fiber.balls = fiber.balls[j_start + 1:j_end - 1]
+        fiber.balls = fiber.balls[j_start + 1 : j_end - 1]
     return fs_cut
 
 
@@ -223,7 +243,9 @@ def schladitz_distribution(beta: float, rng):
     u1 = U.rvs(random_state=rng)
     u2 = U.rvs(random_state=rng)
     phi0 = np.pi * 2 * u1
-    theta0 = np.arccos((1 - 2 * u2) / np.sqrt(beta ** 2 - (beta ** 2 - 1) * (1 - 2 * u2) ** 2))
+    theta0 = np.arccos(
+        (1 - 2 * u2) / np.sqrt(beta**2 - (beta**2 - 1) * (1 - 2 * u2) ** 2)
+    )
     mu0 = np.array(spherical_to_cartesian(1, theta0, phi0))
     return mu0, theta0, phi0
 
@@ -243,8 +265,13 @@ def acg_distribution(param_matrix, rng):
     _, r_acg = normalized(np.dot(L, r))
     return r_acg
 
-def discretize_spheres_periodic(coordinates: np.ndarray, radii: np.ndarray,
-                                min_coordinates: np.ndarray, image_shape: np.ndarray):
+
+def discretize_spheres_periodic(
+    coordinates: np.ndarray,
+    radii: np.ndarray,
+    min_coordinates: np.ndarray,
+    image_shape: np.ndarray,
+):
     """
     Discretize spheres to an image with periodic boundary conditions
     :param coordinates: np.ndarray
@@ -259,26 +286,34 @@ def discretize_spheres_periodic(coordinates: np.ndarray, radii: np.ndarray,
         The image containing spheres
     """
     coordinates = coordinates - min_coordinates
-    image = np.zeros(image_shape, 'uint16')
+    image = np.zeros(image_shape, "uint16")
 
     for iota in range(len(coordinates)):
         r_square = radii[iota] ** 2
-        for i in range(int(coordinates[iota, 0] - radii[iota]) - 1, int(coordinates[iota, 0] + radii[iota]) + 1):
+        for i in range(
+            int(coordinates[iota, 0] - radii[iota]) - 1,
+            int(coordinates[iota, 0] + radii[iota]) + 1,
+        ):
             i_corr = i
             if i < 0:
                 i_corr = image_shape[0] + i
             if i >= image_shape[0]:
                 i_corr = i - image_shape[0]
             delta_i = (i - coordinates[iota, 0]) ** 2
-            for j in range(int(coordinates[iota, 1] - radii[iota]) - 1, int(coordinates[iota, 1] + radii[iota]) + 1):
+            for j in range(
+                int(coordinates[iota, 1] - radii[iota]) - 1,
+                int(coordinates[iota, 1] + radii[iota]) + 1,
+            ):
                 j_corr = j
                 if j < 0:
                     j_corr = image_shape[1] + j
                 if j >= image_shape[1]:
                     j_corr = j - image_shape[1]
                 delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
-                for k in range(int(coordinates[iota, 2] - radii[iota]) - 1,
-                               int(coordinates[iota, 2] + radii[iota]) + 1):
+                for k in range(
+                    int(coordinates[iota, 2] - radii[iota]) - 1,
+                    int(coordinates[iota, 2] + radii[iota]) + 1,
+                ):
                     k_corr = k
                     if k < 0:
                         k_corr = image_shape[2] + k
@@ -290,8 +325,12 @@ def discretize_spheres_periodic(coordinates: np.ndarray, radii: np.ndarray,
     return image
 
 
-def discretize_spheres_nonperiodic(coordinates: np.ndarray, radii: np.ndarray,
-                                   min_coordinates: np.ndarray, image_shape: np.ndarray):
+def discretize_spheres_nonperiodic(
+    coordinates: np.ndarray,
+    radii: np.ndarray,
+    min_coordinates: np.ndarray,
+    image_shape: np.ndarray,
+):
     """
     Discretize spheres to an image (no periodic boundary conditions)
     :param coordinates: np.ndarray
@@ -305,21 +344,29 @@ def discretize_spheres_nonperiodic(coordinates: np.ndarray, radii: np.ndarray,
     :return: np.ndarray
         The image containing spheres
     """
-    image = np.zeros(image_shape, 'uint16')
+    image = np.zeros(image_shape, "uint16")
     coordinates = coordinates - min_coordinates
 
     for iota in range(len(coordinates)):
         r_square = radii[iota] ** 2
-        for i in range(int(coordinates[iota, 0] - radii[iota]) - 1, int(coordinates[iota, 0] + radii[iota]) + 1):
+        for i in range(
+            int(coordinates[iota, 0] - radii[iota]) - 1,
+            int(coordinates[iota, 0] + radii[iota]) + 1,
+        ):
             if i < 0 or i >= image_shape[0]:
                 continue
             delta_i = (i - coordinates[iota, 0]) ** 2
-            for j in range(int(coordinates[iota, 1] - radii[iota]) - 1, int(coordinates[iota, 1] + radii[iota]) + 1):
+            for j in range(
+                int(coordinates[iota, 1] - radii[iota]) - 1,
+                int(coordinates[iota, 1] + radii[iota]) + 1,
+            ):
                 if j < 0 or j >= image_shape[1]:
                     continue
                 delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
-                for k in range(int(coordinates[iota, 2] - radii[iota]) - 1,
-                               int(coordinates[iota, 2] + radii[iota]) + 1):
+                for k in range(
+                    int(coordinates[iota, 2] - radii[iota]) - 1,
+                    int(coordinates[iota, 2] + radii[iota]) + 1,
+                ):
                     if k < 0 or k >= image_shape[2]:
                         continue
                     delta_ijk = delta_ij + (k - coordinates[iota, 2]) ** 2

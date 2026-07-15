@@ -12,6 +12,7 @@ ALPHA_E = 0.2 * np.pi / 180
 TAU = 0.25
 RHO = 0.2
 
+
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
@@ -26,16 +27,19 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
-                grid.get_cell_index_of_coord(cell[0].coordinate))
+                grid.get_cell_index_of_coord(cell[0].coordinate)
+            )
             for i, ball in enumerate(cell):
-                calculate_repulsion_forces(i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic)
+                calculate_repulsion_forces(
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic
+                )
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
-            if (i + 1 < len(fiber.balls)):
+            if i + 1 < len(fiber.balls):
                 calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
-            if (i - 1 >= 0):
+            if i - 1 >= 0:
                 calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
-            if (i - 1 >= 0 and i + 1 < len(fiber.balls)):
+            if i - 1 >= 0 and i + 1 < len(fiber.balls):
                 calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
 
     total_force = np.array([0.0, 0.0, 0.0])
@@ -48,10 +52,17 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             total_overlap = max(total_overlap, ball.overlap)
             total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
             total_angle_diff = max(total_angle_diff, abs(ball.angle_diff))
-    return np.linalg.norm(total_force), total_overlap, total_neighbor_dist, total_angle_diff
+    return (
+        np.linalg.norm(total_force),
+        total_overlap,
+        total_neighbor_dist,
+        total_angle_diff,
+    )
 
 
-def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
+def calculate_forces_endstep(
+    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True
+):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -75,7 +86,15 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber], is_periodic: b
             total_overlap = max(total_overlap, ball.overlap)
     return np.linalg.norm(total_force), total_overlap
 
-def calculate_repulsion_forces(i: int, ball: Ball, cell: list[Ball], grid: sh, neighbor_cells, is_periodic: bool = True):
+
+def calculate_repulsion_forces(
+    i: int,
+    ball: Ball,
+    cell: list[Ball],
+    grid: sh,
+    neighbor_cells,
+    is_periodic: bool = True,
+):
     """
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball
@@ -93,15 +112,22 @@ def calculate_repulsion_forces(i: int, ball: Ball, cell: list[Ball], grid: sh, n
     label = ball.ball_label
     coord = ball.coordinate
     # compare within cell
-    for ball2 in cell[i + 1:]:
-        calculate_repulsion_force(ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size)
+    for ball2 in cell[i + 1 :]:
+        calculate_repulsion_force(
+            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size
+        )
     # compare with neighbor cells
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
-            calculate_repulsion_force(ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size)
+            calculate_repulsion_force(
+                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size
+            )
 
-def calculate_repulsion_force(ball, ball2, fiber_label:int, label:int, is_periodic:bool, coord, image_size):
+
+def calculate_repulsion_force(
+    ball, ball2, fiber_label: int, label: int, is_periodic: bool, coord, image_size
+):
     if (
         fiber_label != ball2.fiber_label
         or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
@@ -188,7 +214,9 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     # displacement
     force_dir = ball2.coordinate - ball1.coordinate
-    dist_is = np.sqrt(np.square(force_dir[0]) + np.square(force_dir[1]) + np.square(force_dir[2]))
+    dist_is = np.sqrt(
+        np.square(force_dir[0]) + np.square(force_dir[1]) + np.square(force_dir[2])
+    )
 
     # distance to the next ball is currently always radius/2.0
     # - may need to adapt for different random walks
@@ -202,6 +230,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
         force_dir[i] = s_f * force_dir[i]
     ball1.force = ball1.force + force_dir
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
+
 
 def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     """
@@ -228,15 +257,23 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     # calculate and normalize vectors
     alpha0 = ball.angle
     norm_prev = np.sqrt(
-        np.square(coord[0] - coord_prev[0]) + np.square(coord[1] - coord_prev[1]) + np.square(coord[2] - coord_prev[2]))
+        np.square(coord[0] - coord_prev[0])
+        + np.square(coord[1] - coord_prev[1])
+        + np.square(coord[2] - coord_prev[2])
+    )
     norm_next = np.sqrt(
-        np.square(coord_next[0] - coord[0]) + np.square(coord_next[1] - coord[1]) + np.square(coord_next[2] - coord[2]))
+        np.square(coord_next[0] - coord[0])
+        + np.square(coord_next[1] - coord[1])
+        + np.square(coord_next[2] - coord[2])
+    )
     norm_a = np.sqrt(
-        np.square(coord_next[0] - coord_prev[0]) + np.square(coord_next[1] - coord_prev[1]) + np.square(
-            coord_next[2] - coord_prev[2]))
+        np.square(coord_next[0] - coord_prev[0])
+        + np.square(coord_next[1] - coord_prev[1])
+        + np.square(coord_next[2] - coord_prev[2])
+    )
     for i in range(0, 3):
         dir_next[i] = (coord_next[i] - coord[i]) / norm_next
-        dir_prev[i] = (coord[i] - coord_prev[i])
+        dir_prev[i] = coord[i] - coord_prev[i]
         a[i] = (coord_next[i] - coord_prev[i]) / norm_a
 
     # calculate m, the point where the line hits the plane
@@ -248,17 +285,31 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
 
     # z, z0: calculate distances of ball.coordinate to m
     h1 = abs(d)
-    h2 = np.sqrt(np.square(m[0] - coord_next[0]) + np.square(m[1] - coord_next[1]) + np.square(m[2] - coord_next[2]))
-    z = np.sqrt(np.square(m[0] - coord[0]) + np.square(m[1] - coord[1]) + np.square(m[2] - coord[2]))
+    h2 = np.sqrt(
+        np.square(m[0] - coord_next[0])
+        + np.square(m[1] - coord_next[1])
+        + np.square(m[2] - coord_next[2])
+    )
+    z = np.sqrt(
+        np.square(m[0] - coord[0])
+        + np.square(m[1] - coord[1])
+        + np.square(m[2] - coord[2])
+    )
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
-        z0 = (h1 + h2 - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0))) / (2 * tan_alpha0)
+        z0 = (
+            h1
+            + h2
+            - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0))
+        ) / (2 * tan_alpha0)
     else:
-        z0 = (h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(tan_alpha0))) / (2 * tan_alpha0)
+        z0 = (
+            h1 + h2 + np.sqrt(np.square(h1 + h2) + 4 * h1 * h2 * np.square(tan_alpha0))
+        ) / (2 * tan_alpha0)
 
     # calculate force
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.
+    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
     for i in range(0, 3):
         ball.force[i] += (m[i] - coord[i]) * f
     ball.angle_diff = alpha0 - alpha
@@ -280,5 +331,5 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.coordinate = new_coord
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
-            ball.neighbor_dist = ball.radius / 2.
+            ball.neighbor_dist = ball.radius / 2.0
             ball.angle_diff = 0

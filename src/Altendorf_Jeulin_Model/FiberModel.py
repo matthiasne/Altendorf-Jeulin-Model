@@ -16,13 +16,26 @@ from Altendorf_Jeulin_Model.utils import (
 
 class FiberModel:
     def __init__(self, initial_fiber_system):
-        if not (isinstance(initial_fiber_system, list) and all(isinstance(x, Fiber) for x in initial_fiber_system)):
-            raise TypeError('Initial_fiber_system must be a list of fibers')
+        if not (
+            isinstance(initial_fiber_system, list)
+            and all(isinstance(x, Fiber) for x in initial_fiber_system)
+        ):
+            raise TypeError("Initial_fiber_system must be a list of fibers")
 
 
-def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tuple[int, int, int],
-                            kappa1: float, kappa2: float, seed: int = None, has_beta: bool = True,
-                            is_poisson: bool = True, volume_fraction_should: float = 1.0):
+def initialize_fiber_system(
+    intensity: float,
+    L,
+    R,
+    beta: float,
+    image_size: tuple[int, int, int],
+    kappa1: float,
+    kappa2: float,
+    seed: int = None,
+    has_beta: bool = True,
+    is_poisson: bool = True,
+    volume_fraction_should: float = 1.0,
+):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
     Altendorf&Jeulin (2011), further systems tbd
@@ -63,7 +76,7 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
-        l_fiber_discrete = int(2*l_fiber/r_fiber + 1)
+        l_fiber_discrete = int(2 * l_fiber / r_fiber + 1)
         # 2. Simulate the mean orientation
         if has_beta:
             mu0, theta0, phi0 = schladitz_distribution(beta, rng)
@@ -80,7 +93,7 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         cnt = 1
         mu_old = mu0
         while cnt < l_fiber_discrete:
-            mu_new = (kappa1 * mu0 + kappa2 * mu_old)
+            mu_new = kappa1 * mu0 + kappa2 * mu_old
             kappa_new, mu_new = normalized(mu_new)
             vmf = vonmises_fisher(mu_new, kappa_new)
 
@@ -93,7 +106,7 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         # 4. Adjusting the fibers such that the mean orientation is maintained
         _, mu_bar = normalized(coord[l_fiber_discrete - 1] - coord[0])
         _, n_axis = normalized(np.cross(mu0, mu_bar))
-        alpha = 2*np.pi - np.arccos(np.dot(mu0, mu_bar))
+        alpha = 2 * np.pi - np.arccos(np.dot(mu0, mu_bar))
 
         for j in range(1, l_fiber_discrete):
             if alpha > 0:
@@ -101,18 +114,30 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
         _, mu_bar2 = normalized(coord[l_fiber_discrete - 1] - coord[0])
 
         save_balls_in_fiber_system(fiber_system, coord, i, r_fiber)
-        
-        volume += l_fiber*r_fiber**2*np.pi
-        volume_fraction_is = volume/(image_size[0] * image_size[1] * image_size[2])
+
+        volume += l_fiber * r_fiber**2 * np.pi
+        volume_fraction_is = volume / (image_size[0] * image_size[1] * image_size[2])
         if volume_fraction_is > volume_fraction_should:
             break
-    print("number of fibers ", len(fiber_system), " volume fraction ", volume_fraction_is)
+    print(
+        "number of fibers ", len(fiber_system), " volume fraction ", volume_fraction_is
+    )
     return fiber_system
 
-def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, int, int],
-                                    boundary_size: int,
-                                    kappa1: float, kappa2: float, seed: int = None, has_beta: bool = True,
-                                    is_poisson: bool = True, volume_fraction_should: float = 1.0):
+
+def initialize_fiber_system_endless(
+    mu: float,
+    R,
+    beta,
+    image_size: tuple[int, int, int],
+    boundary_size: int,
+    kappa1: float,
+    kappa2: float,
+    seed: int = None,
+    has_beta: bool = True,
+    is_poisson: bool = True,
+    volume_fraction_should: float = 1.0,
+):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
     This method follows the initial fiber system by Prakash Easwaran
@@ -159,12 +184,28 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
         if length > -1:
             # 3. Simulating a random walk for the fiber system
             coords = [mid_pos + boundary_size_vec]
-            coords = generate_half_fiber(mu0, mid_pos + boundary_size_vec, ext_image_size, kappa1, kappa2, r_fiber,
-                                         coords,
-                                         rng, True)
-            coords = generate_half_fiber(mu0, mid_pos + boundary_size_vec, ext_image_size, kappa1, kappa2, r_fiber,
-                                         coords,
-                                         rng, False)
+            coords = generate_half_fiber(
+                mu0,
+                mid_pos + boundary_size_vec,
+                ext_image_size,
+                kappa1,
+                kappa2,
+                r_fiber,
+                coords,
+                rng,
+                True,
+            )
+            coords = generate_half_fiber(
+                mu0,
+                mid_pos + boundary_size_vec,
+                ext_image_size,
+                kappa1,
+                kappa2,
+                r_fiber,
+                coords,
+                rng,
+                False,
+            )
 
             # 4. Adjusting the fibers such that the mean orientation is maintained
             l_fiber_discrete = len(coords)
@@ -174,16 +215,24 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
                 n_lines += 1
                 save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
         # test for volume fraction starting late and only every tenth trial to save time
-        if volume_fraction_should != 1 and i > 3/4*n and i%10 == 0:
-            volume_fraction_is = len(fiber_system)*mean_length(fiber_system)*R**2*np.pi
-            volume_fraction_is /= ext_image_size[0]*ext_image_size[1]*ext_image_size[2]
+        if volume_fraction_should != 1 and i > 3 / 4 * n and i % 10 == 0:
+            volume_fraction_is = (
+                len(fiber_system) * mean_length(fiber_system) * R**2 * np.pi
+            )
+            volume_fraction_is /= (
+                ext_image_size[0] * ext_image_size[1] * ext_image_size[2]
+            )
             if volume_fraction_is > volume_fraction_should:
                 break
     return fiber_system
 
 
 def rot(mu, n, alpha):
-    return np.dot(n, mu) * n + np.cos(alpha) * np.cross(np.cross(n, mu), n) + np.sin(alpha) * np.cross(n, mu)
+    return (
+        np.dot(n, mu) * n
+        + np.cos(alpha) * np.cross(np.cross(n, mu), n)
+        + np.sin(alpha) * np.cross(n, mu)
+    )
 
 
 def set_value(input_value, rng):
@@ -198,15 +247,20 @@ def set_value(input_value, rng):
     if isinstance(input_value, float) or isinstance(input_value, int):
         # L is a constant number
         result = input_value
-    elif hasattr(input_value, 'rvs'):
+    elif hasattr(input_value, "rvs"):
         # L is a Poisson generator (or any similar object with an rvs method)
         result = input_value.rvs(random_state=rng)
     else:
-        raise ValueError("Input must be a float/int or a distribution object with an 'rvs' method.")
+        raise ValueError(
+            "Input must be a float/int or a distribution object with an 'rvs' method."
+        )
 
     return result
 
-def save_balls_in_fiber_system(fiber_system: list[Fiber], coords: list[np.ndarray], i: int, r_fiber: float):
+
+def save_balls_in_fiber_system(
+    fiber_system: list[Fiber], coords: list[np.ndarray], i: int, r_fiber: float
+):
     """
     saves balls in fiber system
 
@@ -228,8 +282,11 @@ def save_balls_in_fiber_system(fiber_system: list[Fiber], coords: list[np.ndarra
             angle = np.pi - np.arccos(np.dot(dir_prev, dir_next))
         fiber_system[i].add_ball(Ball(coords[j], r_fiber, i, j, angle))
 
+
 ####### Poisson line generation #####################################
-def generate_poisson_line(rng, beta: float, image_size: tuple[int, int, int], has_beta: bool = True):
+def generate_poisson_line(
+    rng, beta: float, image_size: tuple[int, int, int], has_beta: bool = True
+):
     """
     generates Poisson line within the observation window
 
@@ -248,15 +305,15 @@ def generate_poisson_line(rng, beta: float, image_size: tuple[int, int, int], ha
     else:
         mu0 = acg_distribution(beta, rng)
         _, theta0, phi0 = cartesian_to_spherical(mu0[0], mu0[1], mu0[2])
-        #print(mu0, theta0, phi0, spherical_to_cartesian(1, theta0, phi0))
+        # print(mu0, theta0, phi0, spherical_to_cartesian(1, theta0, phi0))
     # 3. Generate Poisson line
     M = spherical_to_matrix(theta0, phi0)
     r = 2
     while r > 3 / 2:
-        r = 3/2 * np.sqrt(abs(U.rvs(random_state=rng)))
-        phi = 2*np.pi*U.rvs(random_state=rng)
-        u1 = r*np.cos(phi)
-        u2 = r*np.sin(phi)
+        r = 3 / 2 * np.sqrt(abs(U.rvs(random_state=rng)))
+        phi = 2 * np.pi * U.rvs(random_state=rng)
+        u1 = r * np.cos(phi)
+        u2 = r * np.sin(phi)
     linepos = np.array([u1, u2, 0])
     linepos = np.matvec(M, linepos) + np.array([0.5, 0.5, 0.5])
     # 4. if it cuts 2 planes, calculate midpoint
@@ -279,11 +336,11 @@ def line_cut_sphere_length(linepos: np.ndarray, mu0: np.ndarray):
 
     B = 2 * np.dot(linepos, mu0)
     C = np.dot(linepos, linepos) - 3 / 4
-    if B ** 2 - 4 * C < 0:
+    if B**2 - 4 * C < 0:
         return -1
-    lambd1 = -B + np.sqrt(B ** 2 - 4 * C) / 2
+    lambd1 = -B + np.sqrt(B**2 - 4 * C) / 2
     p1 = linepos + lambd1 * mu0
-    lambd2 = -B - np.sqrt(B ** 2 - 4 * C) / 2
+    lambd2 = -B - np.sqrt(B**2 - 4 * C) / 2
     p2 = linepos + lambd2 * mu0
     # print("length ", np.linalg.norm(p2 - p1))
     return np.linalg.norm(p2 - p1)
@@ -300,23 +357,40 @@ def line_cut_cube(linepos: np.ndarray, mu0: np.ndarray):
     :return: Bool, np.ndarray
         True, midpoint   or   False, 0
     """
-    face_normals = [np.array([1, 0, 0]), np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 1, 0]),
-                    np.array([0, 0, 1]), np.array([0, 0, 1])]
+    face_normals = [
+        np.array([1, 0, 0]),
+        np.array([1, 0, 0]),
+        np.array([0, 1, 0]),
+        np.array([0, 1, 0]),
+        np.array([0, 0, 1]),
+        np.array([0, 0, 1]),
+    ]
     intersections = []
     for i, normal in enumerate(face_normals):
         dist = 1 if i % 2 == 0 else 0
         intersection = line_cut_face(normal, dist, linepos, mu0)
-        if (intersection[0] >= 0 and intersection[0] <= 1
-                and intersection[1] >= 0 and intersection[1] <= 1
-                and intersection[2] >= 0 and intersection[2] <= 1):
+        if (
+            intersection[0] >= 0
+            and intersection[0] <= 1
+            and intersection[1] >= 0
+            and intersection[1] <= 1
+            and intersection[2] >= 0
+            and intersection[2] <= 1
+        ):
             intersections.append(intersection)
     if len(intersections) == 2:
-        return True, (intersections[0] + intersections[1]) / 2, np.linalg.norm(intersections[0] - intersections[1])
+        return (
+            True,
+            (intersections[0] + intersections[1]) / 2,
+            np.linalg.norm(intersections[0] - intersections[1]),
+        )
     else:
         return False, np.array([0, 0, 0]), -1
 
 
-def line_cut_face(face_normal: np.ndarray, face_dist: int, linepos: np.ndarray, mu0: np.ndarray):
+def line_cut_face(
+    face_normal: np.ndarray, face_dist: int, linepos: np.ndarray, mu0: np.ndarray
+):
     """
     calculates whether a given line cuts a given face of a cube
 
@@ -339,8 +413,17 @@ def line_cut_face(face_normal: np.ndarray, face_dist: int, linepos: np.ndarray, 
         return linepos + lambd * mu0
 
 
-def generate_half_fiber(mu0: np.ndarray, mid_pos: np.ndarray, image_size: tuple[int, int, int],
-                        kappa1: float, kappa2: float, r_fiber: float, coords: list[np.ndarray], rng, is_forward: bool):
+def generate_half_fiber(
+    mu0: np.ndarray,
+    mid_pos: np.ndarray,
+    image_size: tuple[int, int, int],
+    kappa1: float,
+    kappa2: float,
+    r_fiber: float,
+    coords: list[np.ndarray],
+    rng,
+    is_forward: bool,
+):
     """
     generates one half of and endless fiber; which half is determined by is_forward
 
@@ -384,4 +467,6 @@ def generate_half_fiber(mu0: np.ndarray, mid_pos: np.ndarray, image_size: tuple[
             coords.insert(0, current_pos)
         mu_old = direction
     return coords
+
+
 ####### end Poisson line generation #####################################
