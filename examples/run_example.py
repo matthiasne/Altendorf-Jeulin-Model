@@ -20,10 +20,10 @@ def main():
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = (100, 100, 100)
-    intensity = 100
-    L = 50
+    intensity = 50
+    L = 100
     R = 5
-    beta = 1
+    beta = 1.0
 
     # create a fiber system
     start_time = time.time()
@@ -36,14 +36,13 @@ def example_AJ_finite():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, beta, verbose=True)
+    run_force_biased(fs, image_size, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
-    print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
 
     io.save_fibers_as_tif(
-        fs, shape=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
+        fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )
 
 
@@ -55,7 +54,6 @@ def example_AJ_endless():
     R = 17 / 2.0
     L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
-    N = int(mu)  # TODO
     A = np.array(
         [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
     )
@@ -63,7 +61,7 @@ def example_AJ_endless():
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system_endless(
-        N,
+        mu,
         R,
         A,
         image_size,
@@ -71,7 +69,6 @@ def example_AJ_endless():
         10,
         100,
         has_beta=False,
-        seed=1,
         volume_fraction_should=VV,
     )
     end_time = time.time()
@@ -88,13 +85,13 @@ def example_AJ_endless():
     io.save_fibers_as_tif(
         fs,
         scale=4,
-        shape=(325, 325, 325),
+        domain=(1200, 1200, 1200),
         boundary=(boundary_size, boundary_size, boundary_size),
-        path="examples/outputs/0p12_1/AJ_model_endless.tif",
+        path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
-    io.save_fibers_as_small_graph("examples/outputs/0p12_1/nonwoven", fs_cut)
+    io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
 
 
 if __name__ == "__main__":
