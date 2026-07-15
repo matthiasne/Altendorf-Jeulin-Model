@@ -37,8 +37,6 @@ def run_force_biased(
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system to be packed
     :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
@@ -93,8 +91,6 @@ def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):
     """
     The end step where radii are reduced
 
-    Attributes
-    ---------------------
     :param fs: list[list[Ball]]
         the fiber system to be packed
     :param overlap: float
@@ -118,8 +114,6 @@ def end_step_repulsion(
     """
     The end step where only the repulsion force is applied
 
-    Attributes
-    ---------------------
     :param fs: list[list[Ball]]
         the fiber system to be packed
     :param max_radius: float

@@ -10,17 +10,15 @@ class SpatialHashing:
     """
     Contains the grid for spatial hashing and implements all necessary functions
 
-    Attributes
-    ---------------------
-    image_size : tuple[int, int, int]
+    :param image_size : tuple[int, int, int]
         The size of the image
-    division : tuple[int, int, int]
+    :param division : tuple[int, int, int]
         The number of cells in each direction x, y, and z
-    n_cells : int
+    :param n_cells : int
         The total number of cells in the grid
-    cells : list[list[Ball]]
+    :param cells : list[list[Ball]]
         A list, which represents the cells, which lists the balls it contains
-    cell_width : tuple[int, int, int]
+    :param cell_width : tuple[int, int, int]
         The cell size in each direction x, y, and z
     """
 
@@ -28,8 +26,6 @@ class SpatialHashing:
         """
         Initializes the SpatialHashing object, i.e. a grid for spatial hashing
 
-        Parameters
-        ---------------------
         :param image_size: tuple[int, int, int]
             The size of the image that the grid needs to cover
         :param max_cell_size: int
@@ -48,8 +44,6 @@ class SpatialHashing:
         """
         test whether an index is within bounds of the SpatialHashing
 
-        Parameters
-        ---------------------
         :param index: tuple[int, int, int]
             The tuple to be tested
         :return: bool
@@ -63,8 +57,6 @@ class SpatialHashing:
         """
         gets the cell index of a specific coordinate
 
-        Parameters
-        ---------------------
         :param position: np.ndarray
             The coordinate for which the cell index is sought
         :return: tuple[int, int, int]
@@ -139,8 +131,6 @@ class SpatialHashing:
         """
         Adds a ball to the SpatialHashing
 
-        Parameters
-        ---------------------
         :param ball: Ball
             The ball that is to be added
         """
@@ -160,8 +150,6 @@ class SpatialHashing:
         """
         Adds a fiber to the SpatialHashing
 
-        Parameters
-        ---------------------
         :param fiber: list[Ball]
             The fiber to be added
         """
@@ -172,8 +160,6 @@ class SpatialHashing:
         """
         Adds a fiber system to the SpatialHashing
 
-        Parameters
-        ---------------------
         :param fiber_system: list[list[Ball]]
         """
         for fiber in fiber_system:

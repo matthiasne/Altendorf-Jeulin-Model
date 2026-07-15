@@ -16,8 +16,6 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
-    Attributes
-    ---------------------
     :param grid: SpatialHashing
         The spatial hashing grid for the model
     :param fiber_system: list[list[Ball]])
@@ -57,8 +55,6 @@ def calculate_forces_endstep(grid: sh, fiber_system: list[Fiber], is_periodic: b
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
-    Attributes
-    ---------------------
     :param grid: SpatialHashing
         The spatial hashing grid for the model
     :param fiber_system: list[list[Ball]])
@@ -84,8 +80,6 @@ def calculate_repulsion_forces(i: int, ball: Ball, cell: list[Ball], grid: sh, n
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball
 
-    Attributes
-    ---------------------
     :param i: int
         cell index of the current cell
     :param ball: Ball
@@ -162,8 +156,6 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
     Calculate the smoothing factor
     (arguments named after Altendorf&Jeulin 2011)
 
-    Attributes
-    ---------------------
     :param x: float
         The ratio that is the argument of smoothing factor
     :param x_s: float
@@ -187,8 +179,6 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
 
-    Attributes
-    ---------------------
     :param ball1: Ball
         the ball that the force is added to
     :param ball2: Ball
@@ -220,8 +210,6 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     because this caused strange errors. Instead, it uses an equivalent calculation
     that was proposed yet undocumented in the original code (MAVIlib)
 
-    Attributes
-    ---------------------
     :param ball: Ball
         The center ball - this is where the force will be applied
     :param ball_prev: Ball
@@ -282,8 +270,6 @@ def apply_forces(fiber_system: list[Fiber]):
     - it adds their forces to their coordinates, thus moves the balls
     - it sets all forces to 0
 
-    Attributes
-    ---------------------
     :param fiber_system: list[list[Ball]])
         The fiber system that contains all balls
     """

@@ -21,8 +21,6 @@ def print_fiber_positions(
     """
     Print fibers as positions.
 
-    Parameters
-    ---------------------
     :param fiber_system: list[Fiber]
         A list of fibers, each represented as a list of balls
     :param max_fibers: int, optional
@@ -43,8 +41,6 @@ def print_fiber_positions_to_file(fiber_system: FiberModel, output_file: str):
     """
     Print fibers as positions.
 
-    Parameters
-    ---------------------
     :param fiber_system: list[Fiber]
         A list of fibers, each represented as a list of balls
     :param output_file: str
@@ -71,8 +67,6 @@ def save_fibers_as_tif(
     """
     Save fibers as tif-image
 
-    Parameters
-    ---------------------
     :param fiber_system: list[list[Ball]]
         A list of fibers, each represented as a list of 3D np.arrays
     :param domain: tuple(int, int, int)
@@ -112,8 +106,6 @@ def print_grid(grid: sh):
     """
     Print cells of a SpatialHashing
 
-    Parameters
-    ---------------------
     :param grid: SpatialHashing
     A list of fibers, each represented as a list of Balls
     """
@@ -199,8 +191,6 @@ def save_fibers_as_graph(file_path: str, fs: sh):
     Prints the fiber system according to input file format of
     TexMathVisualizer. Each edge is the original AJ edge.
 
-    Parameters
-    ---------------------
     :param file_path: string
         base path for the output file
     :param fs: list[Fiber]
@@ -252,8 +242,6 @@ def save_fibers_as_small_graph(file_path, fs):
     TexMathVisualizer but removes edges for a maximal curvature of
     0.2 radian
 
-    Parameters
-    ---------------------
     :param file_path: string
         base path for the output file
     :param fs: list[Fiber]
@@ -329,8 +317,6 @@ def find_next_node(fiber, i_start: int, i_end: int) -> int:
     Helper function for save_fibers_as_small_graph: finds next node to remove
     superfluous edges indirectly
 
-    Parameters
-    ----------
     :param fiber:   list[Ball]
     :param i_start: int
         index to start searching from

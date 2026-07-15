@@ -13,8 +13,6 @@ def mean_radius(fs: list[Fiber]):
     """
     Calculates the mean radius of the fiber system.
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :return: float mean radius
@@ -27,8 +25,6 @@ def mean_length(fs: list[Fiber]):
     """
     Calculates the mean length of the fiber system.
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :return: float mean length
@@ -44,8 +40,6 @@ def mean_angle_error(fs: list[Fiber]):
     Calculates the mean angle error of the fiber system
     in comparison to the original fiber system upon generation.
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :return: float mean angle error
@@ -76,8 +70,6 @@ def estimate_beta(fs: list[Fiber], beta: float):
     """
     Estimates the beta parameter of the Schladitz distribution following Franke et al. 2016
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :param beta: float
@@ -101,8 +93,6 @@ def h(beta: float, thetas: list):
     """
     helper function for estimate_beta
 
-    Attributes
-    ---------------------
     :param beta: float
         last value in the beta estimation
     :param thetas: list
@@ -122,8 +112,6 @@ def h_dif(beta: float, thetas: list):
     """
     helper function for estimate_beta
 
-    Attributes
-    ---------------------
     :param beta: float
         last value in the beta estimation
     :param thetas: list
@@ -145,8 +133,6 @@ def volume_fraction(
     """
     calculates the volume fraction of the fiber system in an image
 
-    Attributes
-    ---------------------
     :param fiber_system: list[Fiber]
         the fiber system
     :param shape: tuple[int, int, int]
@@ -183,8 +169,6 @@ def estimate_kappa1(fs: list[Fiber]):
     """
     Calculates the curvature parameter kappa1 for the whole fiber system.
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :return: float
@@ -215,8 +199,6 @@ def estimate_kappa2(fs: list[Fiber]):
     """
     Calculates the curvature parameter kappa2 for the whole fiber system.
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         the fiber system
     :return: float

@@ -27,8 +27,6 @@ def initialize_fiber_system(intensity: float, L, R, beta: float, image_size: tup
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
     Altendorf&Jeulin (2011), further systems tbd
 
-    Parameters
-    ---------------------
     :param intensity: float
         expected number of fibers
     :param L: float or random variable
@@ -119,8 +117,6 @@ def initialize_fiber_system_endless(mu: float, R, beta, image_size: tuple[int, i
     initializes a fiber system of endless fibers, where fibers still overlap.
     This method follows the initial fiber system by Prakash Easwaran
 
-    Parameters
-    ---------------------
     :param mu: float
         The mean number of fibers
     :param R: float or random variable
@@ -194,8 +190,6 @@ def set_value(input_value, rng):
     """
     sets values that could be a constant scalar or a realization of a random variable
 
-    Parameters
-    ---------------------
     :param input_value: constant scalar or random variable
     :param rng: random number Generator providing the random state
     :return: float
@@ -216,8 +210,6 @@ def save_balls_in_fiber_system(fiber_system: list[Fiber], coords: list[np.ndarra
     """
     saves balls in fiber system
 
-    Parameters
-    ---------------------
     :param fiber_system: list[Fiber]
     :param coords: list[np.ndarray]
         coordinates of balls
@@ -241,8 +233,6 @@ def generate_poisson_line(rng, beta: float, image_size: tuple[int, int, int], ha
     """
     generates Poisson line within the observation window
 
-    Parameters
-    ---------------------
     :param rng: random number generator state
     :param beta: float
         parameter of the Schladitz distribution
@@ -279,8 +269,6 @@ def line_cut_sphere_length(linepos: np.ndarray, mu0: np.ndarray):
     """
     calculates whether a given line cuts a unit cube and the line's midpoint
 
-    Parameters
-    ---------------------
     :param linepos: np.ndarray
         position of the line
     :param mu0: np.ndarray
@@ -305,8 +293,6 @@ def line_cut_cube(linepos: np.ndarray, mu0: np.ndarray):
     """
     calculates whether a given line cuts a unit cube and the line's midpoint
 
-    Parameters
-    ---------------------
     :param linepos: np.ndarray
         position of the line
     :param mu0: np.ndarray
@@ -334,8 +320,6 @@ def line_cut_face(face_normal: np.ndarray, face_dist: int, linepos: np.ndarray, 
     """
     calculates whether a given line cuts a given face of a cube
 
-    Parameters
-    ---------------------
     :param face_normal: np.ndarray
         normal of the face, e.g. (1, 0, 0)
     :param face_dist: int
@@ -360,8 +344,6 @@ def generate_half_fiber(mu0: np.ndarray, mid_pos: np.ndarray, image_size: tuple[
     """
     generates one half of and endless fiber; which half is determined by is_forward
 
-    Parameters
-    ---------------------
     :param mu0: np.ndarray
         the fiber's original direction
     :param mid_pos: np.ndarray

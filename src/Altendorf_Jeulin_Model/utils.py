@@ -12,8 +12,6 @@ def periodic_distance(coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[
     """
     Calculates the periodic distance between two coordinates and the normalized direction vector between them
 
-    Attributes
-    ---------------------
     :param coord1: np.ndarray
         The first coordinate, start of the direction vector
     :param coord2: np.ndarray
@@ -46,8 +44,6 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     """
     Calculates the angle between two vectors v1 and v2
 
-    Attributes
-    ---------------------
     :param v1: np.ndarray
     :param v2: np.ndarray
     :return: float
@@ -68,8 +64,6 @@ def normalized(v: np.ndarray):
     """
     normalizes a vector and returns both the original length and the normalized vector
 
-    Attributes
-    ---------------------
     :param v: np.ndarray
         vector to be normalized
     :return: float, np.ndarray
@@ -88,8 +82,6 @@ def cartesian_to_spherical(x, y, z):
     Spherical coordinates theta and phi are used as the geographical
     coordinates in Fisher et al. (1987).
 
-    Attributes
-    ---------------------
     :param x: float
         cartesian x coordinate
     :param y: float
@@ -114,8 +106,6 @@ def spherical_to_cartesian(r, theta, phi):
     Spherical coordinates theta and phi are used as the geographical
     coordinates in Fisher et al. (1987).
 
-    Attributes
-    ---------------------
     :param r: float
         radius
     :param theta: float
@@ -138,8 +128,6 @@ def spherical_to_matrix(theta: float, phi: float):
     Spherical coordinates theta and phi are used as the geographical
     coordinates in Fisher et al. (1987).
 
-    Attributes
-    ---------------------
     :param theta: float
         first rotation angle (down from z-axis)
     :param phi: float
@@ -156,8 +144,6 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
     """
     rotation of a vector mu around normal n and angle alpha
 
-    Attributes
-    ---------------------
     :param mu: np.ndarray
         vector to be rotated
     :param n: np.ndarray
@@ -174,8 +160,6 @@ def is_in_image(pos: np.ndarray, image_size: tuple[int, int, int], buffer: int =
     """
     calculates whether a coordinate lies within an image/observation window
 
-    Attributes
-    ---------------------
     :param pos: np.ndarray
         position to be checked
     :param image_size: tuple[int, int, int]
@@ -197,8 +181,6 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     """
     cuts fibers when they cross image/observation window borders
 
-    Attributes
-    ---------------------
     :param fs: list[Fiber]
         fiber system to be cut
     :param image_size: tuple[int, int, int]
@@ -231,8 +213,6 @@ def schladitz_distribution(beta: float, rng):
     Spherical coordinates theta and phi are used as the geographical
     coordinates in Fisher et al. (1987).
 
-    Attributes
-    ---------------------
     :param beta: float
         beta parameter of the Schladitz distribution
     :param rng: random state
@@ -252,8 +232,6 @@ def acg_distribution(param_matrix, rng):
     """
     generates a direction following the Angular Central Gaussian (ACG) distribution
 
-    Attributes
-    ---------------------
     :param param_matrix: np.ndarray
         parameter matrix of the ACG distribution
     :param rng: random state
