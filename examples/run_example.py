@@ -44,11 +44,12 @@ def example_AJ_finite():
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )
+    print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
 
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (1200, 1200, 1200)
+    image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
     R = 17 / 2.0
@@ -85,7 +86,7 @@ def example_AJ_endless():
     io.save_fibers_as_tif(
         fs,
         scale=4,
-        domain=(1200, 1200, 1200),
+        domain=image_size,
         boundary=(boundary_size, boundary_size, boundary_size),
         path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,

@@ -15,14 +15,14 @@ Please cite this work as follows:
 A. Keilmann, M. Neumann. An open-source package for simulating and calibrating fiber-based materials with the Altendorf-Jeulin model. In preparation.
 
 ## Requirements
-Please make sure you have Python 3 installed. Further requirements are
-saved in the requirements.txt.
+Please make sure you have at least Python 3.14 installed. Further requirements are
+saved in the requirements.txt or alternatively, in the pyproject.toml.
 
 ## Setup (recommended)
 Clone the repository (or download it as a zip under the Code-Button).
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
