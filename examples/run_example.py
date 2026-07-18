@@ -5,8 +5,10 @@ import numpy as np
 import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
+from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
+    save_lines_as_tif
 )
 from Altendorf_Jeulin_Model.utils import cut_border
 
@@ -77,7 +79,7 @@ def example_AJ_endless():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, has_beta=False, verbose=True)
+    #run_force_biased(fs, image_size, is_periodic=False, has_beta=False, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -93,6 +95,12 @@ def example_AJ_endless():
     fs_cut = cut_border(fs, image_size, boundary_size)
     io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
 
+
+def example_poisson_lines():
+    print("This is a Poisson line process in 3D")
+    lines = simulate_poisson_lines(500, 5, 5, (200, 200, 200))
+    save_lines_as_tif(lines, (200, 200, 200), "examples/outputs/lines.tif", scale=2)
+    io.save_lines_as_graph("examples/outputs/lines", lines)
 
 if __name__ == "__main__":
     main()

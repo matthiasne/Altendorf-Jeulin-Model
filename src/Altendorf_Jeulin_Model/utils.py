@@ -4,6 +4,8 @@ import numpy as np
 from line_profiler import profile
 from scipy.linalg import cholesky
 from scipy.stats import norm, uniform
+from skimage.draw import line_nd
+from skimage.morphology import isotropic_dilation
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
@@ -373,3 +375,52 @@ def discretize_spheres_nonperiodic(
                     if delta_ijk <= r_square:
                         image[i, j, k] = 1
     return image
+
+
+def discretize_lines(line_system, image_shape):
+    """
+    Discretize lines to an image
+    :param line_system:
+        lines to be saved (in voxels), each represented as a start point, an end point, and a radius
+    :param image_shape: np.ndarray
+        The image size in voxels
+    :return: np.ndarray
+        The image containing lines
+    """
+    image = np.zeros(image_shape, "uint16")
+    pad = int(np.ceil(max(radius for _, _, radius in line_system)) + 2)
+    boundary_size_vec = np.array([pad, pad, pad])
+    ext_image_size = image_shape + 2 * boundary_size_vec
+    tmp_image = np.empty(ext_image_size, dtype=np.uint16)
+
+    for start, end, radius in line_system:
+        coords = line_nd(start + boundary_size_vec, end + boundary_size_vec, endpoint=False)
+        tmp_image.fill(0)
+        tmp_image[coords] = 1
+        tmp_image = isotropic_dilation(tmp_image, radius)
+        np.maximum(image, tmp_image[pad:-pad, pad:-pad, pad:-pad], out=image)
+
+    return image
+
+
+def set_value(input_value, rng):
+    """
+    sets values that could be a constant scalar or a realization of a random variable
+
+    :param input_value: constant scalar or random variable
+    :param rng: random number Generator providing the random state
+    :return: float
+        value that the variable should be set to
+    """
+    if isinstance(input_value, float) or isinstance(input_value, int):
+        # L is a constant number
+        result = input_value
+    elif hasattr(input_value, "rvs"):
+        # L is a Poisson generator (or any similar object with an rvs method)
+        result = input_value.rvs(random_state=rng)
+    else:
+        raise ValueError(
+            "Input must be a float/int or a distribution object with an 'rvs' method."
+        )
+
+    return result

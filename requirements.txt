@@ -8,13 +8,16 @@ demjson3==3.0.6
 fonttools==4.60.1
 h11==0.16.0
 idna==3.17
+ImageIO==2.37.3
 iniconfig==2.3.0
 joblib==1.5.3
 jtutils==0.0.8
 kiwisolver==1.4.9
+lazy-loader==0.5
 Levenshtein==0.27.3
 line_profiler==5.0.2
 matplotlib==3.10.7
+networkx==3.6.1
 numpy==2.3.3
 numpy-typing-compat==20250818.2.3
 optype==0.14.0
@@ -32,6 +35,7 @@ python-dateutil==2.9.0.post0
 RapidFuzz==3.14.5
 requests==2.34.2
 ruff==0.14.8
+scikit-image==0.26.0
 scikit-learn==1.8.0
 scikit-spatial==9.0.1
 scipy==1.16.3

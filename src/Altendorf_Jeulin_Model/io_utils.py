@@ -9,6 +9,7 @@ import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.Statistics import calculate_fot, mean_angle_error
 from Altendorf_Jeulin_Model.utils import (
+    discretize_lines,
     discretize_spheres_nonperiodic,
     discretize_spheres_periodic,
     normalized,
@@ -102,6 +103,40 @@ def save_fibers_as_tif(
     tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
 
 
+def save_lines_as_tif(
+    line_system,
+    domain: tuple[int, int, int],
+    path: str = "lines.tif",
+    scale: float = 1.0,
+):
+    """
+    Save lines as tif-image
+
+    :param line_system:
+        A list of lines, each represented as a start point, an end point, and a radius
+    :param domain: tuple(int, int, int)
+        z,y,x coordinate of the image
+    :param path: string optional
+        The path where the tif image will be saved
+        (default: "spheres.tif")
+    :param scale: float optional
+        The scale of the image, e.g., when the data is given in um and the image has voxel size 4um, the scale is 4
+        (default: 1)
+    """
+    line_system = [
+        (
+            np.floor(line[0] / scale) - np.array([1, 1, 1]),
+            np.floor(line[1] / scale) - np.array([1, 1, 1]),
+            line[2] / scale,
+        )
+        for line in line_system
+    ]
+    image_shape = np.array([d / scale for d in domain], dtype=int)
+    image = discretize_lines(line_system, image_shape)
+    image = np.transpose(image, (2, 1, 0))
+    tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
+
+
 def print_grid(grid: sh):
     """
     Print cells of a SpatialHashing
@@ -147,7 +182,10 @@ def print_stats(output_file: str, rows):
         )  # Header
         writer.writerows(rows)
 
-def print_stats_row(fs: list[Fiber], i, force_strength: float, overlap: float, neighbor_dist: float):
+
+def print_stats_row(
+    fs: list[Fiber], i, force_strength: float, overlap: float, neighbor_dist: float
+):
     """
     Prints the statistics into the console and returns a list of them
     :param fs: list[Fiber]
@@ -172,19 +210,20 @@ def print_stats_row(fs: list[Fiber], i, force_strength: float, overlap: float, n
         f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
     )
     return [
-            i,
-            len(fs),
-            FOT[0, 0],
-            FOT[0, 1],
-            FOT[0, 2],
-            FOT[1, 1],
-            FOT[1, 2],
-            FOT[2, 2],
-            mae,
-            neighbor_dist,
-            overlap,
-            force_strength,
-        ]
+        i,
+        len(fs),
+        FOT[0, 0],
+        FOT[0, 1],
+        FOT[0, 2],
+        FOT[1, 1],
+        FOT[1, 2],
+        FOT[2, 2],
+        mae,
+        neighbor_dist,
+        overlap,
+        force_strength,
+    ]
+
 
 def save_fibers_as_graph(file_path: str, fs: sh):
     """
@@ -234,6 +273,56 @@ def save_fibers_as_graph(file_path: str, fs: sh):
 
     with numthread_file.open("w", newline="") as ft:
         print(len(fs), file=ft)
+
+
+def save_lines_as_graph(file_path: str, line_system):
+    """
+    Prints the line system according to input file format of
+    TexMathVisualizer. Each edge is the original AJ edge.
+
+    :param file_path: string
+        base path for the output file
+    :param line_system:
+        lines to be saved, each represented as a start point, an end point, and a radius
+    """
+    base = Path(file_path)
+    nod_file = base.with_suffix(base.suffix + ".fft.nod")
+    elm_file = base.with_suffix(base.suffix + ".fft.elm")
+    thread_file = base.with_suffix(base.suffix + ".fft.threads")
+    numnod_file = base.with_suffix(base.suffix + ".fft.ndn")
+    numelm_file = base.with_suffix(base.suffix + ".fft.eln")
+    numthread_file = base.with_suffix(base.suffix + ".fft.threads.number")
+
+    node_label = 0
+    edge_label = 0
+    with (
+        nod_file.open("w", newline="") as fnod,
+        elm_file.open("w", newline="") as felm,
+        thread_file.open("w", newline="") as fthreads,
+    ):
+        for line in line_system:
+            parts = ["acyclic", str(2)]
+            x, y, z = line[0]
+            print(x, " ", y, " ", z, file=fnod)
+            parts.append(str(node_label))
+            print(node_label, " ", node_label + 1, " ", line[2], file=felm)
+            parts.append(str(edge_label))
+            edge_label += 1
+            node_label += 1
+            x, y, z = line[1]
+            print(x, " ", y, " ", z, file=fnod)
+            parts.append(str(node_label))
+            node_label += 1
+            print(" ".join(parts), file=fthreads)
+
+    with numnod_file.open("w", newline="") as fn:
+        print(node_label, file=fn)
+
+    with numelm_file.open("w", newline="") as fe:
+        print(edge_label, file=fe)
+
+    with numthread_file.open("w", newline="") as ft:
+        print(len(line_system), file=ft)
 
 
 def save_fibers_as_small_graph(file_path, fs):

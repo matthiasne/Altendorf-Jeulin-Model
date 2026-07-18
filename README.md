@@ -5,6 +5,9 @@ Altendorf & Jeulin [1] and the extension to endless fibers
 by Easwaran [2]. For the fiber direction distribution, we
 implemented generators based on Franke et al. [3].
 
+In addition, it contains a Poisson cylinder process/dilated Poisson lines [4].
+Please note: This implementation is not thoroughly tested yet.
+
 The module is an early release and still under development. 
 If you have questions, implementation requests, or suggestions, 
 please contact [keilmann@rptu.de](keilmann@rptu.de) or
@@ -62,6 +65,8 @@ again.
 [2] P. Easwaran, 2017. Stochastic geometry models for interacting fibers. Doctoral dissertation, Technische Universität Kaiserslautern.
 
 [3] J. Franke, C. Redenbach, & N. Zhang, 2016. On a Mixture Model for Directional Data on the Sphere. Scandinavian Journal of Statistics, 43(1), 139–155. https://doi.org/10.1111/sjos.12169
+
+[4] S. N. Chiu, D. Stoyan, W. S. Kendall, J. Mecke, 2013. Stochastic Geometry and Its Applications. John Wiley & Sons, Ltd, 3rd Edition.
 
 ## Further Fiber Models
 - [SAMSON Microstructure Generator](https://git.uni-due.de/publicsoftwareingmath/samson)
