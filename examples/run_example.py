@@ -45,13 +45,12 @@ def example_AJ_finite():
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (1200, 1200, 1200)
+    image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
     R = 17 / 2.0
     L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
-    N = int(mu)  # TODO
     A = np.array(
         [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
     )
@@ -59,7 +58,7 @@ def example_AJ_endless():
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system_endless(
-        N,
+        mu,
         R,
         A,
         image_size,
@@ -85,13 +84,13 @@ def example_AJ_endless():
     io.save_fibers_as_tif(
         fs,
         scale=4,
-        shape=(325, 325, 325),
-        boundary=(12, 12, 12),
-        path="examples/outputs/0p12_1/AJ_model_endless.tif",
+        shape=image_size,
+        boundary=(boundary_size, boundary_size, boundary_size),
+        path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
-    io.save_fibers_as_small_graph("examples/outputs/0p12_1/nonwoven", fs_cut)
+    io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
 
 
 if __name__ == "__main__":

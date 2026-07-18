@@ -3,7 +3,7 @@ venv/
 __pycache__/
 *.py[cod]
 .idea/
-outputs/
+outputs/*
 *.egg-info/
 
 # (probably unused)

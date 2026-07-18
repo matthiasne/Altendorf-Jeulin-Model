@@ -15,7 +15,7 @@ Please cite this work as follows:
 A. Keilmann, M. Neumann. An open-source package for simulating and calibrating fiber-based materials with the Altendorf-Jeulin model. In preparation.
 
 ## Requirements
-Please make sure you have Python 3 installed. Further requirements are
+Please make sure you have at least Python 3.14 installed. Further requirements are
 saved in the requirements.txt.
 
 ## Setup (recommended)
