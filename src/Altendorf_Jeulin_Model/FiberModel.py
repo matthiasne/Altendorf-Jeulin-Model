@@ -56,8 +56,8 @@ def initialize_fiber_system(
         curvature parameter for the random walk
     :param kappa2: float
         curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
+    :param seed: int, default None
+        seed for the random variables, default is system time
     :param is_poisson: bool, default True
         whether to sample the number of fibers from a Poisson distribution (Poisson line process)
     :param volume_fraction_should: float, default 1.0
@@ -157,8 +157,8 @@ def initialize_fiber_system_endless(
         curvature parameter for the random walk
     :param kappa2: float
         curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
+    :param seed: int, default None
+        seed for the random variables, default is system time
     :param has_beta: bool, default True
         whether to use the beta parameter for the Schladitz distribution or A for the ACG distribution
     :param is_poisson: bool, default True

@@ -32,13 +32,8 @@ def simulate_poisson_lines(
     :param beta: float
         direction parameter for the Schladitz distribution
     :param image_size: tuple[int, int, int]
-    :param boundary_size: int
-    :param kappa1: float
-        curvature parameter for the random walk
-    :param kappa2: float
-        curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
+    :param seed: int, default None
+        seed for the random variables, default is system time
     :param has_beta: bool, default True
         whether to use the beta parameter for the Schladitz distribution or A for the ACG distribution
     :param is_poisson: bool, default True
