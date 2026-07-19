@@ -20,6 +20,7 @@ def simulate_poisson_lines(
     seed: int = None,
     has_beta: bool = True,
     is_poisson: bool = True,
+    volume_fraction_should: float = 1.0,
 ):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
@@ -38,6 +39,9 @@ def simulate_poisson_lines(
         whether to use the beta parameter for the Schladitz distribution or A for the ACG distribution
     :param is_poisson: bool, default True
         whether to sample the number of fibers from a Poisson distribution (Poisson line process)
+    :param volume_fraction_should: float, default 1.0
+        volume fraction that should not be exceeded. When it is set to 1.0, the volume fraction is not tested.
+        In general, the number of fibers will not be exceeded.
     :return: list[Fiber]
         the generated fiber system
     """
@@ -47,19 +51,28 @@ def simulate_poisson_lines(
     else:
         n = mu
     line_system = []
+    vol = 0
+    image_vol = image_size[0] * image_size[1] * image_size[2]
     for i in range(0, n):
         # 1. Simulate the radius of the ith fiber
         r_line = set_value(R, rng)
         # 2. Generate Poisson line
-        pos1, pos2, _, _, length = generate_poisson_line(rng, beta, image_size, has_beta)
+        pos1, pos2, _, _, length = generate_poisson_line(
+            rng, beta, image_size, has_beta
+        )
         pos1 *= np.array(image_size)
         pos2 *= np.array(image_size)
 
         # create list of end points and radius
         if length > -1:
             line_system.append([pos1, pos2, r_line])
-
+            vol += length * r_line**2 * np.pi * image_size[0]
+            volume_fraction_is = vol / image_vol
+            if volume_fraction_is > volume_fraction_should:
+                break
+    print("Volume fraction ", str(vol / image_vol))
     return line_system
+
 
 def generate_poisson_line(
     rng, beta: float, image_size: tuple[int, int, int], has_beta: bool = True
@@ -162,7 +175,7 @@ def line_cut_cube(linepos: np.ndarray, mu0: np.ndarray):
             np.linalg.norm(intersections[0] - intersections[1]),
         )
     else:
-        return False, np.array([0, 0, 0]), np.array([0, 0, 0]),  -1
+        return False, np.array([0, 0, 0]), np.array([0, 0, 0]), -1
 
 
 def line_cut_face(

@@ -5,17 +5,18 @@ import numpy as np
 import Altendorf_Jeulin_Model.FiberModel as fm
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
-from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
-    save_lines_as_tif
+    save_lines_as_tif,
 )
+from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 from Altendorf_Jeulin_Model.utils import cut_border
 
 
 def main():
-    example_AJ_finite()
-    example_AJ_endless()
+    #example_AJ_finite()
+    #example_AJ_endless()
+    example_poisson_lines()
 
 
 def example_AJ_finite():
@@ -98,8 +99,17 @@ def example_AJ_endless():
 
 def example_poisson_lines():
     print("This is a Poisson line process in 3D")
-    lines = simulate_poisson_lines(500, 5, 5, (200, 200, 200))
-    save_lines_as_tif(lines, (200, 200, 200), "examples/outputs/lines.tif", scale=2)
+    image_size = (400, 400, 400)
+    VV = 0.15
+    R = 17 / 2.0
+    L = np.sqrt(3) / 2 * VV * image_size[0] ** 2 / R**2
+    mu = 3/4*np.pi * L
+
+    A = np.array(
+        [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
+    )
+    lines = simulate_poisson_lines(mu, R, A, image_size, has_beta=False)
+    save_lines_as_tif(lines, image_size, "examples/outputs/lines.tif", scale=4)
     io.save_lines_as_graph("examples/outputs/lines", lines)
 
 if __name__ == "__main__":
