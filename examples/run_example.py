@@ -14,8 +14,8 @@ from Altendorf_Jeulin_Model.utils import cut_border
 
 
 def main():
-    #example_AJ_finite()
-    #example_AJ_endless()
+    example_AJ_finite()
+    example_AJ_endless()
     example_poisson_lines()
 
 
