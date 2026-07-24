@@ -22,7 +22,7 @@ class SpatialHashing:
         The cell size in each direction x, y, and z
     """
 
-    def __init__(self, image_size: tuple[int, int, int], max_cell_size: int):
+    def __init__(self, image_size, max_cell_size: int):
         """
         Initializes the SpatialHashing object, i.e. a grid for spatial hashing
 
@@ -105,7 +105,7 @@ class SpatialHashing:
 
     def get_younger_neighbor_cell_indices(
         self, index: tuple[int, int, int], is_periodic: bool = True
-    ) -> list[tuple[int, int, int]]:
+    ) -> set[tuple[int, int, int]]:
         """
         Gets the indices of all neighboring cells
         :param index: tuple[int, int, int]

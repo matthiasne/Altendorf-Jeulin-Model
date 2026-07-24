@@ -16,7 +16,7 @@ BOUNDARY_SIZE = 100
 
 def run_force_biased(
     fs: list[Fiber],
-    image_size: tuple[int, int, int],
+    image_size,
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
     output_file: str = "results.csv",

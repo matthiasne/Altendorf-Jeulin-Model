@@ -24,17 +24,17 @@ class FiberModel:
 
 
 def initialize_fiber_system(
-    intensity: float,
+    intensity: float|int,
     L,
     R,
-    beta: float,
+    beta: float|int,
     image_size: tuple[int, int, int],
-    kappa1: float,
-    kappa2: float,
+    kappa1: float|int,
+    kappa2: float|int,
     seed: int = None,
     has_beta: bool = True,
     is_poisson: bool = True,
-    volume_fraction_should: float = 1.0,
+    volume_fraction_should: float|int = 1.0,
 ):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
@@ -126,17 +126,17 @@ def initialize_fiber_system(
 
 
 def initialize_fiber_system_endless(
-    mu: float,
+    mu: float|int,
     R,
     beta,
     image_size: tuple[int, int, int],
     boundary_size: int,
-    kappa1: float,
-    kappa2: float,
+    kappa1: float|int,
+    kappa2: float|int,
     seed: int = None,
     has_beta: bool = True,
     is_poisson: bool = True,
-    volume_fraction_should: float = 1.0,
+    volume_fraction_should: float|int = 1.0,
 ):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
@@ -180,7 +180,7 @@ def initialize_fiber_system_endless(
         # 1. Simulate the radius of the ith fiber
         r_fiber = set_value(R, rng)
         # 2. Generate Poisson line
-        mid_pos, mu0, length = generate_poisson_line(rng, beta, image_size, has_beta)
+        mid_pos, mu0, length = generate_poisson_line(rng, beta, ext_image_size, has_beta)
         if length > -1:
             # 3. Simulating a random walk for the fiber system
             coords = [mid_pos + boundary_size_vec]
@@ -259,7 +259,7 @@ def set_value(input_value, rng):
 
 
 def save_balls_in_fiber_system(
-    fiber_system: list[Fiber], coords: list[np.ndarray], i: int, r_fiber: float
+    fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
 ):
     """
     saves balls in fiber system
@@ -285,7 +285,7 @@ def save_balls_in_fiber_system(
 
 ####### Poisson line generation #####################################
 def generate_poisson_line(
-    rng, beta: float, image_size: tuple[int, int, int], has_beta: bool = True
+    rng, beta, image_size, has_beta: bool = True
 ):
     """
     generates Poisson line within the observation window
@@ -416,7 +416,7 @@ def line_cut_face(
 def generate_half_fiber(
     mu0: np.ndarray,
     mid_pos: np.ndarray,
-    image_size: tuple[int, int, int],
+    image_size,
     kappa1: float,
     kappa2: float,
     r_fiber: float,

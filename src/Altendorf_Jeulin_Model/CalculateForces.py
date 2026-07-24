@@ -1,4 +1,5 @@
 import numpy as np
+import cython
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
@@ -88,7 +89,7 @@ def calculate_forces_endstep(
 
 
 def calculate_repulsion_forces(
-    i: int,
+    i: cython.int,
     ball: Ball,
     cell: list[Ball],
     grid: sh,
@@ -108,8 +109,8 @@ def calculate_repulsion_forces(
     :param grid: SpatialHashing
         The spatial hashing grid of the model
     """
-    fiber_label = ball.fiber_label
-    label = ball.ball_label
+    fiber_label: cython.int = ball.fiber_label
+    label: cython.int = ball.ball_label
     coord = ball.coordinate
     # compare within cell
     for ball2 in cell[i + 1 :]:
@@ -126,7 +127,7 @@ def calculate_repulsion_forces(
 
 
 def calculate_repulsion_force(
-    ball, ball2, fiber_label: int, label: int, is_periodic: bool, coord, image_size
+    ball, ball2, fiber_label: cython.int, label: cython.int, is_periodic: bool, coord, image_size
 ):
     if (
         fiber_label != ball2.fiber_label
