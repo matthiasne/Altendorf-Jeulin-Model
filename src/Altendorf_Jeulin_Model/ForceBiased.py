@@ -1,3 +1,5 @@
+# cython: language_level=3, infer_type=True
+import cython
 import numpy as np
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
@@ -22,8 +24,6 @@ def run_force_biased(
     output_file: str = "results.csv",
     verbose: bool = False,
     is_periodic: bool = True,
-    has_beta: bool = True,
-    beta=1.0,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria

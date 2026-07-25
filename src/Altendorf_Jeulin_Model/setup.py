@@ -4,6 +4,7 @@ from Cython.Build import cythonize
 
 setup(
     ext_modules = cythonize(["CalculateForces.py", "Fiber.py", "FiberModel.py", "ForceBiased.py", "io_utils.py",
-                             "SpatialHashing.py", "Statistics.py", "utils.py"]),
+                             "SpatialHashing.py", "Statistics.py", "utils.py"],
+                            compiler_directives={'language_level': 3}),
     include_dirs = [np.get_include()],
 )

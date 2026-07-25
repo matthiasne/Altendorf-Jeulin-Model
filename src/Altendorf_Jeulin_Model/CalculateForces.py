@@ -1,3 +1,4 @@
+# cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
 import cython
 
@@ -127,7 +128,7 @@ def calculate_repulsion_forces(
 
 
 def calculate_repulsion_force(
-    ball, ball2, fiber_label: cython.int, label: cython.int, is_periodic: bool, coord, image_size
+    ball, ball2, fiber_label, label, is_periodic: bool, coord, image_size
 ):
     if (
         fiber_label != ball2.fiber_label
@@ -136,6 +137,7 @@ def calculate_repulsion_force(
         if is_periodic:
             # calculate periodic distance of the balls' coordinates
             coord2mod = np.mod(ball2.coordinate, image_size)
+            disp: cython.double
             for i in range(3):
                 disp = coord2mod[i] - coord[i]
                 if abs(disp) > image_size[i] / 2.0:
@@ -144,14 +146,10 @@ def calculate_repulsion_force(
                     else:
                         coord2mod[i] += image_size[i]
                 coord2mod[i] -= coord[i]
-            dist = np.sqrt(
-                np.square(coord2mod[0])
-                + np.square(coord2mod[1])
-                + np.square(coord2mod[2])
-            )
+            dist: cython.double = np.linalg.norm(coord2mod)
 
             # calculate the force if balls are indeed overlapping
-            overlap = ball.radius + ball2.radius - dist
+            overlap: cython.float = ball.radius + ball2.radius - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
                 force = TAU * overlap / 2.0 * coord2mod
@@ -162,23 +160,17 @@ def calculate_repulsion_force(
 
         else:
             coord2 = ball2.coordinate
-            dist = np.sqrt(
-                np.square(coord2[0] - coord[0])
-                + np.square(coord2[1] - coord[1])
-                + np.square(coord2[2] - coord[2])
-            )
-            overlap = ball.radius + ball2.radius - dist
+            dist: cython.double = np.linalg.norm(coord2 - coord)
+            overlap: cython.double = ball.radius + ball2.radius - dist
             if overlap > 0:
-                dir = np.empty_like(coord2)
-                for i in range(0, 3):
-                    dir[i] = (coord2[i] - coord[i]) / dist
+                dir = (coord2 - coord)/dist
                 ball.force = ball.force - TAU * overlap / 2.0 * dir
                 ball.overlap = max(ball.overlap, overlap)
                 ball2.force = ball2.force + TAU * overlap / 2.0 * dir
                 ball2.overlap = max(ball2.overlap, overlap)
 
 
-def smoothing_factor(x: float, x_s: float, x_e: float):
+def smoothing_factor(x: cython.double, x_s: cython.double, x_e: cython.double):
     """
     Calculate the smoothing factor
     (arguments named after Altendorf&Jeulin 2011)
@@ -197,8 +189,8 @@ def smoothing_factor(x: float, x_s: float, x_e: float):
     elif x > x_e:
         return 1
     else:
-        ratio = (x - x_s) / (x_e - x_s)
-        factor = 0.5 * (1 - np.cos(ratio * np.pi))
+        ratio: cython.double = (x - x_s) / (x_e - x_s)
+        factor: cython.double = 0.5 * (1 - np.cos(ratio * np.pi))
         return factor
 
 
@@ -215,9 +207,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     # displacement
     force_dir = ball2.coordinate - ball1.coordinate
-    dist_is = np.sqrt(
-        np.square(force_dir[0]) + np.square(force_dir[1]) + np.square(force_dir[2])
-    )
+    dist_is: cython.double = np.linalg.norm(force_dir)
 
     # distance to the next ball is currently always radius/2.0
     # - may need to adapt for different random walks
@@ -225,10 +215,9 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     dist_displaced = dist_is - dist_should
     ratio_displaced = abs(dist_displaced) / dist_should
     # smoothing_factor
-    s_f = smoothing_factor(ratio_displaced, X_S, X_E) * RHO * dist_displaced / dist_is
+    s_f:cython.double = smoothing_factor(ratio_displaced, X_S, X_E) * RHO * dist_displaced / dist_is
     # add to recover force
-    for i in range(0, 3):
-        force_dir[i] = s_f * force_dir[i]
+    force_dir *= s_f
     ball1.force = ball1.force + force_dir
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
 
@@ -240,7 +229,7 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     because this caused strange errors. Instead, it uses an equivalent calculation
     that was proposed yet undocumented in the original code (MAVIlib)
 
-    :param ball: Ball
+    :param ball: Balls / 2.0
         The center ball - this is where the force will be applied
     :param ball_prev: Ball
         The previous ball
@@ -250,52 +239,26 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     coord = ball.coordinate
     coord_prev = ball_prev.coordinate
     coord_next = ball_next.coordinate
-    dir_next = np.empty_like(coord)
-    dir_prev = np.empty_like(coord)
-    a = np.empty_like(coord)
-    m = np.empty_like(coord)
 
     # calculate and normalize vectors
-    alpha0 = ball.angle
-    norm_prev = np.sqrt(
-        np.square(coord[0] - coord_prev[0])
-        + np.square(coord[1] - coord_prev[1])
-        + np.square(coord[2] - coord_prev[2])
-    )
-    norm_next = np.sqrt(
-        np.square(coord_next[0] - coord[0])
-        + np.square(coord_next[1] - coord[1])
-        + np.square(coord_next[2] - coord[2])
-    )
-    norm_a = np.sqrt(
-        np.square(coord_next[0] - coord_prev[0])
-        + np.square(coord_next[1] - coord_prev[1])
-        + np.square(coord_next[2] - coord_prev[2])
-    )
-    for i in range(0, 3):
-        dir_next[i] = (coord_next[i] - coord[i]) / norm_next
-        dir_prev[i] = coord[i] - coord_prev[i]
-        a[i] = (coord_next[i] - coord_prev[i]) / norm_a
+    alpha0:cython.double = ball.angle
+    norm_prev:cython.double = np.linalg.norm(coord - coord_prev) 
+    norm_next:cython.double = np.linalg.norm(coord_next - coord) 
+    norm_a:cython.double = np.linalg.norm(coord_next - coord_prev)
+    dir_next = (coord_next - coord) / norm_next
+    dir_prev = coord - coord_prev
+    a = (coord_next - coord_prev) / norm_a
 
     # calculate m, the point where the line hits the plane
-    d = dir_prev[0] * a[0] + dir_prev[1] * a[1] + dir_prev[2] * a[2]
-    for i in range(0, 3):
-        dir_prev[i] = dir_prev[i] / norm_prev
-        m[i] = coord_prev[i] + d * a[i]
+    d = np.dot(dir_prev, a)
+    dir_prev /= norm_prev
+    m = coord_prev + d*a
     alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
 
     # z, z0: calculate distances of ball.coordinate to m
-    h1 = abs(d)
-    h2 = np.sqrt(
-        np.square(m[0] - coord_next[0])
-        + np.square(m[1] - coord_next[1])
-        + np.square(m[2] - coord_next[2])
-    )
-    z = np.sqrt(
-        np.square(m[0] - coord[0])
-        + np.square(m[1] - coord[1])
-        + np.square(m[2] - coord[2])
-    )
+    h1:cython.double = abs(d)
+    h2:cython.double = np.linalg.norm(m - coord_next)
+    z:cython.double = np.linalg.norm(m - coord)
 
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
@@ -310,9 +273,8 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
         ) / (2 * tan_alpha0)
 
     # calculate force
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
-    for i in range(0, 3):
-        ball.force[i] += (m[i] - coord[i]) * f
+    f:cython.double = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
+    ball.force += (m-coord)*f
     ball.angle_diff = alpha0 - alpha
 
 

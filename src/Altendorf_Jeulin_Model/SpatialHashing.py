@@ -1,3 +1,5 @@
+# cython: language_level=3, infer_type=True
+import cython
 from itertools import product
 from math import ceil, floor
 
