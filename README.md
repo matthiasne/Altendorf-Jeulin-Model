@@ -26,6 +26,7 @@ python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
+cd src/Altendorf_Jeulin_Model # Windows: src\Altendorf_Jeulin_Model
 python setup.py build_ext --inplace
 ```
 ## Usage
