@@ -1,4 +1,7 @@
 import numpy as np
+import cython
+cimport numpy as np
+np.import_array()
 from numpy.random import default_rng
 from scipy.stats import poisson, uniform, vonmises_fisher
 
@@ -28,7 +31,7 @@ def initialize_fiber_system(
     L,
     R,
     beta: float|int,
-    image_size: tuple[int, int, int],
+    image_size,
     kappa1: float|int,
     kappa2: float|int,
     seed: int = None,
@@ -417,9 +420,9 @@ def generate_half_fiber(
     mu0: np.ndarray,
     mid_pos: np.ndarray,
     image_size,
-    kappa1: float,
-    kappa2: float,
-    r_fiber: float,
+    kappa1: cython.float,
+    kappa2: cython.float,
+    r_fiber: cython.float,
     coords: list[np.ndarray],
     rng,
     is_forward: bool,
@@ -454,7 +457,7 @@ def generate_half_fiber(
     current_pos = mid_pos
     while is_in_image(current_pos, image_size, 0):
         old_pos = current_pos
-        kappa_new = np.linalg.norm(sign * kappa1 * mu0 + kappa2 * mu_old)
+        kappa_new: cython.double = np.linalg.norm(sign * kappa1 * mu0 + kappa2 * mu_old)
         mu_new = (sign * kappa1 * mu0 + kappa2 * mu_old) / kappa_new
         vmf = vonmises_fisher(mu_new, kappa_new)
 

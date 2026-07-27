@@ -1,18 +1,21 @@
 # cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
 import cython
+cimport numpy as np
+np.import_array()
+
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 
 MIN_REPULSION_DISTANCE = 5
-X_S = 0.05
-X_E = 0.1
-ALPHA_S = 0.1 * np.pi / 180
-ALPHA_E = 0.2 * np.pi / 180
+X_S:cython.double = 0.05
+X_E:cython.double = 0.1
+ALPHA_S:cython.double = 0.1 * np.pi / 180
+ALPHA_E:cython.double = 0.2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
-TAU = 0.25
-RHO = 0.2
+TAU:cython.double = 0.25
+RHO:cython.double = 0.2
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
@@ -128,7 +131,7 @@ def calculate_repulsion_forces(
 
 
 def calculate_repulsion_force(
-    ball, ball2, fiber_label, label, is_periodic: bool, coord, image_size
+    ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,long[:] image_size
 ):
     if (
         fiber_label != ball2.fiber_label

@@ -1,7 +1,6 @@
 # cython: language_level=3, infer_type=True
 import cython
 import numpy as np
-
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.CalculateForces import (
