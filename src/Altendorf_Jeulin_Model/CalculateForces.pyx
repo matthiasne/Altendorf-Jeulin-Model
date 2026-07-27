@@ -1,6 +1,7 @@
 # cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
 import cython
+from libc.stdint cimport int64_t
 cimport numpy as np
 np.import_array()
 
@@ -131,7 +132,7 @@ def calculate_repulsion_forces(
 
 
 def calculate_repulsion_force(
-    ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,long[:] image_size
+    ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,int64_t[:] image_size
 ):
     if (
         fiber_label != ball2.fiber_label
