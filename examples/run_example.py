@@ -1,14 +1,14 @@
 import time
 
-import numpy as np
-
 import Altendorf_Jeulin_Model.FiberModel as fm
+import numpy as np
+from Altendorf_Jeulin_Model.utils import cut_border
+
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
 )
-from Altendorf_Jeulin_Model.utils import cut_border
 
 
 def main():
