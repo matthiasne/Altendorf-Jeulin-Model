@@ -10,7 +10,7 @@ from Altendorf_Jeulin_Model.CalculateForces import (
 )
 from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 
-MAX_STEPS = 1000
+MAX_STEPS = 1500
 MAX_OVERLAP = 0.1
 BOUNDARY_SIZE = 100
 
@@ -56,8 +56,9 @@ def run_force_biased(
         rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist))
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
+    eps = np.finfo(float).eps
     for i in range(1, MAX_STEPS):
-        if force_strength < end_force_biased and overlap < 0.1 * min_radius:
+        if force_strength < end_force_biased and overlap < eps:
             break
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)

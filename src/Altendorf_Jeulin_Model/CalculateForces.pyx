@@ -16,7 +16,7 @@ ALPHA_S:cython.double = 0.1 * np.pi / 180
 ALPHA_E:cython.double = 0.2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
-RHO:cython.double = 0.2
+RHO:cython.double = 0.25
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
@@ -132,8 +132,33 @@ def calculate_repulsion_forces(
 
 
 def calculate_repulsion_force(
-    ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,int64_t[:] image_size
+    ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,int64_t[:] image_size,
+    repulsion_factor: float = 1.1
 ):
+    """
+    calculates the repulsion force between two balls
+
+    :param ball: Ball
+        The ball whose neighbors are currently considered
+    :param ball2: Ball
+        The neighboring ball that is currently considered
+    :param fiber_label: int
+        The fiber label of ball
+    :param label: int
+        The ball label of ball
+    :param is_periodic: bool
+        Whether the repulsion force is to be calculated on the torus, i.e., periodically
+    :param coord: double
+        The coordinate of ball
+    :param image_size: int64_t
+        The image size (relevant for periodic case)
+    :param repulsion_factor: float, default 1.1
+        This factor is 1 in the Altendorf-Jeulin model.
+        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
+        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
+        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
+    """
     if (
         fiber_label != ball2.fiber_label
         or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
@@ -153,25 +178,29 @@ def calculate_repulsion_force(
             dist: cython.double = np.linalg.norm(coord2mod)
 
             # calculate the force if balls are indeed overlapping
-            overlap: cython.float = ball.radius + ball2.radius - dist
+            overlap: cython.float = ball.radius + ball2.radius
+            overlap_true: cython.float = overlap - dist
+            overlap = repulsion_factor*overlap - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
                 force = TAU * overlap / 2.0 * coord2mod
                 ball.force = ball.force - force
-                ball.overlap = max(ball.overlap, overlap)
+                ball.overlap = max(ball.overlap, overlap_true)
                 ball2.force = ball2.force + force
-                ball2.overlap = max(ball2.overlap, overlap)
+                ball2.overlap = max(ball2.overlap, overlap_true)
 
         else:
             coord2 = ball2.coordinate
             dist: cython.double = np.linalg.norm(coord2 - coord)
-            overlap: cython.double = ball.radius + ball2.radius - dist
+            overlap: cython.float = ball.radius + ball2.radius - dist
+            overlap_true: cython.float = overlap - dist
+            overlap = repulsion_factor*overlap - dist
             if overlap > 0:
                 dir = (coord2 - coord)/dist
                 ball.force = ball.force - TAU * overlap / 2.0 * dir
-                ball.overlap = max(ball.overlap, overlap)
+                ball.overlap = max(ball.overlap, overlap_true)
                 ball2.force = ball2.force + TAU * overlap / 2.0 * dir
-                ball2.overlap = max(ball2.overlap, overlap)
+                ball2.overlap = max(ball2.overlap, overlap_true)
 
 
 def smoothing_factor(x: cython.double, x_s: cython.double, x_e: cython.double):

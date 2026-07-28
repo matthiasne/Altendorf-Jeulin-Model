@@ -170,7 +170,7 @@ def print_stats_row(
     mae = mean_angle_error(fs)
     print(
         f"step {i} force {force_strength:.3f} max overlap {overlap:.3f} "
-        f"neighbor dist {neighbor_dist:.3f} mean angle diff {mae:.3f} "
+        f"max neighbor dist {neighbor_dist:.3f} mean angle diff {mae*180/np.pi:.3f}° "
         f"FOT xx {FOT[0, 0]:.3f} xy {FOT[0, 1]:.3f} xz {FOT[0, 2]:.3f} "
         f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
     )
