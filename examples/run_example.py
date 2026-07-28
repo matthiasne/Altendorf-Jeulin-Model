@@ -40,18 +40,18 @@ def example_AJ_finite():
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
-    #io.save_fibers_as_tif(
-    #    fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
-    #)
-    #print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
+    io.save_fibers_as_tif(
+        fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
+    )
+    print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
 
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (1200, 1200, 1200)
+    image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
-    R = 17 / 2.0
+    R = np.random.normal(loc=8.5, scale=1.0)
     L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
     A = np.array(

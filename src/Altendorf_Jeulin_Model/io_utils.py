@@ -58,7 +58,7 @@ def print_fiber_positions_to_file(fiber_system: FiberModel, output_file: str):
 
 def save_fibers_as_tif(
     fiber_system: list[Fiber],
-    domain: tuple[int, int, int],
+    domain,
     boundary: tuple[int, int, int] = (0, 0, 0),
     path: str = "spheres.tif",
     scale: float = 1,
