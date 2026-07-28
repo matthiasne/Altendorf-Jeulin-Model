@@ -1,5 +1,6 @@
+# cython: language_level=3, infer_type=True
+import cython
 import numpy as np
-
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.CalculateForces import (
@@ -16,14 +17,12 @@ BOUNDARY_SIZE = 100
 
 def run_force_biased(
     fs: list[Fiber],
-    image_size: tuple[int, int, int],
+    image_size,
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
     output_file: str = "results.csv",
     verbose: bool = False,
     is_periodic: bool = True,
-    has_beta: bool = True,
-    beta=1.0,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria

@@ -7,7 +7,8 @@ outputs/*
 *.egg-info/
 *.c
 *.so
-src/Altendorf_Jeulin_Model/build/
+build/
+
 # (probably unused)
 .ipynb_checkpoints/
 *.log

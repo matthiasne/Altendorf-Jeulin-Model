@@ -58,7 +58,7 @@ def print_fiber_positions_to_file(fiber_system: FiberModel, output_file: str):
 
 def save_fibers_as_tif(
     fiber_system: list[Fiber],
-    domain: tuple[int, int, int],
+    domain,
     boundary: tuple[int, int, int] = (0, 0, 0),
     path: str = "spheres.tif",
     scale: float = 1,
@@ -147,7 +147,10 @@ def print_stats(output_file: str, rows):
         )  # Header
         writer.writerows(rows)
 
-def print_stats_row(fs: list[Fiber], i, force_strength: float, overlap: float, neighbor_dist: float):
+
+def print_stats_row(
+    fs: list[Fiber], i, force_strength: float, overlap: float, neighbor_dist: float
+):
     """
     Prints the statistics into the console and returns a list of them
     :param fs: list[Fiber]
@@ -172,19 +175,20 @@ def print_stats_row(fs: list[Fiber], i, force_strength: float, overlap: float, n
         f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
     )
     return [
-            i,
-            len(fs),
-            FOT[0, 0],
-            FOT[0, 1],
-            FOT[0, 2],
-            FOT[1, 1],
-            FOT[1, 2],
-            FOT[2, 2],
-            mae,
-            neighbor_dist,
-            overlap,
-            force_strength,
-        ]
+        i,
+        len(fs),
+        FOT[0, 0],
+        FOT[0, 1],
+        FOT[0, 2],
+        FOT[1, 1],
+        FOT[1, 2],
+        FOT[2, 2],
+        mae,
+        neighbor_dist,
+        overlap,
+        force_strength,
+    ]
+
 
 def save_fibers_as_graph(file_path: str, fs: sh):
     """

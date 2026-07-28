@@ -19,16 +19,18 @@ Please make sure you have at least Python 3.14 installed. Further requirements a
 saved in the requirements.txt or alternatively, in the pyproject.toml.
 
 ## Setup (recommended)
-Clone the repository (or download it as a zip under the Code-Button).
+Clone the repository (or download it as a zip under the Code-Button). Then, run the following code in your terminal.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
+cd src/Altendorf_Jeulin_Model # Windows: src\Altendorf_Jeulin_Model
+python setup.py build_ext --inplace
 ```
-
 ## Usage
+
 Run the example script
 ```bash
 python examples/run_example.py

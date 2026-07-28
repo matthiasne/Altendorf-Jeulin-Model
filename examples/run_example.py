@@ -18,7 +18,7 @@ def main():
 
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
-    image_size = (100, 100, 100)
+    image_size = np.array([100, 100, 100])
     intensity = 50
     L = 100
     R = 5
@@ -27,7 +27,7 @@ def example_AJ_finite():
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system(
-        intensity, L, R, beta, image_size, 10, 100, is_poisson=False
+        intensity, L, R, beta, image_size, 10, 100, is_poisson=False, seed=42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -51,7 +51,7 @@ def example_AJ_endless():
     image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
-    R = 17 / 2.0
+    R = np.random.normal(loc=8.5, scale=1.0)
     L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
     A = np.array(
@@ -68,8 +68,9 @@ def example_AJ_endless():
         boundary_size,
         10,
         100,
-        has_beta=False,
         volume_fraction_should=VV,
+        has_beta=False,
+        seed =42,
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -77,7 +78,7 @@ def example_AJ_endless():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, has_beta=False, verbose=True)
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")

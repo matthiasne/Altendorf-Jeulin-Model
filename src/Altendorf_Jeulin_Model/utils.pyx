@@ -4,6 +4,9 @@ import numpy as np
 from line_profiler import profile
 from scipy.linalg import cholesky
 from scipy.stats import norm, uniform
+import cython
+cimport numpy as np
+np.import_array()
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
@@ -41,7 +44,6 @@ def periodic_distance(
         return dist, dir
 
 
-@profile
 def angle_between(v1: np.ndarray, v2: np.ndarray):
     """
     Calculates the angle between two vectors v1 and v2
@@ -61,7 +63,6 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
 
 
-@profile
 def normalized(v: np.ndarray):
     """
     normalizes a vector and returns both the original length and the normalized vector
@@ -167,7 +168,7 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
 
 
 def is_in_image(
-    pos: np.ndarray, image_size: tuple[int, int, int], buffer: int = 100
+    pos: np.ndarray, image_size, buffer: int = 100
 ) -> bool:
     """
     calculates whether a coordinate lies within an image/observation window
