@@ -5,7 +5,9 @@ __pycache__/
 .idea/
 outputs/*
 *.egg-info/
-
+*.c
+*.so
+src/Altendorf_Jeulin_Model/build/
 # (probably unused)
 .ipynb_checkpoints/
 *.log
