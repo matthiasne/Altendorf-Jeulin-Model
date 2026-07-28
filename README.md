@@ -41,22 +41,6 @@ This runs:
 
 Outputs are written to ./outputs/ (adjust if different).
 
-## Parallelized Implementation
-For further speed-up, you may want to use our parallelized
-implementation. Please note that this is only faster than the 
-serialized version if your fiber model is large enough.
-
-If you cloned the repository, you can access the parallelized
-version by entering
-```bash
-git checkout concurrency
-pip install -e .
-python examples/run_example.py
-```
-in your terminal. If you downloaded the code as a zip, download
-the concurrent code as a zip, switch manually to the concurrency-
-branch on the GitHub-page before downloading the zip of the code
-again.
 
 ## References
 [1] H. Altendorf, D. Jeulin, 2011. Random-walk-based stochastic modeling of three-dimensional fiber systems. Physical Review E.
