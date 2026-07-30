@@ -9,11 +9,12 @@ from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
 from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
 )
+from Altendorf_Jeulin_Model.ContactModel import find_contact_pairs
 
 
 def main():
     example_AJ_finite()
-    example_AJ_endless()
+    #example_AJ_endless()
 
 
 def example_AJ_finite():
@@ -27,18 +28,24 @@ def example_AJ_finite():
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system(
-        intensity, L, R, beta, image_size, 10, 100, is_poisson=False
+        intensity, L, R, beta, image_size, 10, 100, is_poisson=False, seed=42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
 
+    contact_pairs = find_contact_pairs(fs, image_size)
+    print(len(contact_pairs))
+
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, verbose=True)
+    #run_force_biased(fs, image_size, verbose=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+
+    contact_pairs = find_contact_pairs(fs, image_size)
+    print(len(contact_pairs))
 
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
@@ -48,7 +55,7 @@ def example_AJ_finite():
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (400, 400, 400)
+    image_size = (1800, 1800, 1800)
     boundary_size = 50
     VV = 0.12
     R = np.random.normal(loc=8.5, scale=1.0)
