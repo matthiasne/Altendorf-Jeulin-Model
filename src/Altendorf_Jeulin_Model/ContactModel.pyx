@@ -5,6 +5,8 @@ cimport numpy as np
 np.import_array()
 
 import numpy as np
+import networkx as nx
+import itertools
 from Altendorf_Jeulin_Model.CalculateForces import (
     apply_forces,
     calculate_forces,
@@ -18,9 +20,36 @@ from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 
 MIN_REPULSION_DISTANCE = 5
 
+def find_contact_areas(fs, image_size, epsi = 0):
+    contact_pairs = find_contact_pairs(fs, image_size, epsi=epsi)
+    contact_graph = nx.Graph(contact_pairs)
+
+    # extend contact pairs by fiber edges to find connected components
+    incident_fiber_edges = set()
+    for pair in contact_pairs:
+        for node in pair:
+            incident_fiber_edges.add(((node), (node[0], node[1] + 1)))
+            incident_fiber_edges.add(((node), (node[0], node[1] - 1)))
+    joined_edges = incident_fiber_edges.union(contact_pairs)
+    ext_contact_graph = nx.Graph(joined_edges)
+
+    # find number of pairwise contact areas
+    n_contact_areas = 0
+    cc = [ext_contact_graph.subgraph(c).copy() for c in nx.connected_components(ext_contact_graph)]
+    for component in cc:
+        fiber_edges = incident_fiber_edges.intersection(set(component.edges))
+        fiber_graph = nx.Graph(fiber_edges)
+        fiber_parts = [fiber_graph.subgraph(c).copy() for c in nx.connected_components(fiber_graph)]
+        for fiber in fiber_parts:
+            contact_partners = {nbr_ball[0] for ball in fiber if contact_graph.has_node(ball)
+                for nbr_ball in contact_graph.adj[ball]
+            }
+            n_contact_areas += len(contact_partners)
+    n_contact_areas /= 2
+    return len(cc), n_contact_areas
 
 
-def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True):
+def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True, epsi = 0):
     max_radius = max(fiber.get_max_radius() for fiber in fs)
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
@@ -36,12 +65,13 @@ def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True):
             )
             for i, ball in enumerate(cell):
                 contact_set = identify_contact_pairs_it(
-                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, epsi=epsi
                 )
                 contact_pairs.update(contact_set)
     return contact_pairs
 
-def identify_contact_pairs_it(i, ball, cell, grid, neighbor_cells, is_periodic: bool =True):
+def identify_contact_pairs_it(i, ball, cell, grid,
+                              neighbor_cells, is_periodic: bool =True, epsi = 0):
     fiber_label: cython.int = ball.fiber_label
     label: cython.int = ball.ball_label
     coord = ball.coordinate
@@ -49,14 +79,14 @@ def identify_contact_pairs_it(i, ball, cell, grid, neighbor_cells, is_periodic: 
     contact_pairs = set()
     # compare within cell
     for ball2 in cell[i + 1 :]:
-        if identify_contact_pairs_within_cell(ball, ball2, is_periodic, coord, grid.image_size):
-            pair = ((ball.fiber_label, ball.ball_label), (ball.fiber_label, ball.ball_label))
+        if identify_contact_pairs_within_cell(ball, ball2, is_periodic, coord, grid.image_size, epsi):
+            pair = ((ball.fiber_label, ball.ball_label), (ball2.fiber_label, ball2.ball_label))
             contact_pairs.add(pair)
     # compare with neighbor cells
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
-            if identify_contact_pairs_within_cell(ball, ball2, is_periodic, coord, grid.image_size):
+            if identify_contact_pairs_within_cell(ball, ball2, is_periodic, coord, grid.image_size, epsi):
                 pair = ((ball.fiber_label, ball.ball_label), (ball2.fiber_label, ball2.ball_label))
                 contact_pairs.add(pair)
     return contact_pairs
