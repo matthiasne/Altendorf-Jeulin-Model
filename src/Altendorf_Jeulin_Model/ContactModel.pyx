@@ -35,8 +35,11 @@ def find_contact_areas(fs, image_size, epsi = 0):
 
     # find number of pairwise contact areas
     n_contact_areas = 0
+    n_clots = 0
     cc = [ext_contact_graph.subgraph(c).copy() for c in nx.connected_components(ext_contact_graph)]
     for component in cc:
+        if len(component) > 2:
+            n_clots += 1
         fiber_edges = incident_fiber_edges.intersection(set(component.edges))
         fiber_graph = nx.Graph(fiber_edges)
         fiber_parts = [fiber_graph.subgraph(c).copy() for c in nx.connected_components(fiber_graph)]
@@ -46,7 +49,7 @@ def find_contact_areas(fs, image_size, epsi = 0):
             }
             n_contact_areas += len(contact_partners)
     n_contact_areas /= 2
-    return len(cc), n_contact_areas
+    return len(cc), n_clots, n_contact_areas
 
 
 def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True, epsi = 0):
@@ -108,14 +111,15 @@ def identify_contact_pairs_within_cell(ball, ball2, is_periodic: bool, double[:]
                         coord2mod[i] += image_size[i]
                 coord2mod[i] -= coord[i]
             dist: cython.double = np.linalg.norm(coord2mod)
-
-            if dist - (ball.radius + ball2.radius) <= epsi:
-                return True
+            weight = dist - (ball.radius + ball2.radius)
+            if weight <= epsi:
+                return True, weight
 
         else:
             coord2 = ball2.coordinate
             dist: cython.double = np.linalg.norm(coord2 - coord)
-            if dist - (ball.radius + ball2.radius) <= epsi:
-                return True
+            weight = dist - (ball.radius + ball2.radius)
+            if weight <= epsi:
+                return True, weight
 
-    return False
+    return False, -1
