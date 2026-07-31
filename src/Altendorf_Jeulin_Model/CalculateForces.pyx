@@ -192,7 +192,7 @@ def calculate_repulsion_force(
         else:
             coord2 = ball2.coordinate
             dist: cython.double = np.linalg.norm(coord2 - coord)
-            overlap: cython.float = ball.radius + ball2.radius - dist
+            overlap: cython.float = ball.radius + ball2.radius
             overlap_true: cython.float = overlap - dist
             overlap = repulsion_factor*overlap - dist
             if overlap > 0:
