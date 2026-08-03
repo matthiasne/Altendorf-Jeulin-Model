@@ -2,6 +2,7 @@ import time
 
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
+import scipy.stats
 from Altendorf_Jeulin_Model.utils import cut_border
 
 import Altendorf_Jeulin_Model.io_utils as io
@@ -51,8 +52,9 @@ def example_AJ_endless():
     image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
-    R = np.random.normal(loc=8.5, scale=1.0)
-    L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
+    mean_R = 11
+    R = scipy.stats.uniform(loc=mean_R, scale=5)
+    L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / mean_R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
     A = np.array(
         [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
@@ -68,7 +70,6 @@ def example_AJ_endless():
         boundary_size,
         10,
         100,
-        volume_fraction_should=VV,
         has_beta=False
     )
     end_time = time.time()

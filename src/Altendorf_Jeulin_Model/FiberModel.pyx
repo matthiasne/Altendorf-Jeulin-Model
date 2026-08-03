@@ -1,5 +1,8 @@
 import numpy as np
 import cython
+
+from Altendorf_Jeulin_Model import Statistics
+
 cimport numpy as np
 np.import_array()
 from numpy.random import default_rng
@@ -219,12 +222,7 @@ def initialize_fiber_system_endless(
                 save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
         # test for volume fraction starting late and only every tenth trial to save time
         if volume_fraction_should != 1 and i > 3 / 4 * n and i % 10 == 0:
-            volume_fraction_is = (
-                len(fiber_system) * mean_length(fiber_system) * R**2 * np.pi
-            )
-            volume_fraction_is /= (
-                ext_image_size[0] * ext_image_size[1] * ext_image_size[2]
-            )
+            volume_fraction_is = Statistics.volume_fraction(fiber_system, image_size, is_periodic=False)
             if volume_fraction_is > volume_fraction_should:
                 break
     return fiber_system
