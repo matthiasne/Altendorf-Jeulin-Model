@@ -131,7 +131,7 @@ def calculate_repulsion_forces(
             )
 
 
-def calculate_repulsion_force(
+cdef calculate_repulsion_force(
     ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,int64_t[:] image_size,
     repulsion_factor: float = 1.1
 ):
@@ -203,7 +203,7 @@ def calculate_repulsion_force(
                 ball2.overlap = max(ball2.overlap, overlap_true)
 
 
-def smoothing_factor(x: cython.double, x_s: cython.double, x_e: cython.double):
+cdef double smoothing_factor(x: cython.double, x_s: cython.double, x_e: cython.double):
     """
     Calculate the smoothing factor
     (arguments named after Altendorf&Jeulin 2011)
@@ -227,7 +227,7 @@ def smoothing_factor(x: cython.double, x_s: cython.double, x_e: cython.double):
         return factor
 
 
-def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
+cdef calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
 
@@ -255,7 +255,7 @@ def calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
 
 
-def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
+cdef calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
     Note: this code does not directly follow the paper by Altendorf&Jeulin
