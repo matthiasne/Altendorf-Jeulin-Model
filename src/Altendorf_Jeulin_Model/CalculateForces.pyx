@@ -29,6 +29,8 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
+    cdef int f_idx, b_idx
+
     # for cell in grid.cells:
     #     if len(cell) > 0:
     #         neighbor_cells = grid.get_younger_neighbor_cell_indices(
@@ -413,6 +415,14 @@ def calculate_repulsion_forces_numpy(
         max_overlaps: np.ndarray
             The maximum overlaps for each ball, shape (x, y, z, max_balls)
     """
+    cdef int axis, direction
+    cdef np.ndarray pos_j, r_j, valid_j, valid_pairs, active_cells
+    cdef np.ndarray coord_active, pos_j_active, radius_active, radius_j_active,valid_pairs_active
+    cdef np.ndarray pos_diff, distances_sq, overlaps_sq, is_overlapping,distances
+    cdef np.ndarray overlaps_true, overlaps, safe_distances, compute_mask,border_mask
+    cdef np.ndarray force_mags, force_vecs, forces, net_forces_active,max_overlaps_active
+    cdef np.ndarray net_forces, max_overlaps
+
     max_balls = coord_array.shape[3]
     valid_balls = label_array[..., :] != -1 # -1 are empty cells
 
@@ -439,16 +449,19 @@ def calculate_repulsion_forces_numpy(
         pos_diff = pos_diff - image_size * np.round(pos_diff / image_size)
 
     # squared distances are much faster to compute
-    distances_sq = np.sum(pos_diff**2, axis=-1)
+    distances_sq = np.sum(pos_diff * pos_diff, axis=-1)
 
     # overlap logic
-    overlaps_sq = (repulsion_factor * r_sum)**2 - distances_sq
+    overlaps_sq = (repulsion_factor * r_sum) * (repulsion_factor * r_sum) - distances_sq
     is_overlapping = overlaps_sq > 0
 
     # now we compute the actual distance for the overlapping pairs only
     distances = np.zeros_like(distances_sq)
     distances[is_overlapping] = np.sqrt(distances_sq[is_overlapping])
-    overlaps_true = r_sum - distances
+
+    # we only need this for overlapping pairs
+    overlaps_true = np.zeros_like(distances_sq)
+    overlaps_true[is_overlapping] = r_sum[is_overlapping] - distances[is_overlapping]
     overlaps = repulsion_factor * r_sum - distances
     # avoid division by zero for same / very close balls
     safe_distances = np.where(distances < 1e-8, 1.0, distances) # replace zeros
@@ -479,8 +492,7 @@ def calculate_repulsion_forces_numpy(
     
     # collapse forces and overlaps
     net_forces_active = np.sum(forces, axis=-2) 
-    masked_overlap_true = np.where(compute_mask, overlaps_true, 0.0)
-    max_overlaps_active = np.max(masked_overlap_true, axis=-1)
+    max_overlaps_active = np.max(overlaps_true * compute_mask, axis=-1)
 
     # recunstruct full arrays
     net_forces = np.zeros_like(coord_array)
