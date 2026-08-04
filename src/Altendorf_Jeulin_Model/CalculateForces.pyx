@@ -426,21 +426,26 @@ def calculate_repulsion_forces_numpy(
     max_balls = coord_array.shape[3]
     valid_balls = label_array[..., :] != -1 # -1 are empty cells
 
-    # roll the array for neighboring cells
-    pos_j = np.roll(coord_array, shift=shift, axis=(0,1,2))
-    r_j = np.roll(radius_array, shift=shift, axis=(0,1,2))
-    valid_j = np.roll(valid_balls, shift=shift, axis=(0,1,2))
+    # find cells containing at least one ball
+    valid_cells = np.any(valid_balls, axis=-1)
+    has_balls_j = np.roll(valid_cells, shift=shift, axis=(0, 1, 2))
+    # cells that contain interactions
+    active_cells = valid_cells & has_balls_j
 
-    valid_pairs = valid_balls[..., :, np.newaxis] & valid_j[..., np.newaxis, :] # (x, y, z, max_balls, max_balls)
-    active_cells = np.any(valid_pairs, axis=(-1, -2)) # cells that contain interactions
+    # shifted mask that indicates neighbors positions
+    shifted_active_cells = np.roll(active_cells, shift=(-shift[0], -shift[1], - shift[2]), axis=(0, 1, 2))
 
-
-    # select only active cells to reduce computation
+    # extract active cells only
     coord_active = coord_array[active_cells]
-    pos_j_active = pos_j[active_cells]
+    pos_j_active = coord_array[shifted_active_cells]
     radius_active = radius_array[active_cells]
-    radius_j_active = r_j[active_cells]
-    valid_pairs_active = valid_pairs[active_cells]
+    radius_j_active = radius_array[shifted_active_cells]
+
+    valid_balls_active = valid_balls[active_cells]
+    valid_j_active = valid_balls[shifted_active_cells]
+
+    # (N_active, max_balls, max_balls) indicating if (cell, ball_i, ball_j) is a pait of interacting balls
+    valid_pairs_active = valid_balls_active[:, :, np.newaxis] & valid_j_active[:,np.newaxis, :]
 
     # vector calculations
     r_sum = radius_active[..., :, np.newaxis] + radius_j_active[..., np.newaxis, :] # (x, y, z, max_balls, max_balls)
