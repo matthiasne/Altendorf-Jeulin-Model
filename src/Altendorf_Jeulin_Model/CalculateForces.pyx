@@ -79,10 +79,13 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
 
     nb_fibers = len(fiber_system)
     if nb_fibers > 0:
-        coord_array, label_array, radius_array, neighbor_distances_array = fibers_to_numpy(fiber_system)
+        coord_array, label_array, radius_array, neighbor_distances_array, angle_array = fibers_to_numpy(fiber_system)
 
         spring_forces, neighbor_distances_array = calculate_spring_force_numpy(
                 coord_array, label_array, radius_array, neighbor_distances_array
+            )
+        angle_forces, alpha_diff_array = calculate_angle_force_numpy(
+                coord_array, label_array, angle_array
             )
 
         for f_idx, fiber in enumerate(fiber_system):
@@ -90,10 +93,9 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                     ball.force = ball.force + spring_forces[f_idx, b_idx]
                     ball.neighbor_dist = neighbor_distances_array[f_idx, b_idx]
 
-    for fiber in fiber_system:
-        for i, ball in enumerate(fiber.balls):
-            if i - 1 >= 0 and i + 1 < len(fiber.balls):
-                calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
+                    if b_idx - 1 >= 0 and b_idx + 1 < len(fiber.balls):
+                        ball.force = ball.force + angle_forces[f_idx, b_idx - 1]
+                        ball.angle_diff = alpha_diff_array[f_idx, b_idx - 1]
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -343,9 +345,7 @@ cdef calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     tan_alpha0 = np.tan(alpha0)
     if tan_alpha0 < 0:
         z0 = (
-            h1
-            + h2
-            - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0))
+            h1 + h2 - np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0))
         ) / (2 * tan_alpha0)
     else:
         z0 = (
@@ -476,6 +476,8 @@ def fibers_to_numpy(fiber_system: list[Fiber]):
             The radii of the balls in the system, shape (nb_fibers, max_balls)
         neighbor_distances_array: np.ndarray
             The distances to the neighboring balls, shape (nb_fibers, max_balls)
+        angle_array: np.ndarray
+            The angles of the balls in the system, shape (nb_fibers, max_balls)
     """
     nb_fibers = len(fiber_system)
     max_balls = max(len(fiber.balls) for fiber in fiber_system)
@@ -483,13 +485,15 @@ def fibers_to_numpy(fiber_system: list[Fiber]):
     label_array = np.full((nb_fibers, max_balls), -1, dtype=int)
     radius_array = np.zeros((nb_fibers, max_balls))
     neighbor_distances_array = np.full((nb_fibers, max_balls), -1.0)
+    angle_array = np.zeros((nb_fibers, max_balls))
     for i, fiber in enumerate(fiber_system):
         for j, ball in enumerate(fiber.balls):
             coord_array[i, j] = ball.coordinate
             label_array[i, j] = ball.fiber_label
             radius_array[i, j] = ball.radius
             neighbor_distances_array[i, j] = ball.neighbor_dist
-    return coord_array, label_array, radius_array, neighbor_distances_array
+            angle_array[i, j] = ball.angle
+    return coord_array, label_array, radius_array, neighbor_distances_array, angle_array
 
 def calculate_spring_force_numpy(
     np.ndarray coord_array,
@@ -540,3 +544,59 @@ def calculate_spring_force_numpy(
     neighbor_distances_array[:, 1:] = np.maximum(neighbor_distances_array[:, 1:], valid_dist)
 
     return total_forces, neighbor_distances_array
+
+def calculate_angle_force_numpy(
+    np.ndarray coord_array,
+    np.ndarray label_array,
+    np.ndarray angle_array,
+):
+    """
+    Calculates the angle forces between neighboring balls in the fiber system using numpy broadcasting.
+    :param coord_array: np.ndarray
+        The coordinates of the balls in the system, shape (nb_fibers, max_balls, 3)
+    :param label_array: np.ndarray
+        The labels of the balls in the system, shape (nb_fibers, max_balls)
+    :param angle_array: np.ndarray
+        The angles of the balls in the system, shape (nb_fibers, max_balls)
+    :return: np.ndarray
+        The net angle forces on each ball, shape (nb_fibers, max_balls, 3)
+    """
+
+    valid_cells = label_array[..., :] != -1 # -1 are empty cells
+    valid_links = valid_cells[:, :-2] & valid_cells[:, 2:]
+
+    diff_next = coord_array[:, 2:, :] - coord_array[:, 1:-1, :]
+    diff_prev = coord_array[:, 1:-1, :] - coord_array[:, :-2, :]
+    diff_a = coord_array[:, 2:, :] - coord_array[:, :-2, :]
+
+    norm_next = np.linalg.norm(diff_next, axis=-1)
+    safe_norm_next = np.where(norm_next < 1e-8, 1.0, norm_next)
+    norm_prev = np.linalg.norm(diff_prev, axis=-1)
+    safe_norm_prev = np.where(norm_prev < 1e-8, 1.0, norm_prev)
+    norm_a = np.linalg.norm(diff_a, axis=-1)
+
+    dir_next = diff_next / safe_norm_next[..., np.newaxis]
+    dir_prev = diff_prev / safe_norm_prev[..., np.newaxis]
+    a = diff_a / norm_a[..., np.newaxis]    
+
+    d = np.einsum('ijk,ijk->ij', diff_prev, a)
+    m = coord_array[:, :-2, :] + d[..., np.newaxis] * a
+    alpha = np.pi - np.arccos(np.einsum('ijk,ijk->ij', dir_prev, dir_next))
+
+    h1 = np.abs(d)
+    h2 = np.linalg.norm(m - coord_array[:, 2:, :], axis=-1)
+    z = np.linalg.norm(m - coord_array[:, 1:-1, :], axis=-1)
+    # this can be zero for collinear points
+    safe_z = np.where(z < 1e-8, 1.0, z)
+
+    tan_alpha0 = np.tan(angle_array[:, 1:-1])
+    z0 = (h1 + h2  + (np.sqrt(np.square((h1 + h2)) + 4 * h1 * h2 * np.square(tan_alpha0)) * np.sign(tan_alpha0))) / (2 * tan_alpha0)
+
+    alpha_diff = angle_array[:, 1:-1] - alpha
+    rescale = np.clip((alpha_diff - ALPHA_S) / (ALPHA_E - ALPHA_S), 0, 1)
+    smoothing = 0.5 * (1 - np.cos(rescale * np.pi)) / safe_z * RHO * (z - z0) / 2.0
+
+    total_forces = (m - coord_array[:, 1:-1, :]) * smoothing[..., np.newaxis]
+    total_forces = total_forces * valid_links[..., np.newaxis]
+    
+    return total_forces, alpha_diff
