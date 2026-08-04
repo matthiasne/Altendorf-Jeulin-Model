@@ -45,7 +45,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     total_grid_forces = np.zeros_like(coord_array)
     total_grid_overlaps = np.zeros_like(radius_array, dtype=float)
 
-    # Calculate forces from ALL 27 possible grid relationships
+    # calculate forces from ALL 27 possible grid relationships
     for di, dj, dk in product((-1, 0, 1), repeat=3):
         np_shift = (-di, -dj, -dk)
         f, o = calculate_repulsion_forces_numpy(
@@ -66,12 +66,32 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                     ball.force = ball.force + total_grid_forces[x, y, z, m]
                     ball.overlap = max(ball.overlap, total_grid_overlaps[x, y, z, m])
 
+    # for fiber in fiber_system:
+    #     for i, ball in enumerate(fiber.balls):
+    #         if i + 1 < len(fiber.balls):
+    #             calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
+    #         if i - 1 >= 0:
+    #             calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
+    #         if i - 1 >= 0 and i + 1 < len(fiber.balls):
+    #             calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
+
+    # Numpy version of the above code
+
+    nb_fibers = len(fiber_system)
+    if nb_fibers > 0:
+        coord_array, label_array, radius_array, neighbor_distances_array = fibers_to_numpy(fiber_system)
+
+        spring_forces, neighbor_distances_array = calculate_spring_force_numpy(
+                coord_array, label_array, radius_array, neighbor_distances_array
+            )
+
+        for f_idx, fiber in enumerate(fiber_system):
+            for b_idx, ball in enumerate(fiber.balls):
+                    ball.force = ball.force + spring_forces[f_idx, b_idx]
+                    ball.neighbor_dist = neighbor_distances_array[f_idx, b_idx]
+
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
-            if i + 1 < len(fiber.balls):
-                calculate_spring_force(ball, fiber.balls[i + 1], is_next=True)
-            if i - 1 >= 0:
-                calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
             if i - 1 >= 0 and i + 1 < len(fiber.balls):
                 calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
 
@@ -205,8 +225,8 @@ cdef calculate_repulsion_force(
             dist: cython.double = np.linalg.norm(coord2mod)
 
             # calculate the force if balls are indeed overlapping
-            overlap: cython.float = ball.radius + ball2.radius
-            overlap_true: cython.float = overlap - dist
+            overlap: cython.double = ball.radius + ball2.radius
+            overlap_true: cython.double = overlap - dist
             overlap = repulsion_factor*overlap - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
@@ -219,8 +239,8 @@ cdef calculate_repulsion_force(
         else:
             coord2 = ball2.coordinate
             dist: cython.double = np.linalg.norm(coord2 - coord)
-            overlap: cython.float = ball.radius + ball2.radius
-            overlap_true: cython.float = overlap - dist
+            overlap: cython.double = ball.radius + ball2.radius
+            overlap_true: cython.double = overlap - dist
             overlap = repulsion_factor*overlap - dist
             if overlap > 0:
                 dir = (coord2 - coord)/dist
@@ -368,21 +388,21 @@ def calculate_repulsion_forces_numpy(
 ):
     """
     Calculates the repulsion forces between all balls in the system using numpy broadcasting.
-    : param coord_array: np.ndarray
+    :param coord_array: np.ndarray
         The coordinates of the balls in the system, shape (x, y, z, max_cells, 3)
-    : param label_array: np.ndarray
+    :param label_array: np.ndarray
         The labels of the balls in the system, shape (x, y, z, max_cells)
-    : param radius_array: np.ndarray
+    :param radius_array: np.ndarray
         The radii of the balls in the system, shape (x, y, z, max_cells)
-    : param image_size: np.ndarray
+    :param image_size: np.ndarray
         The size of the image for periodic boundary conditions, shape (3,)
-    : param is_periodic: bool
+    :param is_periodic: bool
         Whether to apply periodic boundary conditions
-    : param repulsion_factor: float
+    :param repulsion_factor: float
         The factor to scale the repulsion force
-    : param shift: tuple
+    :param shift: tuple
         The shift to apply to the neighbor cells, default is (0, 0, 0)
-    : return: tuple
+    :return: tuple
         net_forces: np.ndarray
             The net forces on each ball, shape (x, y, z, max_cells, 3)
         max_overlaps: np.ndarray
@@ -441,3 +461,82 @@ def calculate_repulsion_forces_numpy(
     max_overlaps = np.max(masked_overlap_true, axis=-1)
 
     return net_forces, max_overlaps
+
+def fibers_to_numpy(fiber_system: list[Fiber]):
+    """
+    Converts the fiber system to numpy arrays for coordinates, labels, and radii and neighbor distances.
+    :param fiber_system: list[list[Ball]])
+        The fiber system that contains all balls
+    :return: tuple
+        coord_array: np.ndarray
+            The coordinates of the balls in the system, shape (nb_fibers, max_balls, 3)
+        label_array: np.ndarray
+            The labels of the balls in the system, shape (nb_fibers, max_balls)
+        radius_array: np.ndarray
+            The radii of the balls in the system, shape (nb_fibers, max_balls)
+        neighbor_distances_array: np.ndarray
+            The distances to the neighboring balls, shape (nb_fibers, max_balls)
+    """
+    nb_fibers = len(fiber_system)
+    max_balls = max(len(fiber.balls) for fiber in fiber_system)
+    coord_array = np.zeros((nb_fibers, max_balls, 3))
+    label_array = np.full((nb_fibers, max_balls), -1, dtype=int)
+    radius_array = np.zeros((nb_fibers, max_balls))
+    neighbor_distances_array = np.full((nb_fibers, max_balls), -1.0)
+    for i, fiber in enumerate(fiber_system):
+        for j, ball in enumerate(fiber.balls):
+            coord_array[i, j] = ball.coordinate
+            label_array[i, j] = ball.fiber_label
+            radius_array[i, j] = ball.radius
+            neighbor_distances_array[i, j] = ball.neighbor_dist
+    return coord_array, label_array, radius_array, neighbor_distances_array
+
+def calculate_spring_force_numpy(
+    np.ndarray coord_array,
+    np.ndarray label_array,
+    np.ndarray radius_array,
+    np.ndarray neighbor_distances_array,
+):
+    """
+    Calculates the spring forces between neighboring balls in the fiber system using numpy broadcasting.
+    :param coord_array: np.ndarray
+        The coordinates of the balls in the system, shape (nb_fibers, max_balls, 3)
+    :param radius_array: np.ndarray
+        The radii of the balls in the system, shape (nb_fibers, max_balls)
+    :param label_array: np.ndarray
+        The labels of the balls in the system, shape (nb_fibers, max_balls)
+    :param neighbor_distances_array: np.ndarray
+        The distances to the neighboring balls, shape (nb_fibers, max_balls)
+    :return: np.ndarray
+        The net spring forces on each ball, shape (nb_fibers, max_balls, 3)
+    """
+    valid_cells = label_array[..., :] != -1 # -1 are empty cells
+    valid_links = valid_cells[:, :-1] & valid_cells[:, 1:]
+
+    forward_diff = coord_array[:, 1:, :] - coord_array[:, :-1, :]
+    distances = np.linalg.norm(forward_diff, axis=-1)
+
+    # avoid division by zero in empty cells
+    safe_dist = np.where(distances < 1e-8, 1.0, distances)
+
+    # original code always uses the first ball's radius
+    correct_dist = radius_array[:, :-1] / 2.0
+    displaced = distances - correct_dist
+    ratio = np.abs(displaced) / correct_dist
+
+    # vectorized smoothing calculation
+    rescale = np.clip((ratio - X_S) / (X_E - X_S), 0, 1)
+    smoothing = 0.5 * (1 - np.cos(rescale * np.pi)) * RHO * displaced / safe_dist
+    forward_forces = forward_diff * smoothing[..., np.newaxis]
+
+    # accumulate forces in the correct direction
+    total_forces = np.zeros_like(coord_array)
+    total_forces[:, :-1, :] += forward_forces * valid_links[..., np.newaxis]
+    total_forces[:, 1:, :] -= forward_forces * valid_links[..., np.newaxis]
+
+    # only update distances for the existing links
+    valid_dist = np.where(valid_links, distances, 0.0)
+    neighbor_distances_array[:, :-1] = np.maximum(neighbor_distances_array[:, :-1], valid_dist)
+    neighbor_distances_array[:, 1:] = np.maximum(neighbor_distances_array[:, 1:], valid_dist)
+
+    return total_forces, neighbor_distances_array
