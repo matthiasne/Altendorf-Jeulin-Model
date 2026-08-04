@@ -45,14 +45,19 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     total_grid_forces = np.zeros_like(coord_array)
     total_grid_overlaps = np.zeros_like(radius_array, dtype=float)
 
-    # calculate forces from ALL 27 possible grid relationships
-    for di, dj, dk in product((-1, 0, 1), repeat=3):
+    # calculate forces for 13 unique directions + same cell
+    directions = ((0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (0, 1, -1), (1, 0, 0), (1, 0, 1), (1, 0, -1), (1, 1, 0), (1, 1, 1), (1, 1, -1), (1, -1, 0), (1, -1, 1), (1, -1, -1))
+    for di, dj, dk in directions:
         np_shift = (-di, -dj, -dk)
         f, o = calculate_repulsion_forces_numpy(
             coord_array, label_array, radius_array, grid.image_size, 
             is_periodic=is_periodic, shift=np_shift
         )
         total_grid_forces += f
+        # apply Newton's third law
+        if (di, dj, dk) != (0, 0, 0):
+            total_grid_forces -= np.roll(f, shift=(di, dj, dk), axis=(0, 1, 2))
+            total_grid_overlaps = np.maximum(total_grid_overlaps, np.roll(o, shift=(di, dj, dk), axis=(0, 1, 2)))
         total_grid_overlaps = np.maximum(total_grid_overlaps, o)
 
     # TODO : This can be optimized by storing balls / forces as arrays directly
