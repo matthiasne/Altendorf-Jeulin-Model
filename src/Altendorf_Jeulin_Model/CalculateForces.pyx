@@ -394,11 +394,11 @@ def calculate_repulsion_forces_numpy(
     """
     Calculates the repulsion forces between all balls in the system using numpy broadcasting.
     :param coord_array: np.ndarray
-        The coordinates of the balls in the system, shape (x, y, z, max_cells, 3)
+        The coordinates of the balls in the system, shape (x, y, z, max_balls, 3)
     :param label_array: np.ndarray
-        The labels of the balls in the system, shape (x, y, z, max_cells)
+        The labels of the balls in the system, shape (x, y, z, max_balls)
     :param radius_array: np.ndarray
-        The radii of the balls in the system, shape (x, y, z, max_cells)
+        The radii of the balls in the system, shape (x, y, z, max_balls)
     :param image_size: np.ndarray
         The size of the image for periodic boundary conditions, shape (3,)
     :param is_periodic: bool
@@ -409,51 +409,68 @@ def calculate_repulsion_forces_numpy(
         The shift to apply to the neighbor cells, default is (0, 0, 0)
     :return: tuple
         net_forces: np.ndarray
-            The net forces on each ball, shape (x, y, z, max_cells, 3)
+            The net forces on each ball, shape (x, y, z, max_balls, 3)
         max_overlaps: np.ndarray
-            The maximum overlaps for each ball, shape (x, y, z, max_cells)
+            The maximum overlaps for each ball, shape (x, y, z, max_balls)
     """
-    max_cells = coord_array.shape[3]
-    valid_cells = label_array[..., :] != -1 # -1 are empty cells
+    max_balls = coord_array.shape[3]
+    valid_balls = label_array[..., :] != -1 # -1 are empty cells
 
     # roll the array for neighboring cells
     pos_j = np.roll(coord_array, shift=shift, axis=(0,1,2))
     r_j = np.roll(radius_array, shift=shift, axis=(0,1,2))
-    valid_j = np.roll(valid_cells, shift=shift, axis=(0,1,2))
+    valid_j = np.roll(valid_balls, shift=shift, axis=(0,1,2))
+
+    valid_pairs = valid_balls[..., :, np.newaxis] & valid_j[..., np.newaxis, :] # (x, y, z, max_balls, max_balls)
+    active_cells = np.any(valid_pairs, axis=(-1, -2)) # cells that contain interactions
+
+
+    # select only active cells to reduce computation
+    coord_active = coord_array[active_cells]
+    pos_j_active = pos_j[active_cells]
+    radius_active = radius_array[active_cells]
+    radius_j_active = r_j[active_cells]
+    valid_pairs_active = valid_pairs[active_cells]
 
     # vector calculations
-    r_sum = radius_array[..., :, np.newaxis] + r_j[..., np.newaxis, :] # (x, y, z, max_cells, max_cells)
-    valid_pairs = valid_cells[..., :, np.newaxis] & valid_j[..., np.newaxis, :] # (x, y, z, max_cells, max_cells)
-    pos_diff = coord_array[..., :, np.newaxis, :] - pos_j[..., np.newaxis, :, :] # (x, y, z, max_cells, max_cells, 3)
+    r_sum = radius_active[..., :, np.newaxis] + radius_j_active[..., np.newaxis, :] # (x, y, z, max_balls, max_balls)
+    pos_diff = coord_active[..., :, np.newaxis, :] - pos_j_active[..., np.newaxis, :, :] # (x, y, z, max_balls, max_balls, 3)
     if is_periodic:
         pos_diff = pos_diff - image_size * np.round(pos_diff / image_size)
 
-    # because we compute the whole matrix, we need to avoid accidental division by zero
-    distances = np.linalg.norm(pos_diff, axis=-1)
-    safe_distances = np.where(distances < 1e-8, 1.0, distances) # replace zeros
+    # squared distances are much faster to compute
+    distances_sq = np.sum(pos_diff**2, axis=-1)
 
     # overlap logic
-    overlaps = repulsion_factor * r_sum - distances
+    overlaps_sq = (repulsion_factor * r_sum)**2 - distances_sq
+    is_overlapping = overlaps_sq > 0
+
+    # now we compute the actual distance for the overlapping pairs only
+    distances = np.zeros_like(distances_sq)
+    distances[is_overlapping] = np.sqrt(distances_sq[is_overlapping])
     overlaps_true = r_sum - distances
-    is_overlapping = overlaps > 0
+    overlaps = repulsion_factor * r_sum - distances
+    # avoid division by zero for same / very close balls
+    safe_distances = np.where(distances < 1e-8, 1.0, distances) # replace zeros
 
     # ignore self-interactions in case of the same cell
     if shift == (0, 0, 0):
-        compute_mask = valid_pairs & is_overlapping & ~np.eye(max_cells, dtype=bool)
+        compute_mask = valid_pairs_active & is_overlapping & ~np.eye(max_balls, dtype=bool)
     else:
-        compute_mask = valid_pairs & is_overlapping
+        compute_mask = valid_pairs_active & is_overlapping
 
     # if it is not periodic, we need to ignore border cells
     if not is_periodic:
-        border_mask = np.ones_like(compute_mask, dtype=bool)
+        border_mask = np.ones_like(coord_array, dtype=bool)
         for axis, direction in enumerate(shift):
             index = [slice(None)] * 3 # [:, :, :]
             if direction == -1:
                 index[axis] = -1 # [-1, :, :]
+                border_mask[tuple(index)] = False
             if direction == 1:
                 index[axis] = 0 # [0, :, :]
-            compute_mask[tuple(index)] = False
-        compute_mask = compute_mask & border_mask
+                border_mask[tuple(index)] = False
+        compute_mask = compute_mask & border_mask[active_cells]
 
     # forces
     force_mags = TAU * overlaps / 2.0
@@ -461,9 +478,16 @@ def calculate_repulsion_forces_numpy(
     forces = force_vecs * compute_mask[..., np.newaxis]
     
     # collapse forces and overlaps
-    net_forces = np.sum(forces, axis=-2) 
+    net_forces_active = np.sum(forces, axis=-2) 
     masked_overlap_true = np.where(compute_mask, overlaps_true, 0.0)
-    max_overlaps = np.max(masked_overlap_true, axis=-1)
+    max_overlaps_active = np.max(masked_overlap_true, axis=-1)
+
+    # recunstruct full arrays
+    net_forces = np.zeros_like(coord_array)
+    max_overlaps = np.zeros_like(radius_array)
+
+    net_forces[active_cells] = net_forces_active
+    max_overlaps[active_cells] = max_overlaps_active
 
     return net_forces, max_overlaps
 
