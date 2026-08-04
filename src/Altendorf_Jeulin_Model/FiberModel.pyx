@@ -80,8 +80,8 @@ def initialize_fiber_system(
     volume = 0
     for i in range(0, N):
         # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO
-        l_fiber = set_value(L, rng)
-        r_fiber = set_value(R, rng)
+        l_fiber, rng = set_value(L, rng)
+        r_fiber, rng = set_value(R, rng)
         l_fiber_discrete = int(2 * l_fiber / r_fiber + 1)
         # 2. Simulate the mean orientation
         if has_beta:
@@ -184,7 +184,7 @@ def initialize_fiber_system_endless(
     n_lines = 0
     for i in range(0, n):
         # 1. Simulate the radius of the ith fiber
-        r_fiber = set_value(R, rng)
+        r_fiber, rng = set_value(R, rng)
         # 2. Generate Poisson line
         mid_pos, mu0, length = generate_poisson_line(rng, beta, ext_image_size, has_beta)
         if length > -1:
@@ -250,13 +250,13 @@ def set_value(input_value, rng):
         result = input_value
     elif hasattr(input_value, "rvs"):
         # L is a Poisson generator (or any similar object with an rvs method)
-        result = input_value.rvs(random_state=rng)
+        result = abs(input_value.rvs(random_state=rng))
     else:
         raise ValueError(
             "Input must be a float/int or a distribution object with an 'rvs' method."
         )
 
-    return result
+    return result, rng
 
 
 def save_balls_in_fiber_system(

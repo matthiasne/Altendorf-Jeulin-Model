@@ -9,7 +9,7 @@ from Altendorf_Jeulin_Model.CalculateForces import (
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
-from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
+from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row, write_gad
 
 MAX_STEPS = 1500
 MAX_OVERLAP = 0.1
@@ -21,8 +21,9 @@ def run_force_biased(
     image_size,
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = False,
+    step_size_verbose: int = 100,
     is_periodic: bool = True,
 ):
     """
@@ -33,12 +34,13 @@ def run_force_biased(
     :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
     :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
     :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
+    :param output_path: str                     file path to store packing step statistics and intermediate fiber
+                                                configuration
+    :param verbose: bool                        true: output information on packing statistics and intermediate fiber
+                                                configuration
+    :param step_size_verbose: int               number of steps after which statistics and intermediate fiber
+                                                configuration are saved
     :param is_periodic: bool                    uses periodic boundary conditions
-    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
-                                                distribution, otherwise the ACG distribution with parameter matrix is used
-    :param beta: float                          parameter of direction distribution
     """
     rows = []
 
@@ -67,8 +69,15 @@ def run_force_biased(
         force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic
         )
-        if verbose and i % 100 == 0:
+        if verbose and i % step_size_verbose == 0:
             rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
+            print_stats(output_path + "results.csv", rows)
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+            )
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:
@@ -76,7 +85,13 @@ def run_force_biased(
 
     if verbose:
         rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
-        print_stats(output_file, rows)
+        print_stats(output_path + "results.csv", rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+        )
 
 
 def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):

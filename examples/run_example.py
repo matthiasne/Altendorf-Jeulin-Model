@@ -4,6 +4,7 @@ import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 import scipy.stats
 from Altendorf_Jeulin_Model.utils import cut_border
+from numpy.f2py.crackfortran import verbose
 
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
@@ -13,7 +14,7 @@ from Altendorf_Jeulin_Model.io_utils import (
 
 
 def main():
-    example_AJ_finite()
+    #example_AJ_finite()
     example_AJ_endless()
 
 
@@ -41,10 +42,17 @@ def example_AJ_finite():
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
-    io.save_fibers_as_tif(
-        fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
-    )
+    #io.save_fibers_as_tif(
+    #    fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
+    #)
     print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
+    io.write_gad(
+        fs,
+        "examples/outputs/AJ_model.gad",
+        (100,100,100),
+        1e-06,
+        is_periodic=True,
+    )
 
 
 def example_AJ_endless():
@@ -93,6 +101,7 @@ def example_AJ_endless():
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
     io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
+    io.write_gad(fs, "examples/outputs/AJ_model_endless.gad", image_size, 4e-06, is_periodic=False)
 
 
 if __name__ == "__main__":
