@@ -167,26 +167,3 @@ class SpatialHashing:
         """
         for fiber in fiber_system:
             self.add_fiber(fiber, is_periodic)
-
-    def to_numpy_array(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Converts the SpatialHashing to a tuple (coord_array, label_array, radius_array) of numpy arrays
-
-        :return: tuple[np.ndarray, np.ndarray, np.ndarray]
-            The numpy array representations of the SpatialHashing
-        """
-        max_balls_per_cell = max(len(cell) for cell in self.cells)
-        coord_array = np.zeros((self.division[0], self.division[1], self.division[2], max_balls_per_cell, 3))
-        label_array = np.full((self.division[0], self.division[1], self.division[2], max_balls_per_cell), -1, dtype=int) # -1 for empty cells
-        radius_array = np.zeros((self.division[0], self.division[1], self.division[2], max_balls_per_cell), dtype=float)
-
-        for idx, cell in enumerate(self.cells):
-            i = idx % self.division[0]
-            j = (idx // self.division[0]) % self.division[1]
-            k = idx // (self.division[0] * self.division[1])
-            for b_idx, ball in enumerate(cell):
-                coord_array[i, j, k, b_idx] = ball.coordinate
-                label_array[i, j, k, b_idx] = ball.fiber_label
-                radius_array[i, j, k, b_idx] = ball.radius
-
-        return coord_array, label_array, radius_array
