@@ -2,10 +2,12 @@ import time
 
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
-from Altendorf_Jeulin_Model.VectorizedForceBiased import run_force_biased_vectorized
+import scipy.stats
 from Altendorf_Jeulin_Model.utils import cut_border
+from numpy.f2py.crackfortran import verbose
 
 import Altendorf_Jeulin_Model.io_utils as io
+from Altendorf_Jeulin_Model.VectorizedForceBiased import run_force_biased_vectorized # vectorized version
 from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
 )
@@ -35,7 +37,7 @@ def example_AJ_finite():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased_vectorized(fs, image_size, verbose=True)
+    run_force_biased_vectorized(fs, image_size, verbose=True)  # vectorized version
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -43,7 +45,14 @@ def example_AJ_finite():
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model_vectorized.tif", is_periodic=True
     )
-    print_fiber_positions_to_file(fs, "examples/outputs/fibers_vectorized.txt")
+    print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
+    io.write_gad(
+        fs,
+        "examples/outputs/AJ_model.gad",
+        (100,100,100),
+        1e-06,
+        is_periodic=True,
+    )
 
 
 def example_AJ_endless():
@@ -51,8 +60,9 @@ def example_AJ_endless():
     image_size = (400, 400, 400)
     boundary_size = 50
     VV = 0.12
-    R = np.random.normal(loc=8.5, scale=1.0)
-    L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / R**2
+    mean_R = 11
+    R = scipy.stats.uniform(loc=mean_R, scale=5)
+    L = np.sqrt(3) / 2 * VV * (image_size[0] + 2 * boundary_size) ** 2 / mean_R**2
     mu = 3 / 4 * np.pi * L * (image_size[0] + 2 * boundary_size) / image_size[0]
     A = np.array(
         [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
@@ -68,7 +78,6 @@ def example_AJ_endless():
         boundary_size,
         10,
         100,
-        volume_fraction_should=VV,
         has_beta=False
     )
     end_time = time.time()
@@ -77,7 +86,7 @@ def example_AJ_endless():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased_vectorized(fs, image_size, is_periodic=False, verbose=True)
+    run_force_biased_vectorized(fs, image_size, is_periodic=False, verbose=True) # vectorized version
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -87,11 +96,12 @@ def example_AJ_endless():
         scale=4,
         domain=image_size,
         boundary=(boundary_size, boundary_size, boundary_size),
-        path="examples/outputs/AJ_model_endless_vectorized.tif",
+        path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
-    io.save_fibers_as_small_graph("examples/outputs/nonwoven_vectorized", fs_cut)
+    io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
+    io.write_gad(fs, "examples/outputs/AJ_model_endless.gad", image_size, 4e-06, is_periodic=False)
 
 
 if __name__ == "__main__":
