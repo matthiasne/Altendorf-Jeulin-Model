@@ -224,19 +224,6 @@ def calculate_repulsion_forces_numpy(
     if shift == (0, 0, 0):
         compute_mask = compute_mask & ~np.eye(max_balls, dtype=bool)
 
-    # if it is not periodic, we need to ignore border cells
-    if not is_periodic:
-        border_mask = np.ones((Nx, Ny, Nz), dtype=bool)
-        for axis, direction in enumerate(shift):
-            index = [slice(None)] * 3 # [:, :, :]
-            if direction == -1:
-                index[axis] = 0 # [-1, :, :]
-                border_mask[tuple(index)] = False
-            if direction == 1:
-                index[axis] = -1 # [0, :, :]
-                border_mask[tuple(index)] = False
-        compute_mask = compute_mask & border_mask[active_cells][:, np.newaxis, np.newaxis]
-
     # forces
     force_mags = TAU * overlaps / 2.0
     force_vecs = (force_mags / safe_distances)[..., np.newaxis] * pos_diff
