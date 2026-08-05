@@ -109,6 +109,7 @@ class SpatialHashing:
         self, index: tuple[int, int, int], is_periodic: bool = True
     ) -> set[tuple[int, int, int]]:
         """
+        # TODO : implement non-periodic version ?
         Gets the indices of all neighboring cells
         :param index: tuple[int, int, int]
             The original cell index
