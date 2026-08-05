@@ -12,6 +12,7 @@ from Altendorf_Jeulin_Model.io_utils import (
 from Altendorf_Jeulin_Model.ContactModel import (
     find_contact_pairs,
     find_contact_areas,
+    find_contact_candidates
 )
 
 
@@ -23,7 +24,7 @@ def main():
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = np.array([100, 100, 100])
-    intensity = 50
+    intensity = 20
     L = 100
     R = 5
     beta = 1.0
@@ -36,6 +37,8 @@ def example_AJ_finite():
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi=0)
+    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
 
     # pack the fibers
     start_time = time.time()
@@ -44,8 +47,9 @@ def example_AJ_finite():
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
-    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi= 0.5)
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi= 0)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
+    shortlist = find_contact_candidates(fs, image_size, epsi=0.75)
 
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
