@@ -1,3 +1,6 @@
+# this file is a copy of src/Altendorf_Jeulin_Model/VectorizedForceBiased.py 
+# where we replaced calculate_forces with the vectorized version calculate_forces_vectorized.
+
 # cython: language_level=3, infer_type=True
 import cython
 import numpy as np

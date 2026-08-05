@@ -29,24 +29,23 @@ def calculate_forces_vectorized(grid: sh, fiber_system: list[Fiber], is_periodic
     """
     cdef int f_idx, b_idx
 
-    coord_array, label_array, radius_array = sh_to_numpy(grid)
+    coord_array, radius_array, ball_label_array, fiber_label_array = sh_to_numpy(grid)
     total_grid_forces = np.zeros_like(coord_array)
     total_grid_overlaps = np.zeros_like(radius_array, dtype=float)
 
     # calculate forces for 13 unique directions + same cell
     directions = ((0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (0, 1, -1), (1, 0, 0), (1, 0, 1), (1, 0, -1), (1, 1, 0), (1, 1, 1), (1, 1, -1), (1, -1, 0), (1, -1, 1), (1, -1, -1))
     for di, dj, dk in directions:
-        np_shift = (-di, -dj, -dk)
-        f, o = calculate_repulsion_forces_numpy(
-            coord_array, label_array, radius_array, grid.image_size, 
-            is_periodic=is_periodic, shift=np_shift
+        fdirect, freact, odirect, oreact = calculate_repulsion_forces_numpy(
+            coord_array, radius_array, ball_label_array, fiber_label_array, grid.image_size, 
+            is_periodic=is_periodic, shift=(di, dj, dk)
         )
-        total_grid_forces += f
+        total_grid_forces += fdirect
+        total_grid_overlaps = np.maximum(total_grid_overlaps, odirect)
         # apply Newton's third law
         if (di, dj, dk) != (0, 0, 0):
-            total_grid_forces -= np.roll(f, shift=(di, dj, dk), axis=(0, 1, 2))
-            total_grid_overlaps = np.maximum(total_grid_overlaps, np.roll(o, shift=(di, dj, dk), axis=(0, 1, 2)))
-        total_grid_overlaps = np.maximum(total_grid_overlaps, o)
+            total_grid_forces += freact
+            total_grid_overlaps = np.maximum(total_grid_overlaps, oreact)
 
     Nx, Ny, Nz = grid.division    
     for z in range(Nz):
@@ -97,8 +96,9 @@ def calculate_forces_vectorized(grid: sh, fiber_system: list[Fiber], is_periodic
 
 def calculate_repulsion_forces_numpy(
     np.ndarray coord_array, 
-    np.ndarray label_array, 
-    np.ndarray radius_array, 
+    np.ndarray radius_array,
+    np.ndarray ball_label_array,
+    np.ndarray fiber_label_array, 
     np.ndarray image_size, 
     is_periodic: bool = True, 
     repulsion_factor: float = 1.1,
@@ -108,10 +108,12 @@ def calculate_repulsion_forces_numpy(
     Calculates the repulsion forces between all balls in the system using numpy broadcasting.
     :param coord_array: np.ndarray
         The coordinates of the balls in the system, shape (x, y, z, max_balls, 3)
-    :param label_array: np.ndarray
-        The labels of the balls in the system, shape (x, y, z, max_balls)
     :param radius_array: np.ndarray
         The radii of the balls in the system, shape (x, y, z, max_balls)
+    :param ball_label_array: np.ndarray
+        The labels of the balls in the system, shape (x, y, z, max_balls)
+    :param fiber_label_array: np.ndarray
+        The labels of the fibers in the system, shape (x, y, z, max_balls)
     :param image_size: np.ndarray
         The size of the image for periodic boundary conditions, shape (3,)
     :param is_periodic: bool
@@ -121,46 +123,80 @@ def calculate_repulsion_forces_numpy(
     :param shift: tuple
         The shift to apply to the neighbor cells, default is (0, 0, 0)
     :return: tuple
-        net_forces: np.ndarray
-            The net forces on each ball, shape (x, y, z, max_balls, 3)
-        max_overlaps: np.ndarray
-            The maximum overlaps for each ball, shape (x, y, z, max_balls)
+        fdirect: np.ndarray
+            The direct forces on each ball, shape (x, y, z, max_balls, 3)
+        freact: np.ndarray
+            The reactive forces on each ball, shape (x, y, z, max_balls, 3)
+        odirect: np.ndarray
+            The direct overlaps for each ball, shape (x, y, z, max_balls)
+        oreact: np.ndarray
+            The reactive overlaps for each ball, shape (x, y, z, max_balls)
     """
+    # declare all variables for a better performance
+    cdef tuple[int, int, int] neg_shift
+    cdef np.int max_balls
+    cdef np.ndarray valid_balls, valid_cells, has_balls_j, active_cells
+    cdef np.ndarray coord_active, radius_active, fiber_active, ball_active, valid_balls_active
+    cdef np.int Nx, Ny, Nz
+    cdef np.ndarray x_indices, y_indices, z_indices
+    cdef np.ndarray x_neigh, y_neigh, z_neigh
+    cdef np.ndarray coord_j_active, radius_j_active, fiber_shifted, ball_shifted, valid_balls_j_active
+    cdef np.ndarray valid_pairs_active, different_fiber, far_enough, valid_interactions
+    cdef np.ndarray r_sum, pos_diff, distances_sq, overlaps_sq, is_overlapping
+    cdef np.ndarray distances, overlaps_true, overlaps, safe_distances
+    cdef np.ndarray compute_mask, border_mask
     cdef int axis, direction
-    cdef np.ndarray pos_j, r_j, valid_j, valid_pairs, active_cells
-    cdef np.ndarray coord_active, pos_j_active, radius_active, radius_j_active,valid_pairs_active
-    cdef np.ndarray pos_diff, distances_sq, overlaps_sq, is_overlapping,distances
-    cdef np.ndarray overlaps_true, overlaps, safe_distances, compute_mask,border_mask
-    cdef np.ndarray force_mags, force_vecs, forces, net_forces_active,max_overlaps_active
-    cdef np.ndarray net_forces, max_overlaps
+    cdef np.ndarray force_mags, force_vecs, forces
+    cdef np.ndarray net_forces_active, max_overlaps_active
+    cdef np.ndarray reaction_forces_active, reaction_overlaps_active
+    cdef np.ndarray direct_forces, direct_overlaps
+    cdef np.ndarray reaction_forces, reaction_overlaps
+
+    neg_shift = (-shift[0], -shift[1], -shift[2])
 
     max_balls = coord_array.shape[3]
-    valid_balls = label_array[..., :] != -1 # -1 are empty cells
+    valid_balls = ball_label_array[..., :] != -1 # -1 are empty cells
 
     # find cells containing at least one ball
     valid_cells = np.any(valid_balls, axis=-1)
-    has_balls_j = np.roll(valid_cells, shift=shift, axis=(0, 1, 2))
-    # cells that contain interactions
+    # find cells such that (pos + shift) contains at least one ball
+    has_balls_j = np.roll(valid_cells, shift=neg_shift, axis=(0, 1, 2))
+    # cells that contain at least one neighboring ball in the shifted cell
     active_cells = valid_cells & has_balls_j
 
-    # shifted mask that indicates neighbors positions
-    shifted_active_cells = np.roll(active_cells, shift=(-shift[0], -shift[1], - shift[2]), axis=(0, 1, 2))
-
-    # extract active cells only
+    # extract active cells only. This should reduce the number of computations significantly
     coord_active = coord_array[active_cells]
-    pos_j_active = coord_array[shifted_active_cells]
     radius_active = radius_array[active_cells]
-    radius_j_active = radius_array[shifted_active_cells]
-
+    fiber_active = fiber_label_array[active_cells]
+    ball_active = ball_label_array[active_cells]
     valid_balls_active = valid_balls[active_cells]
-    valid_j_active = valid_balls[shifted_active_cells]
 
-    # (N_active, max_balls, max_balls) indicating if (cell, ball_i, ball_j) is a pait of interacting balls
-    valid_pairs_active = valid_balls_active[:, :, np.newaxis] & valid_j_active[:,np.newaxis, :]
+    # find corresponding neighbor indices for each active cell
+    # we need the exact indices to preserve the order of interacting balls
+    Nx, Ny, Nz = coord_array.shape[0], coord_array.shape[1], coord_array.shape[2]
+    x_indices, y_indices, z_indices = np.where(active_cells)
+    x_neigh = (x_indices + shift[0]) % Nx
+    y_neigh = (y_indices + shift[1]) % Ny
+    z_neigh = (z_indices + shift[2]) % Nz
+
+    # extract the same properties for the neighboring cells
+    coord_j_active = coord_array[x_neigh, y_neigh, z_neigh]
+    radius_j_active = radius_array[x_neigh, y_neigh, z_neigh]
+    fiber_shifted = fiber_label_array[x_neigh, y_neigh, z_neigh]
+    ball_shifted = ball_label_array[x_neigh, y_neigh, z_neigh]
+    valid_balls_j_active = valid_balls[x_neigh, y_neigh, z_neigh]
+
+    # (N_active, max_balls, max_balls) indicating if (cell, ball_i, ball_j) is a pair of interacting balls
+    valid_pairs_active = valid_balls_active[:, :, np.newaxis] & valid_balls_j_active[:,np.newaxis, :]
+    
+    # ignore balls from the same fiber if their ball index distance is less than the limit
+    different_fiber = fiber_active[:, :, np.newaxis] != fiber_shifted[:, np.newaxis, :]
+    far_enough = np.abs(ball_active[:, :, np.newaxis] - ball_shifted[:, np.newaxis, :]) >= MIN_REPULSION_DISTANCE
+    valid_interactions = different_fiber | far_enough
 
     # vector calculations
     r_sum = radius_active[..., :, np.newaxis] + radius_j_active[..., np.newaxis, :] # (x, y, z, max_balls, max_balls)
-    pos_diff = coord_active[..., :, np.newaxis, :] - pos_j_active[..., np.newaxis, :, :] # (x, y, z, max_balls, max_balls, 3)
+    pos_diff = coord_active[..., :, np.newaxis, :] - coord_j_active[..., np.newaxis, :, :] # (x, y, z, max_balls, max_balls, 3)
     if is_periodic:
         pos_diff = pos_diff - image_size * np.round(pos_diff / image_size)
 
@@ -183,55 +219,64 @@ def calculate_repulsion_forces_numpy(
     safe_distances = np.where(distances < 1e-8, 1.0, distances) # replace zeros
 
     # ignore self-interactions in case of the same cell
+    compute_mask = valid_pairs_active & is_overlapping & valid_interactions
+    # ignore self-interactions
     if shift == (0, 0, 0):
-        compute_mask = valid_pairs_active & is_overlapping & ~np.eye(max_balls, dtype=bool)
-    else:
-        compute_mask = valid_pairs_active & is_overlapping
+        compute_mask = compute_mask & ~np.eye(max_balls, dtype=bool)
 
     # if it is not periodic, we need to ignore border cells
     if not is_periodic:
-        border_mask = np.ones_like(coord_array, dtype=bool)
+        border_mask = np.ones((Nx, Ny, Nz), dtype=bool)
         for axis, direction in enumerate(shift):
             index = [slice(None)] * 3 # [:, :, :]
             if direction == -1:
-                index[axis] = -1 # [-1, :, :]
+                index[axis] = 0 # [-1, :, :]
                 border_mask[tuple(index)] = False
             if direction == 1:
-                index[axis] = 0 # [0, :, :]
+                index[axis] = -1 # [0, :, :]
                 border_mask[tuple(index)] = False
-        compute_mask = compute_mask & border_mask[active_cells]
+        compute_mask = compute_mask & border_mask[active_cells][:, np.newaxis, np.newaxis]
 
     # forces
     force_mags = TAU * overlaps / 2.0
     force_vecs = (force_mags / safe_distances)[..., np.newaxis] * pos_diff
     forces = force_vecs * compute_mask[..., np.newaxis]
     
-    # collapse forces and overlaps
+    # collapse direct forces and overlaps
     net_forces_active = np.sum(forces, axis=-2) 
     max_overlaps_active = np.max(overlaps_true * compute_mask, axis=-1)
 
+    # collapse reactive forces and overlaps for the neighbor cells
+    reaction_forces_active = np.sum(-forces, axis=-3)
+    reaction_overlaps_active = np.max(overlaps_true * compute_mask, axis=-2)
+
     # recunstruct full arrays
-    net_forces = np.zeros_like(coord_array)
-    max_overlaps = np.zeros_like(radius_array)
+    direct_forces = np.zeros_like(coord_array)
+    direct_overlaps = np.zeros_like(radius_array)
+    reaction_forces = np.zeros_like(coord_array)
+    reaction_overlaps = np.zeros_like(radius_array)
 
-    net_forces[active_cells] = net_forces_active
-    max_overlaps[active_cells] = max_overlaps_active
+    direct_forces[active_cells] = net_forces_active
+    direct_overlaps[active_cells] = max_overlaps_active
+    reaction_forces[x_neigh, y_neigh, z_neigh] = reaction_forces_active
+    reaction_overlaps[x_neigh, y_neigh, z_neigh] = reaction_overlaps_active
 
-    return net_forces, max_overlaps
+    return direct_forces, reaction_forces, direct_overlaps, reaction_overlaps
 
 def sh_to_numpy(
     grid: sh
     ):
     """
-    Converts the SpatialHashing to a tuple (coord_array, label_array, radius_array) of numpy arrays
+    Converts the SpatialHashing to a tuple (coord_array, radius_array, ball_label_array, fiber_label_array) of numpy arrays
 
-    :return: tuple[np.ndarray, np.ndarray, np.ndarray]
+    :return: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
         The numpy array representations of the SpatialHashing
     """
     max_balls_per_cell = max(len(cell) for cell in grid.cells)
     coord_array = np.zeros((grid.division[0], grid.division[1], grid.division[2], max_balls_per_cell, 3))
-    label_array = np.full((grid.division[0], grid.division[1], grid.division[2], max_balls_per_cell), -1, dtype=int) # -1 for empty cells
     radius_array = np.zeros((grid.division[0], grid.division[1], grid.division[2], max_balls_per_cell), dtype=float)
+    ball_label_array = np.full((grid.division[0], grid.division[1], grid.division[2], max_balls_per_cell), -1, dtype=int) # -1 for empty cells
+    fiber_label_array = np.full((grid.division[0], grid.division[1], grid.division[2], max_balls_per_cell), -1, dtype=int) # -1 for empty cells
 
     for idx, cell in enumerate(grid.cells):
         i = idx % grid.division[0]
@@ -239,10 +284,11 @@ def sh_to_numpy(
         k = idx // (grid.division[0] * grid.division[1])
         for b_idx, ball in enumerate(cell):
             coord_array[i, j, k, b_idx] = ball.coordinate
-            label_array[i, j, k, b_idx] = ball.fiber_label
             radius_array[i, j, k, b_idx] = ball.radius
+            ball_label_array[i, j, k, b_idx] = ball.ball_label
+            fiber_label_array[i, j, k, b_idx] = ball.fiber_label
 
-    return coord_array, label_array, radius_array
+    return coord_array, radius_array, ball_label_array, fiber_label_array
 
 def fibers_to_numpy(fiber_system: list[Fiber]):
     """
@@ -265,9 +311,9 @@ def fibers_to_numpy(fiber_system: list[Fiber]):
     max_balls = max(len(fiber.balls) for fiber in fiber_system)
     coord_array = np.zeros((nb_fibers, max_balls, 3))
     label_array = np.full((nb_fibers, max_balls), -1, dtype=int)
-    radius_array = np.zeros((nb_fibers, max_balls))
+    radius_array = np.ones((nb_fibers, max_balls)) # intialize with 1 to avoid divison by zero problems
     neighbor_distances_array = np.full((nb_fibers, max_balls), -1.0)
-    angle_array = np.zeros((nb_fibers, max_balls))
+    angle_array = np.ones((nb_fibers, max_balls)) # initialize with 1 to avoid divison by zero problems
     for i, fiber in enumerate(fiber_system):
         for j, ball in enumerate(fiber.balls):
             coord_array[i, j] = ball.coordinate
@@ -356,10 +402,11 @@ def calculate_angle_force_numpy(
     norm_prev = np.linalg.norm(diff_prev, axis=-1)
     safe_norm_prev = np.where(norm_prev < 1e-8, 1.0, norm_prev)
     norm_a = np.linalg.norm(diff_a, axis=-1)
+    safe_norm_a = np.where(norm_a < 1e-8, 1.0, norm_a)
 
     dir_next = diff_next / safe_norm_next[..., np.newaxis]
     dir_prev = diff_prev / safe_norm_prev[..., np.newaxis]
-    a = diff_a / norm_a[..., np.newaxis]    
+    a = diff_a / safe_norm_a[..., np.newaxis]    
 
     d = np.einsum('ijk,ijk->ij', diff_prev, a)
     m = coord_array[:, :-2, :] + d[..., np.newaxis] * a

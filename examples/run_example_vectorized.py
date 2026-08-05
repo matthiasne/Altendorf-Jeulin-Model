@@ -41,9 +41,9 @@ def example_AJ_finite():
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
     io.save_fibers_as_tif(
-        fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
+        fs, domain=image_size, path="examples/outputs/AJ_model_vectorized.tif", is_periodic=True
     )
-    print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
+    print_fiber_positions_to_file(fs, "examples/outputs/fibers_vectorized.txt")
 
 
 def example_AJ_endless():
@@ -87,11 +87,11 @@ def example_AJ_endless():
         scale=4,
         domain=image_size,
         boundary=(boundary_size, boundary_size, boundary_size),
-        path="examples/outputs/AJ_model_endless.tif",
+        path="examples/outputs/AJ_model_endless_vectorized.tif",
         is_periodic=False,
     )
     fs_cut = cut_border(fs, image_size, boundary_size)
-    io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
+    io.save_fibers_as_small_graph("examples/outputs/nonwoven_vectorized", fs_cut)
 
 
 if __name__ == "__main__":
