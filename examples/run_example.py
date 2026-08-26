@@ -37,19 +37,22 @@ def example_AJ_finite():
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
-    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi=0)
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, is_periodic=True, epsi=0.5)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, verbose=True)
+    run_force_biased(fs, image_size, verbose=True, softcore_ratio = 0.1)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
-    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi= 0)
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, is_periodic=True, epsi= 0.5)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
-    shortlist = find_contact_candidates(fs, image_size, epsi=0.75)
+    shortlist = find_contact_candidates(fs, image_size, epsi=1)
+    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, softcore_ratio=0.1, contact_distance=0.5)
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, is_periodic=True, epsi=0.5)
+    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
 
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
@@ -59,7 +62,7 @@ def example_AJ_finite():
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = (800, 800, 800)
+    image_size = np.array([100, 100, 100])
     boundary_size = 50
     VV = 0.12
     R = 8.5 #np.random.normal(loc=8.5, scale=1.0)
@@ -80,18 +83,36 @@ def example_AJ_endless():
         10,
         100,
         volume_fraction_should=VV,
-        has_beta=False
+        has_beta=False,
+        seed = 42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, epsi=0, is_periodic=False)
+    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, verbose=True)
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True, softcore_ratio=0.1)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, is_periodic = False, epsi=0.5)
+    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
+    shortlist = find_contact_candidates(fs, image_size, is_periodic=False, epsi=1.0)
+    run_force_biased(
+        fs,
+        image_size,
+        is_periodic=False,
+        verbose=True,
+        shortlist=shortlist,
+        softcore_ratio=0.1,
+        contact_distance=0.5,
+    )
+    n_cc, n_clots, n_contacts = find_contact_areas(fs, image_size, is_periodic=False, epsi=0.5)
+    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts)
 
     io.save_fibers_as_tif(
         fs,

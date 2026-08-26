@@ -132,7 +132,7 @@ def initialize_fiber_system_endless(
     mu: float|int,
     R,
     beta,
-    image_size: tuple[int, int, int],
+    image_size,
     boundary_size: int,
     kappa1: float|int,
     kappa2: float|int,

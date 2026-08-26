@@ -20,8 +20,8 @@ from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 
 MIN_REPULSION_DISTANCE = 5
 
-def find_contact_areas(fs, image_size, epsi = 0):
-    contact_pairs = find_contact_pairs(fs, image_size, epsi=epsi)
+def find_contact_areas(fs, image_size, is_periodic, epsi = 0):
+    contact_pairs = find_contact_pairs(fs, image_size, is_periodic= is_periodic, epsi=epsi)
     contact_graph = nx.Graph(contact_pairs)
 
     # extend contact pairs by fiber edges to find connected components
@@ -57,8 +57,8 @@ def find_contact_areas(fs, image_size, epsi = 0):
     n_contact_areas /= 2
     return n_connected_components, n_clots, n_contact_areas
 
-def find_contact_candidates(fs, image_size, epsi = 0):
-    contact_pairs = find_contact_pairs(fs, image_size, epsi=epsi, is_weighted=True)
+def find_contact_candidates(fs, image_size, is_periodic = True, epsi = 0):
+    contact_pairs = find_contact_pairs(fs, image_size, is_periodic=is_periodic, epsi=epsi, is_weighted=True)
     contact_graph = nx.Graph()
     contact_graph.add_weighted_edges_from(contact_pairs)
 

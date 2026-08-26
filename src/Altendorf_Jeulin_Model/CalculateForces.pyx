@@ -51,11 +51,13 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             if i - 1 >= 0 and i + 1 < len(fiber.balls):
                 calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
 
+    contact_distances = 0
     for contact_edge in shortlist:
         ball = fiber_system[contact_edge[0][0]].balls[contact_edge[0][1]]
         ball2 = fiber_system[contact_edge[1][0]].balls[contact_edge[1][1]]
-        calculate_contact_force(ball, ball2, image_size = grid.image_size, is_periodic=is_periodic,
+        distance = calculate_contact_force(ball, ball2, image_size = grid.image_size, is_periodic=is_periodic,
                                  contact_distance=contact_distance)
+        contact_distances += distance
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -72,6 +74,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         total_overlap,
         total_neighbor_dist,
         total_angle_diff,
+        contact_distances
     )
 
 
@@ -346,7 +349,6 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
-        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
     """
     coord = ball.coordinate
     if is_periodic:
@@ -371,6 +373,7 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
             force = TAU * displace / 2.0 * coord2mod*smoothing_factor(displace, 0, contact_distance)
             ball.force = ball.force + force
             ball2.force = ball2.force - force
+            return max(0, displace - contact_distance)
     else:
         coord2 = ball2.coordinate
         dist: cython.double = np.linalg.norm(coord2 - coord)
@@ -380,6 +383,8 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
             dir = (coord2 - coord)/dist
             ball.force = ball.force - TAU * displace / 2.0 * dir
             ball2.force = ball2.force + TAU * displace / 2.0 * dir
+            return max(0, displace - contact_distance)
+    return 0
 
 
 def apply_forces(fiber_system: list[Fiber]):

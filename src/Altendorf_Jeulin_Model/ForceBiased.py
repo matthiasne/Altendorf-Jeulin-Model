@@ -42,6 +42,7 @@ def run_force_biased(
     :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
                                                 distribution, otherwise the ACG distribution with parameter matrix is used
     :param beta: float                          parameter of direction distribution
+    TODO: refactor contact_distance and contact_distances  - too confusing
     """
     rows = []
 
@@ -53,13 +54,13 @@ def run_force_biased(
         image_size = image_size + 2 * boundary_size_vec
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
+    force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, softcore_ratio = softcore_ratio,
         contact_distance=contact_distance
     )
     prev_force_strength = 2*force_strength
     if verbose:
-        rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist))
+        rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist, contact_distances))
     print("We run the force-biased algorithm:")
     eps = np.finfo(float).eps
     end_force_biased = 0.01 * len([fiber.get_number_of_balls() for fiber in fs])
@@ -68,25 +69,25 @@ def run_force_biased(
     for i in range(1, MAX_STEPS):
         if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0:
             break
-        elif force_strength < end_force_biased and overlap < eps:
+        elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
             break
         prev_force_strength = force_strength
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
+        force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio,
             shortlist=shortlist, contact_distance=contact_distance
         )
         if verbose and i % 100 == 0:
-            rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
+            rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist, contact_distances))
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
     if use_end_step_repulsion:
         end_step_repulsion(fs, max_radius, overlap, image_size)
 
     if verbose:
-        rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist))
+        rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist, contact_distances))
         print_stats(output_file, rows)
 
 
