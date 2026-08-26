@@ -28,28 +28,34 @@ def find_contact_areas(fs, image_size, epsi = 0):
     incident_fiber_edges = set()
     for pair in contact_pairs:
         for node in pair:
-            incident_fiber_edges.add(((node), (node[0], node[1] + 1)))
-            incident_fiber_edges.add(((node), (node[0], node[1] - 1)))
-    joined_edges = incident_fiber_edges.union(contact_pairs)
-    ext_contact_graph = nx.Graph(joined_edges)
+            if node[1] + 1 < fs[node[0]].get_number_of_balls():
+                incident_fiber_edges.add(((node), (node[0], node[1] + 1)))
+            if node[1] - 1 >= 0:
+                incident_fiber_edges.add(((node[0], node[1] - 1), (node)))
+    fiber_parts = nx.Graph(incident_fiber_edges)
+    ext_contact_graph = nx.compose(fiber_parts, contact_graph)
 
     # find number of pairwise contact areas
+    n_connected_components = 0
     n_contact_areas = 0
     n_clots = 0
     cc = [ext_contact_graph.subgraph(c).copy() for c in nx.connected_components(ext_contact_graph)]
     for component in cc:
-        if len(component) > 2:
-            n_clots += 1
         fiber_edges = incident_fiber_edges.intersection(set(component.edges))
-        fiber_graph = nx.Graph(fiber_edges)
-        fiber_parts = [fiber_graph.subgraph(c).copy() for c in nx.connected_components(fiber_graph)]
-        for fiber in fiber_parts:
+        if len(fiber_edges) == 0:
+            continue
+        n_connected_components += 1
+        fiber_sub_graph = nx.intersection(component, fiber_parts)
+        fibers_in_contact = [fiber_sub_graph.subgraph(c).copy() for c in nx.connected_components(fiber_sub_graph)]
+        if len(fibers_in_contact) > 2:
+            n_clots += 1
+        for fiber in fibers_in_contact:
             contact_partners = {nbr_ball[0] for ball in fiber if contact_graph.has_node(ball)
                 for nbr_ball in contact_graph.adj[ball]
             }
             n_contact_areas += len(contact_partners)
     n_contact_areas /= 2
-    return len(cc), n_clots, n_contact_areas
+    return n_connected_components, n_clots, n_contact_areas
 
 def find_contact_candidates(fs, image_size, epsi = 0):
     contact_pairs = find_contact_pairs(fs, image_size, epsi=epsi, is_weighted=True)

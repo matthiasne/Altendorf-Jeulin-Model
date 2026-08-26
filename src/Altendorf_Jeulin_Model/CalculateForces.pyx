@@ -19,7 +19,8 @@ TAU:cython.double = 0.25
 RHO:cython.double = 0.25
 
 
-def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True):
+def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
+                     shortlist = [], contact_distance = 1):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -30,6 +31,10 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
+    if len(shortlist) == 0:
+        repulsion_factor = 1.1
+    else:
+        repulsion_factor = 1.02
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
@@ -37,7 +42,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             )
             for i, ball in enumerate(cell):
                 calculate_repulsion_forces(
-                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, repulsion_factor=repulsion_factor
                 )
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
@@ -47,6 +52,12 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                 calculate_spring_force(ball, fiber.balls[i - 1], is_next=False)
             if i - 1 >= 0 and i + 1 < len(fiber.balls):
                 calculate_angle_force(ball, fiber.balls[i - 1], fiber.balls[i + 1])
+
+    for contact_edge in shortlist:
+        ball = fiber_system[contact_edge[0][0]].balls[contact_edge[0][1]]
+        ball2 = fiber_system[contact_edge[1][0]].balls[contact_edge[1][1]]
+        calculate_contact_force(ball, ball2, image_size = grid.image_size, is_periodic=is_periodic,
+                                contact_distance=contact_distance)
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -100,6 +111,7 @@ def calculate_repulsion_forces(
     grid: sh,
     neighbor_cells,
     is_periodic: bool = True,
+    repulsion_factor: float = 1.1
 ):
     """
     Calculates the repulsion force for the whole fiber system
@@ -120,14 +132,14 @@ def calculate_repulsion_forces(
     # compare within cell
     for ball2 in cell[i + 1 :]:
         calculate_repulsion_force(
-            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size
+            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, repulsion_factor
         )
     # compare with neighbor cells
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
             calculate_repulsion_force(
-                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size
+                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, repulsion_factor
             )
 
 
@@ -309,6 +321,65 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     f:cython.double = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
     ball.force += (m-coord)*f
     ball.angle_diff = alpha0 - alpha
+
+
+def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_size, contact_distance: float):
+    """
+    calculates the repulsion force between two balls
+
+    :param ball: Ball
+        The ball whose neighbors are currently considered
+    :param ball2: Ball
+        The neighboring ball that is currently considered
+    :param fiber_label: int
+        The fiber label of ball
+    :param label: int
+        The ball label of ball
+    :param is_periodic: bool
+        Whether the repulsion force is to be calculated on the torus, i.e., periodically
+    :param coord: double
+        The coordinate of ball
+    :param image_size: int64_t
+        The image size (relevant for periodic case)
+    :param repulsion_factor: float, default 1.1
+        This factor is 1 in the Altendorf-Jeulin model.
+        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
+        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
+        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
+    """
+    coord = ball.coordinate
+    if is_periodic:
+        # calculate periodic distance of the balls' coordinates
+        coord2mod = np.mod(ball2.coordinate, image_size)
+        disp: cython.double
+        for i in range(3):
+            disp = coord2mod[i] - coord[i]
+            if abs(disp) > image_size[i] / 2.0:
+                if disp > 0:
+                    coord2mod[i] -= image_size[i]
+                else:
+                    coord2mod[i] += image_size[i]
+            coord2mod[i] -= coord[i]
+        dist: cython.double = np.linalg.norm(coord2mod)
+
+        # calculate the force if balls are indeed overlapping
+        dist_perfect: cython.float = ball.radius + ball2.radius
+        displace: cython.float = dist - dist_perfect
+        if displace > 0:
+            coord2mod = coord2mod / dist
+            force = TAU * displace / 2.0 * coord2mod*smoothing_factor(displace, 0, contact_distance)
+            ball.force = ball.force + force
+            ball2.force = ball2.force - force
+    else:
+        coord2 = ball2.coordinate
+        dist: cython.double = np.linalg.norm(coord2 - coord)
+        dist_perfect: cython.float = ball.radius + ball2.radius
+        displace: cython.float = dist - dist_perfect
+        if displace > 0:
+            dir = (coord2 - coord)/dist
+            ball.force = ball.force - TAU * displace / 2.0 * dir
+            ball2.force = ball2.force + TAU * displace / 2.0 * dir
 
 
 def apply_forces(fiber_system: list[Fiber]):
