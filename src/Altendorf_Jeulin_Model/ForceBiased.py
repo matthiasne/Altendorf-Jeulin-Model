@@ -72,7 +72,7 @@ def run_force_biased(
             break
         elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
             break
-        elif force_strength < end_force_biased and overlap < eps and contact_distances >= eps and i == 101:
+        elif force_strength < end_force_biased and overlap < eps and contact_distances >= eps:
             print("remove tense links")
             tense_links = list()
             for contact_edge in shortlist:

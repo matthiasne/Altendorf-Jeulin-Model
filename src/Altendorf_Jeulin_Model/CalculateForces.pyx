@@ -350,6 +350,7 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
     """
+    repulsion_factor = 1.1
     coord = ball.coordinate
     if is_periodic:
         # calculate periodic distance of the balls' coordinates
@@ -370,7 +371,7 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         displace: cython.float = dist - dist_perfect
         if displace > 0:
             coord2mod = coord2mod / dist
-            force = TAU * displace / 2.0 * coord2mod*smoothing_factor(displace, 0, contact_distance)
+            force = TAU * displace / 2.0 * coord2mod*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
             ball.force = ball.force + force
             ball2.force = ball2.force - force
             return max(0, displace - contact_distance)
@@ -381,8 +382,8 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         displace: cython.float = dist - dist_perfect
         if displace > 0:
             dir = (coord2 - coord)/dist
-            ball.force = ball.force + TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)
-            ball2.force = ball2.force - TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)
+            ball.force = ball.force + TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
+            ball2.force = ball2.force - TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
             return max(0, displace - contact_distance)
     return 0
 

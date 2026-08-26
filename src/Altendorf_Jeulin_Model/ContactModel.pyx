@@ -38,6 +38,7 @@ def find_contact_areas(fs, image_size, is_periodic, epsi = 0):
     # find number of pairwise contact areas
     n_connected_components = 0
     n_contact_areas = 0
+    contact_surface = 0
     n_clots = 0
     cc = [ext_contact_graph.subgraph(c).copy() for c in nx.connected_components(ext_contact_graph)]
     for component in cc:
@@ -54,8 +55,9 @@ def find_contact_areas(fs, image_size, is_periodic, epsi = 0):
                 for nbr_ball in contact_graph.adj[ball]
             }
             n_contact_areas += len(contact_partners)
-    n_contact_areas /= 2
-    return n_connected_components, n_clots, n_contact_areas
+            sub_fiber_length = [fs[ball[0]].balls[ball[1]].neighbor_dist for ball in fiber if fiber_sub_graph.has_node(ball)]
+            contact_surface += np.sum(sub_fiber_length)
+    return n_connected_components, n_clots, n_contact_areas, contact_surface
 
 def find_contact_candidates(fs, image_size, is_periodic = True, epsi = 0):
     contact_pairs = find_contact_pairs(fs, image_size, is_periodic=is_periodic, epsi=epsi, is_weighted=True)
