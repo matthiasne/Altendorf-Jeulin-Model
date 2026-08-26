@@ -11,8 +11,12 @@ please contact [keilmann@rptu.de](keilmann@rptu.de) or
 [neumann@tu-graz.at](neumann@tu-graz.at).
 We are open for contributions and collaboration!
 
-Please cite this work as follows:
+Please cite this work, depending on the functions you are using, as follows:
 A. Keilmann, M. Neumann. An open-source package for simulating and calibrating fiber-based materials with the Altendorf-Jeulin model. In preparation.
+A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science.
+or
+tbd
+
 
 ## Requirements
 Please make sure you have at least Python 3.14 installed. Further requirements are
