@@ -117,16 +117,38 @@ class SpatialHashing:
         """
 
         neighbor_cells = set()
-        for di, dj, dk in product((-1, 0, 1), repeat=3):
-            if (di, dj, dk) < (0, 0, 0):
-                neighbor = (
-                    (index[0] + di) % self.division[0]
-                    + ((index[1] + dj) % self.division[1]) * self.division[0]
-                    + ((index[2] + dk) % self.division[2])
-                    * self.division[0]
-                    * self.division[1]
-                )
-                neighbor_cells.add(neighbor)
+        if is_periodic:
+            for di, dj, dk in product((-1, 0, 1), repeat=3):
+                if (di, dj, dk) < (0, 0, 0):
+                    neighbor = (
+                        (index[0] + di) % self.division[0]
+                        + ((index[1] + dj) % self.division[1]) * self.division[0]
+                        + ((index[2] + dk) % self.division[2])
+                        * self.division[0]
+                        * self.division[1]
+                    )
+                    neighbor_cells.add(neighbor)
+        else:
+            for di, dj, dk in product((-1, 0, 1), repeat=3):
+                if (di, dj, dk) < (0, 0, 0):
+                    ni = index[0] + di
+                    nj = index[1] + dj
+                    nk = index[2] + dk
+
+                    if not (
+                        0 <= ni < self.division[0]
+                        and 0 <= nj < self.division[1]
+                        and 0 <= nk < self.division[2]
+                    ):
+                        continue
+
+                    neighbor = (
+                        ni
+                        + nj * self.division[0]
+                        + nk * self.division[0] * self.division[1]
+                    )
+
+                    neighbor_cells.add(neighbor)
         return neighbor_cells
 
     def add_ball(self, ball: Ball, is_periodic: bool = True):

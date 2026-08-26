@@ -35,7 +35,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
-                grid.get_cell_index_of_coord(cell[0].coordinate)
+                grid.get_cell_index_of_coord(cell[0].coordinate), is_periodic=is_periodic
             )
             for i, ball in enumerate(cell):
                 calculate_repulsion_forces(
@@ -381,8 +381,8 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         displace: cython.float = dist - dist_perfect
         if displace > 0:
             dir = (coord2 - coord)/dist
-            ball.force = ball.force - TAU * displace / 2.0 * dir
-            ball2.force = ball2.force + TAU * displace / 2.0 * dir
+            ball.force = ball.force + TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)
+            ball2.force = ball2.force - TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)
             return max(0, displace - contact_distance)
     return 0
 

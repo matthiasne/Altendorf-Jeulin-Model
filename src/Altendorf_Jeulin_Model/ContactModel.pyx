@@ -85,7 +85,7 @@ def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True, epsi
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
-                grid.get_cell_index_of_coord(cell[0].coordinate)
+                grid.get_cell_index_of_coord(cell[0].coordinate), is_periodic=is_periodic
             )
             for i, ball in enumerate(cell):
                 contact_set = identify_contact_pairs_it(

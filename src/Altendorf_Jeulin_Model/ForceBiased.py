@@ -5,6 +5,7 @@ from Altendorf_Jeulin_Model.CalculateForces import (
     apply_forces,
     calculate_forces,
     calculate_forces_endstep,
+    calculate_contact_force
 )
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
@@ -71,6 +72,23 @@ def run_force_biased(
             break
         elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
             break
+        elif force_strength < end_force_biased and overlap < eps and contact_distances >= eps and i == 101:
+            print("remove tense links")
+            tense_links = list()
+            for contact_edge in shortlist:
+                ball = fs[contact_edge[0][0]].balls[contact_edge[0][1]]
+                ball2 = fs[contact_edge[1][0]].balls[contact_edge[1][1]]
+                distance = calculate_contact_force(
+                    ball,
+                    ball2,
+                    image_size=grid.image_size,
+                    is_periodic=is_periodic,
+                    contact_distance=contact_distance,
+                )
+                if distance > 0:
+                    tense_links.append(contact_edge)
+            shortlist = [x for x in shortlist if x not in tense_links]
+
         prev_force_strength = force_strength
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
