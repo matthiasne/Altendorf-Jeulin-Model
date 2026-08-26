@@ -20,7 +20,7 @@ RHO:cython.double = 0.25
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
-                     shortlist = [], contact_distance = 1):
+                     shortlist = [], softcore_ratio: float = 0.0, contact_distance = 1):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -31,10 +31,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
-    if len(shortlist) == 0:
-        repulsion_factor = 1.1
-    else:
-        repulsion_factor = 1.02
+    repulsion_factor = 1.1
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
@@ -42,7 +39,8 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             )
             for i, ball in enumerate(cell):
                 calculate_repulsion_forces(
-                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, repulsion_factor=repulsion_factor
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, repulsion_factor=repulsion_factor,
+                    softcore_ratio=softcore_ratio
                 )
     for fiber in fiber_system:
         for i, ball in enumerate(fiber.balls):
@@ -57,7 +55,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         ball = fiber_system[contact_edge[0][0]].balls[contact_edge[0][1]]
         ball2 = fiber_system[contact_edge[1][0]].balls[contact_edge[1][1]]
         calculate_contact_force(ball, ball2, image_size = grid.image_size, is_periodic=is_periodic,
-                                contact_distance=contact_distance)
+                                 contact_distance=contact_distance)
 
     total_force = np.array([0.0, 0.0, 0.0])
     total_overlap = 0
@@ -111,6 +109,7 @@ def calculate_repulsion_forces(
     grid: sh,
     neighbor_cells,
     is_periodic: bool = True,
+    softcore_ratio: float = 0.0,
     repulsion_factor: float = 1.1
 ):
     """
@@ -132,19 +131,20 @@ def calculate_repulsion_forces(
     # compare within cell
     for ball2 in cell[i + 1 :]:
         calculate_repulsion_force(
-            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, repulsion_factor
+            ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, softcore_ratio, repulsion_factor
         )
     # compare with neighbor cells
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
             calculate_repulsion_force(
-                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, repulsion_factor
+                ball, ball2, fiber_label, label, is_periodic, coord, grid.image_size, softcore_ratio, repulsion_factor
             )
 
 
 def calculate_repulsion_force(
     ball, ball2, fiber_label: int, label: int, is_periodic: bool, double[:] coord,int64_t[:] image_size,
+    softcore_ratio: float = 0.0,
     repulsion_factor: float = 1.1
 ):
     """
@@ -191,8 +191,8 @@ def calculate_repulsion_force(
 
             # calculate the force if balls are indeed overlapping
             overlap: cython.float = ball.radius + ball2.radius
-            overlap_true: cython.float = overlap - dist
-            overlap = repulsion_factor*overlap - dist
+            overlap_true: cython.float = (1 - softcore_ratio)*overlap - dist
+            overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
             if overlap > 0:
                 coord2mod = coord2mod / dist
                 force = TAU * overlap / 2.0 * coord2mod
@@ -204,9 +204,9 @@ def calculate_repulsion_force(
         else:
             coord2 = ball2.coordinate
             dist: cython.double = np.linalg.norm(coord2 - coord)
-            overlap: cython.float = ball.radius + ball2.radius - dist
-            overlap_true: cython.float = overlap - dist
-            overlap = repulsion_factor*overlap - dist
+            overlap: cython.float = ball.radius + ball2.radius
+            overlap_true: cython.float = (1 - softcore_ratio)*overlap - dist
+            overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
             if overlap > 0:
                 dir = (coord2 - coord)/dist
                 ball.force = ball.force - TAU * overlap / 2.0 * dir

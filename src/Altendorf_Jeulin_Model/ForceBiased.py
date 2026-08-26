@@ -25,6 +25,7 @@ def run_force_biased(
     verbose: bool = False,
     is_periodic: bool = True,
     shortlist = [],
+    softcore_ratio: float = 0.0,
     contact_distance: float = 1.0,
 ):
     """
@@ -53,25 +54,28 @@ def run_force_biased(
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, contact_distance=contact_distance
+        grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, softcore_ratio = softcore_ratio,
+        contact_distance=contact_distance
     )
     prev_force_strength = 2*force_strength
     if verbose:
         rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist))
     print("We run the force-biased algorithm:")
-    end_force_biased = 0.002 * max(image_size) * len(fs)
     eps = np.finfo(float).eps
+    end_force_biased = 0.01 * len([fiber.get_number_of_balls() for fiber in fs])
+    print("end force biased at ", end_force_biased)
+
     for i in range(1, MAX_STEPS):
-        if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0 and (prev_force_strength - force_strength) < eps:
+        if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0:
             break
-        elif force_strength < end_force_biased and overlap < eps and (prev_force_strength - force_strength) < eps:
+        elif force_strength < end_force_biased and overlap < eps:
             break
         prev_force_strength = force_strength
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         force_strength, overlap, neighbor_dist, angle_diff = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic,
+            grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio,
             shortlist=shortlist, contact_distance=contact_distance
         )
         if verbose and i % 100 == 0:
