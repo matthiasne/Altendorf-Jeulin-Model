@@ -12,7 +12,7 @@ import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 
-MAX_STEPS = 1500
+MAX_STEPS = 150
 MAX_OVERLAP = 0.1
 BOUNDARY_SIZE = 100
 
@@ -65,14 +65,13 @@ def run_force_biased(
     print("We run the force-biased algorithm:")
     eps = np.finfo(float).eps
     end_force_biased = 0.01 * len([fiber.get_number_of_balls() for fiber in fs])
-    print("end force biased at ", end_force_biased)
 
     for i in range(1, MAX_STEPS):
         if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0:
             break
-        elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
-            break
-        elif force_strength < end_force_biased and overlap < eps and contact_distances >= eps:
+        #elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
+        #    break
+        if i + 1 == MAX_STEPS:
             print("remove tense links")
             tense_links = list()
             for contact_edge in shortlist:

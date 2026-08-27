@@ -371,7 +371,7 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         displace: cython.float = dist - dist_perfect
         if displace > 0:
             coord2mod = coord2mod / dist
-            force = TAU * displace / 2.0 * coord2mod*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
+            force = displace / 2.0 * coord2mod*repulsion_factor
             ball.force = ball.force + force
             ball2.force = ball2.force - force
             return max(0, displace - contact_distance)
@@ -382,8 +382,9 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         displace: cython.float = dist - dist_perfect
         if displace > 0:
             dir = (coord2 - coord)/dist
-            ball.force = ball.force + TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
-            ball2.force = ball2.force - TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
+            force = TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
+            ball.force = ball.force + force
+            ball2.force = ball2.force - force
             return max(0, displace - contact_distance)
     return 0
 

@@ -80,7 +80,7 @@ def find_contact_pairs(fs, image_size, boundary_size = 0, is_periodic=True, epsi
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 2.5 * (max_radius + epsi))
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     
     contact_pairs = set()
