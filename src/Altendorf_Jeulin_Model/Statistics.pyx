@@ -1,6 +1,12 @@
 import numpy as np
+import cython
+from libc.stdint cimport int64_t
+from libc.math cimport cos
+cimport numpy as np
+np.import_array()
 
-import Altendorf_Jeulin_Model.Fiber as Fiber
+from Altendorf_Jeulin_Model.Fiber cimport Ball
+from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils import (
     cartesian_to_spherical,
     discretize_spheres_nonperiodic,
@@ -44,6 +50,7 @@ def mean_angle_error(fs: list[Fiber]):
         the fiber system
     :return: float mean angle error
     """
+    cdef Ball ball, ball_prev, ball_next
     angle_errors = []
 
     for fiber in fs:
@@ -52,10 +59,23 @@ def mean_angle_error(fs: list[Fiber]):
 
         for i in range(1, len(balls) - 1):
             ball = balls[i]
-            alpha0 = ball.angle
-            _, dir_prev = normalized(ball.coordinate - balls[i - 1].coordinate)
-            _, dir_next = normalized(balls[i + 1].coordinate - ball.coordinate)
+            ball_prev = balls[i-1]
+            dir_prev = np.array([
+                ball.coordinate[0] - ball_prev.coordinate[0],
+                ball.coordinate[1] - ball_prev.coordinate[1],
+                ball.coordinate[2] - ball_prev.coordinate[2],
+                ], dtype=np.float64)
+            _, dir_prev = normalized(dir_prev)
+            ball_next = balls[i+1]
+            dir_next = np.array([
+                ball_next.coordinate[0] - ball.coordinate[0],
+                ball_next.coordinate[1] - ball.coordinate[1],
+                ball_next.coordinate[2] - ball.coordinate[2],
+                ], dtype=np.float64)
+            _, dir_next = normalized(dir_next)
             alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+
+            alpha0 = ball.angle
             angles.append(abs(alpha - alpha0))
 
         # angle differences for the current fiber

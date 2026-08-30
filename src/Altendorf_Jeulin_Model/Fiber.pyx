@@ -1,9 +1,5 @@
-# cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
-import cython
-from libc.stdint cimport int64_t
-cimport numpy as np
-np.import_array()
+
 
 cdef class Ball:
     """
@@ -20,31 +16,24 @@ cdef class Ball:
     :param angle: float
         angle between the incident edges of the ball
     """
-    cdef public double radius
-    cdef public int fiber_label
-    cdef public int ball_label
-    cdef public double coordinate[3]
-    cdef public double force[3]
-    cdef public double overlap
-    cdef public double angle
-    cdef public double neighbor_dist
-    cdef public double angle_diff
 
-    def __cinit__(self, np.ndarray[np.double_t, ndim=1] coordinate, double radius, int fiber_label, int ball_label, double angle = 0):
-        coordinate = np.ascontiguousarray(coordinate, dtype=np.float64)
-        self.coordinate[0] = coordinate[0]
-        self.coordinate[1] = coordinate[1]
-        self.coordinate[2] = coordinate[2]
+    def __init__(
+        self,
+        coordinate: np.ndarray,
+        radius: float,
+        fiber_label: int = -1,
+        ball_label: int = -1,
+        angle: float = np.pi,
+    ):
+        self.coordinate = coordinate
         self.radius = radius
         self.fiber_label = fiber_label
         self.ball_label = ball_label
-        self.force[0] = 0.0
-        self.force[1] = 0.0
-        self.force[2] = 0.0
-        self.overlap = 0.0
+        self.force: np.ndarray = np.array([0.0, 0.0, 0.0])
+        self.overlap = 0
         self.angle = angle
         self.neighbor_dist = radius / 2.0
-        self.angle_diff = 0.0
+        self.angle_diff = 0
 
 
 class Fiber:
@@ -87,7 +76,18 @@ class Fiber:
         return length
 
     def get_direction(self):
-        return np.array(self.balls[-1].coordinate) - np.array(self.balls[0].coordinate)
+        """
+        TODO make more efficient
+
+        """
+        cdef Ball first_ball = self.balls[0]
+        cdef Ball last_ball = self.balls[len(self.balls) - 1]
+
+        return np.array([
+            last_ball.coordinate[0] - first_ball.coordinate[0],
+            last_ball.coordinate[1] - first_ball.coordinate[1],
+            last_ball.coordinate[2] - first_ball.coordinate[2],
+            ], dtype=np.float64)
 
     def add_ball(self, ball: Ball):
         self.balls.append(ball)

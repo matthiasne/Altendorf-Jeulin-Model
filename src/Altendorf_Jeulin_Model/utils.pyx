@@ -5,9 +5,12 @@ from line_profiler import profile
 from scipy.linalg import cholesky
 from scipy.stats import norm, uniform
 import cython
+
 cimport numpy as np
 np.import_array()
+from libc.math cimport sqrt
 
+from Altendorf_Jeulin_Model.Fiber cimport Ball
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
 
@@ -374,3 +377,34 @@ def discretize_spheres_nonperiodic(
                     if delta_ijk <= r_square:
                         image[i, j, k] = 1
     return image
+
+@cython.cdivision(True)
+cdef inline double cdistance_ball(Ball a, Ball b) noexcept nogil:
+    cdef double dx = b.coordinate[0] - a.coordinate[0]
+    cdef double dy = b.coordinate[1] - a.coordinate[1]
+    cdef double dz = b.coordinate[2] - a.coordinate[2]
+
+    return sqrt(dx * dx + dy * dy + dz * dz)
+
+@cython.cdivision(True)
+cdef inline double cdistance3(double ax, double ay, double az, double bx, double by, double bz) noexcept nogil:
+    cdef double dx = ax - bx
+    cdef double dy = ay - by
+    cdef double dz = az - bz
+
+    return sqrt(dx * dx + dy * dy + dz * dz)
+
+cdef inline double cdirection(Ball a, Ball b, double* dir_x, double* dir_y, double* dir_z) noexcept:
+    cdef double dx = b.coordinate[0] - a.coordinate[0]
+    cdef double dy = b.coordinate[1] - a.coordinate[1]
+    cdef double dz = b.coordinate[2] - a.coordinate[2]
+    cdef double dist = sqrt(dx * dx + dy * dy + dz * dz)
+    if dist <= 0:
+        dir_x[0] = 0
+        dir_y[0] = 0
+        dir_z[0] = 0
+        return 0
+    dir_x[0] = dx/dist
+    dir_y[0] = dy/dist
+    dir_z[0] = dz/dist
+    return dist

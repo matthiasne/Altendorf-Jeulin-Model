@@ -59,7 +59,6 @@ def run_force_biased(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, softcore_ratio = softcore_ratio,
         contact_distance=contact_distance
     )
-    prev_force_strength = 2*force_strength
     if verbose:
         rows.append(print_stats_row(fs, 0, force_strength, overlap, neighbor_dist, contact_distances))
     print("We run the force-biased algorithm:")
@@ -69,26 +68,25 @@ def run_force_biased(
     for i in range(1, MAX_STEPS):
         if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0:
             break
-        #elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
+        elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
             break
-        if i + 1 == MAX_STEPS:
-            print("remove tense links")
-            tense_links = list()
-            for contact_edge in shortlist:
-                ball = fs[contact_edge[0][0]].balls[contact_edge[0][1]]
-                ball2 = fs[contact_edge[1][0]].balls[contact_edge[1][1]]
-                distance = calculate_contact_force(
-                    ball,
-                    ball2,
-                    image_size=grid.image_size,
-                    is_periodic=is_periodic,
-                    contact_distance=contact_distance,
-                )
-                if distance > 0:
-                    tense_links.append(contact_edge)
-            shortlist = [x for x in shortlist if x not in tense_links]
+    #    if i + 1 == MAX_STEPS:
+    #        print("remove tense links")
+    #        tense_links = list()
+    #        for contact_edge in shortlist:
+    #            ball = fs[contact_edge[0][0]].balls[contact_edge[0][1]]
+    #            ball2 = fs[contact_edge[1][0]].balls[contact_edge[1][1]]
+    #            distance = calculate_contact_force(
+    #                ball,
+    #                ball2,
+    #                image_size=grid.image_size,
+    #                is_periodic=is_periodic,
+    #                contact_distance=contact_distance,
+    #            )
+    #            if distance > 0:
+    #                tense_links.append(contact_edge)
+    #        shortlist = [x for x in shortlist if x not in tense_links]
 
-        prev_force_strength = force_strength
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
@@ -98,10 +96,10 @@ def run_force_biased(
         )
         if verbose and i % 100 == 0:
             rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist, contact_distances))
-    if use_end_step_radius and is_periodic:
-        end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
-    if use_end_step_repulsion:
-        end_step_repulsion(fs, max_radius, overlap, image_size)
+    #if use_end_step_radius and is_periodic:
+    #    end_step_radius(fs, overlap, MAX_OVERLAP * min_radius)
+    #if use_end_step_repulsion:
+    #    end_step_repulsion(fs, max_radius, overlap, image_size)
 
     if verbose:
         rows.append(print_stats_row(fs, i, force_strength, overlap, neighbor_dist, contact_distances))
