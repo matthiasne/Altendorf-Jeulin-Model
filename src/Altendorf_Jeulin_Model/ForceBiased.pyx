@@ -4,7 +4,7 @@ import numpy as np
 from Altendorf_Jeulin_Model.CalculateForces import (
     apply_forces,
     calculate_forces,
-    calculate_forces_endstep,
+    #calculate_forces_endstep,
     calculate_contact_force
 )
 
@@ -127,28 +127,28 @@ def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):
                 ball.overlap = 0
 
 
-def end_step_repulsion(
-    fs: list[Fiber], max_radius: float, overlap: float, image_size: tuple[int, int, int]
-):
-    """
-    The end step where only the repulsion force is applied
+#def end_step_repulsion(
+#    fs: list[Fiber], max_radius: float, overlap: float, image_size: tuple[int, int, int]
+#):
+#    """
+#    The end step where only the repulsion force is applied
 
-    :param fs: list[list[Ball]]
-        the fiber system to be packed
-    :param max_radius: float
-        The maximal radius in the fiber system
-    :param overlap: float
-        The currently maximal overlap in the fiber system
-    :param image_size: tuple[int, int, int]
-    """
-    for fiber in fs:
-        for ball in fiber.balls:
-            ball.force = np.array([0, 0, 0])
-            ball.overlap = 0
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
-    grid.add_fiber_system(fs)
-    while overlap > 0:
-        force_strength, overlap = calculate_forces_endstep(grid, fiber_system=fs)
-        apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
-        grid.add_fiber_system(fs)
+#    :param fs: list[list[Ball]]
+#        the fiber system to be packed
+#    :param max_radius: float
+#        The maximal radius in the fiber system
+#    :param overlap: float
+#        The currently maximal overlap in the fiber system
+#    :param image_size: tuple[int, int, int]
+#    """
+#    for fiber in fs:
+#        for ball in fiber.balls:
+#            ball.force = np.array([0, 0, 0])
+#            ball.overlap = 0
+#    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+#    grid.add_fiber_system(fs)
+#    while overlap > 0:
+#        force_strength, overlap = calculate_forces_endstep(grid, fiber_system=fs)
+#        apply_forces(fs)
+#        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+#        grid.add_fiber_system(fs)

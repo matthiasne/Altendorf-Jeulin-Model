@@ -23,7 +23,7 @@ RHO:cython.double = 0.25
 REPULSION_FACTOR:cython.double = 1.0
 cdef double PI = 3.141592653589793
 
-
+#TODO make cdef
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
                      shortlist = [], softcore_ratio: float = 0.0, contact_distance = 1):
     """
@@ -36,15 +36,18 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
-    cdef list balls
+    cdef list balls, cell
+    cdef set neighbor_cells
     cdef Ball ball, ball_prev, ball_next
     cdef int n
     for cell in grid.cells:
-        if len(cell) > 0:
+        n = len(cell)
+        if n > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
                 grid.get_cell_index_of_coord(cell[0].coordinate), is_periodic=is_periodic
             )
-            for i, ball in enumerate(cell):
+            for i in range(n):
+                ball = cell[i]
                 calculate_repulsion_forces(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
                     softcore_ratio=softcore_ratio
@@ -90,43 +93,44 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     )
 
 
-def calculate_forces_endstep(
-    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True
-):
-    """
-    Calculates forces in the fiber system and adds them to corresponding ball
+#def calculate_forces_endstep(
+#    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True
+#):
+#    """
+#    Calculates forces in the fiber system and adds them to corresponding ball#
 
-    :param grid: SpatialHashing
-        The spatial hashing grid for the model
-    :param fiber_system: list[list[Ball]])
-        The fiber system that contains all balls
-    :return: np.ndarray
-        total force of the fiber system
-    """
+#    :param grid: SpatialHashing
+#        The spatial hashing grid for the model
+#    :param fiber_system: list[list[Ball]])
+#        The fiber system that contains all balls
+#    :return: np.ndarray
+#        total force of the fiber system
+#    """
 
-    for cell in grid.cells:
-        for i, ball in enumerate(cell):
-            calculate_repulsion_forces(i, ball, cell, grid, is_periodic=is_periodic)
+#    for cell in grid.cells:
+#        for i, ball in enumerate(cell):
+#            calculate_repulsion_forces(i, ball, cell, grid, is_periodic=is_periodic)#
 
-    total_force = np.array([0.0, 0.0, 0.0])
-    total_overlap = 0
-    for fiber in fiber_system:
-        for ball in fiber.balls:
-            total_force = total_force + ball.force
-            total_overlap = max(total_overlap, ball.overlap)
-    return np.linalg.norm(total_force), total_overlap
+#    total_force = np.array([0.0, 0.0, 0.0])
+#    total_overlap = 0
+#    for fiber in fiber_system:
+#        for ball in fiber.balls:
+#            total_force = total_force + ball.force
+#            total_overlap = max(total_overlap, ball.overlap)
+#    return np.linalg.norm(total_force), total_overlap
 
 
-def calculate_repulsion_forces(
-    i: cython.int,
-    ball: Ball,
-    cell: list[Ball],
-    grid: sh,
-    neighbor_cells,
-    is_periodic: bool = True,
-    softcore_ratio: float = 0.0,
-    repulsion_factor: float = 1.1
-):
+# TODO make spatial hashin extension type
+cdef inline void calculate_repulsion_forces(
+    int i,
+    Ball ball,
+    list[Ball] cell,
+    object grid,
+    set neighbor_cells,
+    bint is_periodic = True,
+    double softcore_ratio = 0.0,
+    double repulsion_factor = 1.1
+) noexcept:
     """
     Calculates the repulsion force for the whole fiber system
     and adds it to corresponding ball
@@ -140,42 +144,53 @@ def calculate_repulsion_forces(
     :param grid: SpatialHashing
         The spatial hashing grid of the model
     """
-    fiber_label: cython.int = ball.fiber_label
-    label: cython.int = ball.ball_label
+    cdef Ball ball2
+    cdef list neighbor_cell
+    cdef j
+    cdef int n = len(cell)
+    cdef int64_t[:] image_size = grid.image_size
     # compare within cell
-    for ball2 in cell[i + 1 :]:
-        calculate_repulsion_force(
-            ball, ball2, fiber_label, label, is_periodic, grid.image_size, softcore_ratio, repulsion_factor
-        )
-    # compare with neighbor cells
-    for cell_index in neighbor_cells:
-        cell = grid.cells[cell_index]
-        for ball2 in cell:
-            calculate_repulsion_force(
-                ball, ball2, fiber_label, label, is_periodic, grid.image_size, softcore_ratio, repulsion_factor
+    if is_periodic:
+        for j in range(i+1, n):
+            ball2 = cell[j]
+            calculate_repulsion_force_periodic(
+                ball, ball2, image_size, softcore_ratio, repulsion_factor
             )
+        # compare with neighbor cells
+        for cell_index in neighbor_cells:
+            neighbor_cell = grid.cells[cell_index]
+            for ball2 in neighbor_cell:
+                calculate_repulsion_force_periodic(
+                    ball, ball2, image_size, softcore_ratio, repulsion_factor
+                )
+    else:
+        for j in range(i+1, n):
+            ball2 = cell[j]
+            calculate_repulsion_force_nonperiodic(
+                ball, ball2, softcore_ratio, repulsion_factor
+            )
+        # compare with neighbor cells
+        for cell_index in neighbor_cells:
+            neighbor_cell = grid.cells[cell_index]
+            for ball2 in neighbor_cell:
+                calculate_repulsion_force_nonperiodic(
+                    ball, ball2, softcore_ratio, repulsion_factor
+                )
 
 
-def calculate_repulsion_force(
-    ball, ball2, fiber_label: int, label: int, is_periodic: bool, int64_t[:] image_size,
-    softcore_ratio: float = 0.0,
-    repulsion_factor: float = 1.1
-):
+
+cdef void calculate_repulsion_force_periodic(
+    Ball ball, Ball ball2, int64_t[:] image_size,
+    double softcore_ratio,
+    double repulsion_factor
+) noexcept:
     """
-    calculates the repulsion force between two balls
+    calculates the repulsion force between two balls in the periodic case
 
     :param ball: Ball
         The ball whose neighbors are currently considered
     :param ball2: Ball
         The neighboring ball that is currently considered
-    :param fiber_label: int
-        The fiber label of ball
-    :param label: int
-        The ball label of ball
-    :param is_periodic: bool
-        Whether the repulsion force is to be calculated on the torus, i.e., periodically
-    :param coord: double
-        The coordinate of ball
     :param image_size: int64_t
         The image size (relevant for periodic case)
     :param repulsion_factor: float, default 1.1
@@ -185,50 +200,86 @@ def calculate_repulsion_force(
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
         TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
     """
+    cdef double dist, displaced, overlap, overlap_true, force_strength
+    cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
     if (
-        fiber_label != ball2.fiber_label
-        or abs(label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
+        ball.fiber_label != ball2.fiber_label
+        or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
     ):
-        if is_periodic:
-            # calculate periodic distance of the balls' coordinates
-            coord = ball.coordinate
-            coord2mod = np.mod(ball2.coordinate, image_size)
-            disp: cython.double
-            for i in range(3):
-                disp = coord2mod[i] - coord[i]
-                if abs(disp) > image_size[i] / 2.0:
-                    if disp > 0:
-                        coord2mod[i] -= image_size[i]
-                    else:
-                        coord2mod[i] += image_size[i]
-                coord2mod[i] -= coord[i]
-            dist: cython.double = np.linalg.norm(coord2mod)
+        coordx = ball.coordinate[0]
+        coordy = ball.coordinate[1]
+        coordz = ball.coordinate[2]
+        coord2x = ball2.coordinate[0]
+        coord2y = ball2.coordinate[1]
+        coord2z = ball2.coordinate[2]
 
-            # calculate the force if balls are indeed overlapping
-            overlap: cython.float = ball.radius + ball2.radius
-            overlap_true: cython.float = (1 - softcore_ratio)*overlap - dist
-            overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
-            if overlap > 0:
-                coord2mod = coord2mod / dist
-                force = TAU * overlap / 2.0 * coord2mod
-                ball.force = ball.force - force
-                ball.overlap = max(ball.overlap, overlap_true)
-                ball2.force = ball2.force + force
-                ball2.overlap = max(ball2.overlap, overlap_true)
+        # calculate periodic distance/direction
+        displaced = coord2x - coordx
+        dx = displaced - image_size[0]*round(displaced/image_size[0])
+        displaced = coord2y - coordy
+        dy = displaced - image_size[1]*round(displaced/image_size[1])
+        displaced = coord2z - coordz
+        dz = displaced - image_size[2]*round(displaced/image_size[2])
+        dist = sqrt(dx*dx + dy*dy + dz*dz)
+        overlap = ball.radius + ball2.radius
+        overlap_true = (1 - softcore_ratio)*overlap - dist
+        overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
+        if overlap > 0:
+            force_strength = TAU * overlap / 2.0
+            if dist > 0.0:
+                force_strength /= dist
+            ball.force[0] -= force_strength * dx
+            ball.force[1] -= force_strength * dy
+            ball.force[2] -= force_strength * dz
+            ball.overlap = max(ball.overlap, overlap_true)
+            ball2.force[0] += force_strength * dx
+            ball2.force[1] += force_strength * dy
+            ball2.force[2] += force_strength * dz
+            ball2.overlap = max(ball2.overlap, overlap_true)
 
-        else:
-            coord = ball.coordinate
-            coord2 = ball2.coordinate
-            dist: cython.double = np.linalg.norm(coord2 - coord)
-            overlap: cython.float = ball.radius + ball2.radius
-            overlap_true: cython.float = (1 - softcore_ratio)*overlap - dist
-            overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
-            if overlap > 0:
-                dir = (coord2 - coord)/dist
-                ball.force = ball.force - TAU * overlap / 2.0 * dir
-                ball.overlap = max(ball.overlap, overlap_true)
-                ball2.force = ball2.force + TAU * overlap / 2.0 * dir
-                ball2.overlap = max(ball2.overlap, overlap_true)
+
+cdef void calculate_repulsion_force_nonperiodic(
+    Ball ball, Ball ball2,
+    double softcore_ratio,
+    double repulsion_factor
+) noexcept:
+    """
+    calculates the repulsion force between two balls in the nonperiodic case
+
+    :param ball: Ball
+        The ball whose neighbors are currently considered
+    :param ball2: Ball
+        The neighboring ball that is currently considered
+    :param repulsion_factor: float, default 1.1
+        This factor is 1 in the Altendorf-Jeulin model.
+        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
+        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
+        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
+    """
+    cdef double dist, overlap, overlap_true, force_strength
+    cdef double dx, dy, dz
+    if (
+        ball.fiber_label != ball2.fiber_label
+        or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
+    ):
+        coord = ball.coordinate
+        coord2 = ball2.coordinate
+        dist = cdirection(ball2, ball, &dx, &dy, &dz)
+        overlap = ball.radius + ball2.radius
+        overlap_true = (1 - softcore_ratio)*overlap - dist
+        overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
+        if overlap > 0:
+            force_strength = TAU * overlap / 2.0
+            ball.force[0] -= force_strength * dx
+            ball.force[1] -= force_strength * dy
+            ball.force[2] -= force_strength * dz
+            ball.overlap = max(ball.overlap, overlap_true)
+            ball2.force[0] += force_strength * dx
+            ball2.force[1] += force_strength * dy
+            ball2.force[2] += force_strength * dz
+            ball2.overlap = max(ball2.overlap, overlap_true)
+
 
 
 cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
@@ -253,7 +304,7 @@ cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
     ratio = (x - x_s) / (x_e - x_s)
     return 0.5 * (1 - cos(ratio * PI))
 
-cdef calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
+cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
 
@@ -282,7 +333,7 @@ cdef calculate_spring_force(ball1: Ball, ball2: Ball, is_next: bool):
     ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
 
 
-cdef calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
+cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexcept:
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
     Note: this code does not directly follow the paper by Altendorf&Jeulin
