@@ -70,7 +70,7 @@ def run_force_biased(
         if force_strength < end_force_biased and overlap < eps and len(shortlist) == 0:
             break
         #elif force_strength < end_force_biased and overlap < eps and contact_distances < eps:
-        #    break
+            break
         if i + 1 == MAX_STEPS:
             print("remove tense links")
             tense_links = list()

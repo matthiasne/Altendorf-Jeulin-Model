@@ -17,6 +17,7 @@ ALPHA_E:cython.double = 0.2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
 RHO:cython.double = 0.25
+REPULSION_FACTOR:cython.double = 1.0
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
@@ -31,7 +32,6 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     :return: np.ndarray
         total force of the fiber system
     """
-    repulsion_factor = 1.1
     for cell in grid.cells:
         if len(cell) > 0:
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
@@ -39,7 +39,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             )
             for i, ball in enumerate(cell):
                 calculate_repulsion_forces(
-                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, repulsion_factor=repulsion_factor,
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
                     softcore_ratio=softcore_ratio
                 )
     for fiber in fiber_system:
@@ -326,31 +326,27 @@ def calculate_angle_force(ball: Ball, ball_prev: Ball, ball_next: Ball):
     ball.angle_diff = alpha0 - alpha
 
 
-def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_size, contact_distance: float):
+def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_size, contact_distance: float,
+    repulsion_factor:float = 1.1):
     """
-    calculates the repulsion force between two balls
+    calculates the contact force between two balls
 
     :param ball: Ball
         The ball whose neighbors are currently considered
     :param ball2: Ball
         The neighboring ball that is currently considered
-    :param fiber_label: int
-        The fiber label of ball
-    :param label: int
-        The ball label of ball
     :param is_periodic: bool
         Whether the repulsion force is to be calculated on the torus, i.e., periodically
-    :param coord: double
-        The coordinate of ball
     :param image_size: int64_t
         The image size (relevant for periodic case)
+    :param contact_distance: float
+        The maximal distance that balls can have to be considered in contact
     :param repulsion_factor: float, default 1.1
         This factor is 1 in the Altendorf-Jeulin model.
         However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
     """
-    repulsion_factor = 1.1
     coord = ball.coordinate
     if is_periodic:
         # calculate periodic distance of the balls' coordinates
@@ -367,8 +363,8 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         dist: cython.double = np.linalg.norm(coord2mod)
 
         # calculate the force if balls are indeed overlapping
-        dist_perfect: cython.float = ball.radius + ball2.radius
-        displace: cython.float = dist - dist_perfect
+        dist_perfect: cython.double = ball.radius + ball2.radius
+        displace: cython.double = dist - dist_perfect
         if displace > 0:
             coord2mod = coord2mod / dist
             force = displace / 2.0 * coord2mod*repulsion_factor
@@ -378,8 +374,8 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
     else:
         coord2 = ball2.coordinate
         dist: cython.double = np.linalg.norm(coord2 - coord)
-        dist_perfect: cython.float = ball.radius + ball2.radius
-        displace: cython.float = dist - dist_perfect
+        dist_perfect: cython.double = ball.radius + ball2.radius
+        displace: cython.double = dist - dist_perfect
         if displace > 0:
             dir = (coord2 - coord)/dist
             force = TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
