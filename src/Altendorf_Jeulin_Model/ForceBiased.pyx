@@ -44,6 +44,8 @@ def run_force_biased(
                                                 distribution, otherwise the ACG distribution with parameter matrix is used
     :param beta: float                          parameter of direction distribution
     TODO: refactor contact_distance and contact_distances  - too confusing
+    TODO: consider using the maximal force strength instead of the mean one
+    TODO: remove tense links
     """
     rows = []
 

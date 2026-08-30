@@ -1,13 +1,12 @@
 # cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
 import cython
-from libc.stdint cimport int64_t
+from Altendorf_Jeulin_Model import SpatialHashing
 from libc.math cimport cos, sqrt, tan, acos
 cimport numpy as np
 np.import_array()
 
-
-import Altendorf_Jeulin_Model.SpatialHashing as sh
+from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3
@@ -24,6 +23,10 @@ REPULSION_FACTOR:cython.double = 1.0
 cdef double PI = 3.141592653589793
 
 #TODO make cdef
+#TODO cythonize contact stuff
+#TODO include endsteps again
+#TODO cythonize fiber generation
+#TODO cleanly put AJ, AJ++, Contact++, PoissonLine; output for Contact++
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
                      shortlist = [], softcore_ratio: float = 0.0, contact_distance = 1):
     """
@@ -39,12 +42,13 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     cdef list balls, cell
     cdef set neighbor_cells
     cdef Ball ball, ball_prev, ball_next
-    cdef int n
+    cdef int n, ix, iy, iz
     for cell in grid.cells:
         n = len(cell)
         if n > 0:
+            ix, iy, iz = grid.get_cell_index_of_coord(cell[0].coordinate[0], cell[0].coordinate[1], cell[0].coordinate[2])
             neighbor_cells = grid.get_younger_neighbor_cell_indices(
-                grid.get_cell_index_of_coord(cell[0].coordinate), is_periodic=is_periodic
+                ix, iy, iz, is_periodic=is_periodic
             )
             for i in range(n):
                 ball = cell[i]
@@ -120,12 +124,11 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
 #    return np.linalg.norm(total_force), total_overlap
 
 
-# TODO make spatial hashin extension type
 cdef inline void calculate_repulsion_forces(
     int i,
     Ball ball,
-    list[Ball] cell,
-    object grid,
+    list cell,
+    sh grid,
     set neighbor_cells,
     bint is_periodic = True,
     double softcore_ratio = 0.0,
@@ -148,7 +151,7 @@ cdef inline void calculate_repulsion_forces(
     cdef list neighbor_cell
     cdef j
     cdef int n = len(cell)
-    cdef int64_t[:] image_size = grid.image_size
+    cdef int[:] image_size = grid.image_size
     # compare within cell
     if is_periodic:
         for j in range(i+1, n):
@@ -180,7 +183,7 @@ cdef inline void calculate_repulsion_forces(
 
 
 cdef void calculate_repulsion_force_periodic(
-    Ball ball, Ball ball2, int64_t[:] image_size,
+    Ball ball, Ball ball2, int[:] image_size,
     double softcore_ratio,
     double repulsion_factor
 ) noexcept:
@@ -191,7 +194,7 @@ cdef void calculate_repulsion_force_periodic(
         The ball whose neighbors are currently considered
     :param ball2: Ball
         The neighboring ball that is currently considered
-    :param image_size: int64_t
+    :param image_size: int
         The image size (relevant for periodic case)
     :param repulsion_factor: float, default 1.1
         This factor is 1 in the Altendorf-Jeulin model.
@@ -391,7 +394,7 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     ball.angle_diff = alpha0 - alpha
 
 
-def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_size, contact_distance: float,
+def calculate_contact_force(ball, ball2, is_periodic: bool, int[:] image_size, contact_distance: float,
     repulsion_factor:float = 1.1):
     """
     calculates the contact force between two balls
@@ -402,7 +405,7 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int64_t[:] image_siz
         The neighboring ball that is currently considered
     :param is_periodic: bool
         Whether the repulsion force is to be calculated on the torus, i.e., periodically
-    :param image_size: int64_t
+    :param image_size: int
         The image size (relevant for periodic case)
     :param contact_distance: float
         The maximal distance that balls can have to be considered in contact

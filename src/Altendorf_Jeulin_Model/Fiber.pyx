@@ -25,11 +25,15 @@ cdef class Ball:
         ball_label: int = -1,
         angle: float = np.pi,
     ):
-        self.coordinate = coordinate
+        self.coordinate[0] = coordinate[0]
+        self.coordinate[1] = coordinate[1]
+        self.coordinate[2] = coordinate[2]
         self.radius = radius
         self.fiber_label = fiber_label
         self.ball_label = ball_label
-        self.force: np.ndarray = np.array([0.0, 0.0, 0.0])
+        self.force[0] = 0
+        self.force[1] = 0
+        self.force[2] = 0
         self.overlap = 0
         self.angle = angle
         self.neighbor_dist = radius / 2.0
