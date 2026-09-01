@@ -45,7 +45,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     cdef double distance, shortlist_distance_sum
     cdef total_force_x, total_force_y, total_force_z, total_force_norm
     cdef double total_overlap, total_neighbor_dist, total_angle_diff
-    cdef int[:] image_size = grid.image_size
+    cdef int[3] image_size = grid.image_size
     for cell in grid.cells:
         n = len(cell)
         if n > 0:
@@ -80,7 +80,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         if is_periodic:
             distance = calculate_contact_force_periodic(ball, ball2, image_size, contact_distance)
         else:
-            distance = calculate_contact_force_nonperiodic(ball, ball2, image_size, contact_distance)
+            distance = calculate_contact_force_nonperiodic(ball, ball2, contact_distance)
         shortlist_distance_sum += distance
 
     total_force_x = 0
@@ -161,7 +161,7 @@ cdef inline void calculate_repulsion_forces(
     cdef list neighbor_cell
     cdef j
     cdef int n = len(cell)
-    cdef int[:] image_size = grid.image_size
+    cdef int[3] image_size = grid.image_size
     # compare within cell
     if is_periodic:
         for j in range(i+1, n):
@@ -193,7 +193,7 @@ cdef inline void calculate_repulsion_forces(
 
 
 cdef void calculate_repulsion_force_periodic(
-    Ball ball, Ball ball2, int[:] image_size,
+    Ball ball, Ball ball2, int[3] image_size,
     double softcore_ratio,
     double repulsion_factor
 ) noexcept:
@@ -204,8 +204,7 @@ cdef void calculate_repulsion_force_periodic(
         The ball whose neighbors are currently considered
     :param ball2: Ball
         The neighboring ball that is currently considered
-    :param image_size: int
-        The image size (relevant for periodic case)
+    :param image_size: int[3]
     :param repulsion_factor: float, default 1.1
         This factor is 1 in the Altendorf-Jeulin model.
         However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
@@ -403,7 +402,7 @@ cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
     ratio = (x - x_s) / (x_e - x_s)
     return 0.5 * (1 - cos(ratio * PI))
 
-cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[:] image_size,
+cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image_size,
     double contact_distance, double repulsion_factor = 1.1) noexcept:
     """
     calculates the contact force between two balls
@@ -459,7 +458,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[:] image
     return 0
 
 
-cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2, int[:] image_size,
+cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
     double contact_distance, double repulsion_factor = 1.1) noexcept:
     """
     calculates the contact force between two balls in the nonperiodic case
@@ -468,8 +467,6 @@ cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2, int[:] im
         The ball whose neighbors are currently considered
     :param ball2: Ball
         The neighboring ball that is currently considered
-    :param image_size: int
-        The image size (relevant for periodic case)
     :param contact_distance: float
         The maximal distance that balls can have to be considered in contact
     :param repulsion_factor: float, default 1.1
@@ -479,16 +476,8 @@ cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2, int[:] im
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
     """
     cdef double dist, displaced, dist_perfect, displace, force_strength
-    cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
-    coordx = ball.coordinate[0]
-    coordy = ball.coordinate[1]
-    coordz = ball.coordinate[2]
-    coord2x = ball2.coordinate[0]
-    coord2y = ball2.coordinate[1]
-    coord2z = ball2.coordinate[2]
+    cdef double dx, dy, dz
 
-    coord = ball.coordinate
-    coord2 = ball2.coordinate
     dist = cdirection(ball2, ball, &dx, &dy, &dz)
     dist_perfect = ball.radius + ball2.radius
     displace = dist - dist_perfect

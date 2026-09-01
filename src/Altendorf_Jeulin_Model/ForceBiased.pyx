@@ -45,11 +45,11 @@ def run_force_biased(
     TODO: refactor contact_distance and contact_distances  - too confusing
     TODO: consider using the maximal force strength instead of the mean one
     TODO: remove tense links
+    TODO: cythonize statistics
     """
     rows = []
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
-    min_radius = min(fiber.get_max_radius() for fiber in fs)
 
     boundary_size_vec = np.array([BOUNDARY_SIZE, BOUNDARY_SIZE, BOUNDARY_SIZE])
     if not is_periodic:

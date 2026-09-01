@@ -1,17 +1,17 @@
 # cython: language_level=3, infer_type=True
-from builtins import float
 
 import cython
 from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing
 from Altendorf_Jeulin_Model.Fiber cimport Ball
+from Altendorf_Jeulin_Model.utils cimport cdistance_ball
 
+from libc.math cimport sqrt
 from libc.stdint cimport int64_t
 cimport numpy as np
 np.import_array()
 
 import numpy as np
 import networkx as nx
-import itertools
 
 def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: float = 0):
     """
@@ -71,7 +71,6 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
 def find_contact_candidates(fs, image_size, is_periodic:bool = True, interaction_distance: float = 0):
     """
     finds contact candidates and calculates a shortlist
-    TODO: shortlist reasonable for large images? make this code more efficient or just drop shortlist?
 
     :param fs: list of fibers
     :param image_size:
@@ -96,10 +95,12 @@ def find_contact_candidates(fs, image_size, is_periodic:bool = True, interaction
     neighborhood_min = {}
 
     for node in contact_graph:
-        neighborhood_min[node] = min(
-            [node_min[node]] +
-            [node_min[neighbor] for neighbor in contact_graph.neighbors(node)]
-        )
+        best = node_min[node]
+
+        for neighbor in contact_graph.neighbors(node):
+            best = min(best, node_min[neighbor])
+
+        neighborhood_min[node] = best
 
     to_remove = [
         (u, v)
@@ -137,6 +138,11 @@ def find_contact_pairs(fs, image_size, boundary_size: int = 0, is_periodic: bool
         set of pairs of balls that are "in contact"
 
     """
+    cdef Ball ball
+    cdef int len_cell
+    cdef int[3] index
+    cdef set neighbor_cells, contact_set
+    cdef set contact_pairs = set()
     max_radius = max(fiber.get_max_radius() for fiber in fs)
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
@@ -144,21 +150,22 @@ def find_contact_pairs(fs, image_size, boundary_size: int = 0, is_periodic: bool
     grid = SpatialHashing(image_size, 2.5 * (max_radius + contact_distance))
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     
-    contact_pairs = set()
     for cell in grid.cells:
-        if len(cell) > 0:
+        len_cell = len(cell)
+        if len_cell > 0:
             index = grid.get_cell_index_of_coord(cell[0].coordinate[0], cell[0].coordinate[1], cell[0].coordinate[2])
             neighbor_cells = grid.get_younger_neighbor_cell_indices(index[0], index[1], index[2], is_periodic)
-            for i, ball in enumerate(cell):
+            for i in range(len_cell):
+                ball = cell[i]
                 contact_set = identify_contact_partners(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, contact_distance=contact_distance, is_weighted=is_weighted
                 )
                 contact_pairs.update(contact_set)
     return contact_pairs
 
-def identify_contact_partners(i, ball, cell, grid,
-                              neighbor_cells, is_periodic: bool =True,
-                              contact_distance: float = 0, is_weighted: bool=False):
+cdef set identify_contact_partners(int i, Ball ball, list cell, SpatialHashing grid,
+                              set neighbor_cells, bint is_periodic =True,
+                              double contact_distance = 0, bint is_weighted =False):
     """
     identify neighbors that have a distance of at most contact_distance to ball
     This method is called from find_contact_pairs
@@ -183,16 +190,24 @@ def identify_contact_partners(i, ball, cell, grid,
         list of contact pairs in the format ((fiber label, ball label), (fiber label, ball label))
         or ((fiber label, ball label), (fiber label, ball label), distance) if is_weighted == True
     """
-    coord = np.array(ball.coordinate)
-    fiber_label = ball.fiber_label
-    ball_label = ball.ball_label
-
-    contact_pairs = set()
+    cdef Ball ball2
+    cdef list neighbor_cell
+    cdef j
+    cdef int n = len(cell)
+    cdef int[3] image_size = grid.image_size
+    cdef int fiber_label = ball.fiber_label
+    cdef int ball_label = ball.ball_label
+    cdef set contact_pairs = set()
+    cdef tuple pair
+    cdef bint is_in_contact
+    cdef double weight
     # compare within cell
-    image_size = np.array(grid.image_size)
-    for ball2 in cell[i + 1 :]:
-        is_in_contact, weight = test_in_contact(ball, ball2, is_periodic, coord, image_size,
-                                              contact_distance)
+    for j in range(i+1, n):
+        ball2 = cell[j]
+        if is_periodic:
+            is_in_contact, weight = test_in_contact_periodic(ball, ball2, image_size, contact_distance)
+        else:
+            is_in_contact, weight = test_in_contact_nonperiodic(ball, ball2, contact_distance)
         if is_in_contact:
             if is_weighted:
                 pair = ((fiber_label, ball_label), (ball2.fiber_label, ball2.ball_label), weight)
@@ -203,7 +218,10 @@ def identify_contact_partners(i, ball, cell, grid,
     for cell_index in neighbor_cells:
         cell = grid.cells[cell_index]
         for ball2 in cell:
-            is_in_contact, weight = test_in_contact(ball, ball2, is_periodic, coord, image_size, contact_distance)
+            if is_periodic:
+                is_in_contact, weight = test_in_contact_periodic(ball, ball2, image_size, contact_distance)
+            else:
+                is_in_contact, weight = test_in_contact_nonperiodic(ball, ball2, contact_distance)
             if is_in_contact:
                 if is_weighted:
                     pair = ((fiber_label, ball_label), (ball2.fiber_label, ball2.ball_label), weight)
@@ -212,18 +230,15 @@ def identify_contact_partners(i, ball, cell, grid,
                 contact_pairs.add(pair)
     return contact_pairs
 
-def test_in_contact(Ball ball, Ball ball2, bint is_periodic, double[:] coord, int64_t[:] image_size,
-                double contact_distance = 0):
+
+cdef tuple test_in_contact_periodic(Ball ball, Ball ball2, int[3] image_size,
+                double contact_distance = 0) noexcept:
     """
-    test whether neighbors have a distance of at most contact_distance
+    test whether neighbors have a distance of at most contact_distance in the periodic case
     This function is called by identify_contact_partners
 
     :param ball: Ball
     :param ball2: Ball
-    :param is_periodic: bool, default True
-        whether the image is periodic or not
-    :param coord: double[:]
-        coordinate of the ball (TODO why not take from ball)
     :param image_size: int64_t[:]
         image size (in micrometer)
     :param contact_distance: float, default 0
@@ -231,31 +246,54 @@ def test_in_contact(Ball ball, Ball ball2, bint is_periodic, double[:] coord, in
     :return: bool, float
         whether the neighbors are "in contact", and if so, the distance, otherwise -1
     """
+    cdef double dist, displaced, dist_perfect, weight
+    cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
     if (
         ball.fiber_label != ball2.fiber_label
     ):
-        if is_periodic:
-            # calculate periodic distance of the balls' coordinates
-            coord2mod = np.mod(ball2.coordinate, image_size)
-            disp: cython.double
-            for i in range(3):
-                disp = coord2mod[i] - coord[i]
-                if abs(disp) > image_size[i] / 2.0:
-                    if disp > 0:
-                        coord2mod[i] -= image_size[i]
-                    else:
-                        coord2mod[i] += image_size[i]
-                coord2mod[i] -= coord[i]
-            dist: cython.double = np.linalg.norm(coord2mod)
-            weight = dist - (ball.radius + ball2.radius)
-            if weight <= contact_distance:
-                return True, weight
+        coordx = ball.coordinate[0]
+        coordy = ball.coordinate[1]
+        coordz = ball.coordinate[2]
+        coord2x = ball2.coordinate[0]
+        coord2y = ball2.coordinate[1]
+        coord2z = ball2.coordinate[2]
 
-        else:
-            coord2 = np.array(ball2.coordinate)
-            dist: cython.double = np.linalg.norm(coord2 - coord)
-            weight = dist - (ball.radius + ball2.radius)
-            if weight <= contact_distance:
-                return True, weight
+        # calculate periodic distance/direction
+        displaced = coord2x - coordx
+        dx = displaced - image_size[0]*round(displaced/image_size[0])
+        displaced = coord2y - coordy
+        dy = displaced - image_size[1]*round(displaced/image_size[1])
+        displaced = coord2z - coordz
+        dz = displaced - image_size[2]*round(displaced/image_size[2])
+        dist = sqrt(dx*dx + dy*dy + dz*dz)
+        dist_perfect = ball.radius + ball2.radius
+        weight = dist - dist_perfect
+
+        if weight <= contact_distance:
+            return True, weight
+
+    return False, -1
+
+
+cdef tuple test_in_contact_nonperiodic(Ball ball, Ball ball2, double contact_distance = 0) noexcept:
+    """
+    test whether neighbors have a distance of at most contact_distance in the nonperiodic case
+    This function is called by identify_contact_partners
+
+    :param ball: Ball
+    :param ball2: Ball
+    :param contact_distance: float, default 0
+        The maximal distance that balls can have to be considered in contact
+    :return: bool, float
+        whether the neighbors are "in contact", and if so, the distance, otherwise -1
+    """
+    cdef double dist, weight
+    if (
+        ball.fiber_label != ball2.fiber_label
+    ):
+        dist = cdistance_ball(ball2, ball)
+        weight = dist - (ball.radius + ball2.radius)
+        if weight <= contact_distance:
+            return True, weight
 
     return False, -1
