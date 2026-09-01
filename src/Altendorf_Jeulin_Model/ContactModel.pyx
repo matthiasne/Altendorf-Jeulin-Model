@@ -230,6 +230,16 @@ cdef set identify_contact_partners(int i, Ball ball, list cell, SpatialHashing g
                 contact_pairs.add(pair)
     return contact_pairs
 
+def test_in_contact(ball, ball2, image_size, is_periodic, contact_distance):
+    cdef int[3] image_size_loc
+
+    if is_periodic:
+        image_size_loc[0] = image_size[0]
+        image_size_loc[1] = image_size[1]
+        image_size_loc[2] = image_size[2]
+        return test_in_contact_periodic(ball, ball2, image_size_loc, contact_distance)
+    else:
+        return test_in_contact_nonperiodic(ball, ball2, contact_distance)
 
 cdef tuple test_in_contact_periodic(Ball ball, Ball ball2, int[3] image_size,
                 double contact_distance = 0) noexcept:

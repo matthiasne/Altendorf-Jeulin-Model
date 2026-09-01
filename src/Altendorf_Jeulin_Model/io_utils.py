@@ -125,7 +125,7 @@ def print_stats(output_file: str, rows):
         path to the output file
     :param rows: list
         rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength"
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
     """
     with open(output_file, mode="w", newline="") as file:
         writer = csv.writer(file)
@@ -143,14 +143,15 @@ def print_stats(output_file: str, rows):
                 "MaxNeighborDist",
                 "MaxOverlap",
                 "ContactDistances"
-                "ForceStrength",
+                "TotalForceStrength",
+                "MaxForceStrength"
             ]
         )  # Header
         writer.writerows(rows)
 
 
 def print_stats_row(
-    fs: list[Fiber], i, force_strength: float, overlap: float,
+    fs: list[Fiber], i, total_force_strength: float, max_force_strength: float, overlap: float,
         neighbor_dist: float, contact_distance:float
 ):
     """
@@ -159,19 +160,22 @@ def print_stats_row(
         fiber system
     :param i: int
         iteration step of force-biased algorithm
-    :param force_strength: float
+    :param total_force_strength: float
         force strength, length of vector of displacements
+    :param max_force_strength: float
+        maximal force strength
     :param overlap: float
         maximal overlap between balls
     :param neighbor_dist: float
         maximal distance between neighbors (should be half the radius)
     :return: rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength"
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
     """
     FOT = calculate_fot(fs)
     mae = mean_angle_error(fs)
     print(
-        f"step {i} force {force_strength:.3f} max overlap {overlap:.3f} contact distance {contact_distance:.3f} "
+        f"step {i} total force {total_force_strength:.3f} max force {max_force_strength:.3f} max overlap {overlap:.3f} "
+        f"contact distance {contact_distance:.3f} "
         f"max neighbor dist {neighbor_dist:.3f} mean angle diff {mae*180/np.pi:.3f}° "
         f"FOT xx {FOT[0, 0]:.3f} xy {FOT[0, 1]:.3f} xz {FOT[0, 2]:.3f} "
         f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
@@ -189,7 +193,8 @@ def print_stats_row(
         neighbor_dist,
         overlap,
         contact_distance,
-        force_strength,
+        total_force_strength,
+        max_force_strength
     ]
 
 

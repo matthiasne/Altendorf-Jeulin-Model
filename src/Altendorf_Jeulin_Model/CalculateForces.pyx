@@ -22,10 +22,7 @@ RHO:cython.double = 0.25
 REPULSION_FACTOR:cython.double = 1.0
 cdef double PI = 3.141592653589793
 
-#TODO make cdef
-#TODO include endsteps again
-#TODO cythonize fiber generation
-#TODO cleanly put AJ, AJ++, Contact++, PoissonLine; output for Contact++
+
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
                      shortlist = [], softcore_ratio: float = 0.0, contact_distance = 1):
     """
@@ -43,7 +40,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     cdef Ball ball, ball_prev, ball_next, ball2
     cdef int n, ix, iy, iz
     cdef double distance, shortlist_distance_sum
-    cdef total_force_x, total_force_y, total_force_z, total_force_norm
+    cdef total_force_x, total_force_y, total_force_z, total_force_norm, force_norm, max_force_norm
     cdef double total_overlap, total_neighbor_dist, total_angle_diff
     cdef int[3] image_size = grid.image_size
     for cell in grid.cells:
@@ -89,6 +86,70 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     total_overlap = 0
     total_neighbor_dist = 0
     total_angle_diff = 0
+    max_force_norm = 0
+    for fiber in fiber_system:
+        for ball in fiber.balls:
+            force_norm = sqrt(ball.force[0]*ball.force[0] + ball.force[1]*ball.force[1] + ball.force[2]*ball.force[2])
+            if force_norm > max_force_norm:
+                max_force_norm = force_norm
+            total_force_x = total_force_x + ball.force[0]
+            total_force_y = total_force_y + ball.force[1]
+            total_force_z = total_force_z + ball.force[2]
+            total_overlap = max(total_overlap, ball.overlap)
+            total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
+            total_angle_diff = max(total_angle_diff, abs(ball.angle_diff))
+    total_force_norm = sqrt(total_force_x*total_force_x + total_force_y*total_force_y + total_force_z*total_force_z)
+    return (
+        total_force_norm,
+        max_force_norm,
+        total_overlap,
+        total_neighbor_dist,
+        total_angle_diff,
+        shortlist_distance_sum
+    )
+
+
+def calculate_forces_endstep(
+    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True, softcore_ratio: float = 0.0
+):
+    """
+    Calculates forces in the fiber system and adds them to corresponding ball#
+
+    :param grid: SpatialHashing
+        The spatial hashing grid for the model
+    :param fiber_system: list[list[Ball]])
+        The fiber system that contains all balls
+    :return: np.ndarray
+        total force of the fiber system
+    """
+
+    cdef list balls, cell
+    cdef set neighbor_cells
+    cdef Ball ball, ball_prev, ball_next, ball2
+    cdef int n, ix, iy, iz
+    cdef total_force_x, total_force_y, total_force_z, total_force_norm
+    cdef double total_overlap, total_neighbor_dist, total_angle_diff
+    cdef int[3] image_size = grid.image_size
+    for cell in grid.cells:
+        n = len(cell)
+        if n > 0:
+            ix, iy, iz = grid.get_cell_index_of_coord(cell[0].coordinate[0], cell[0].coordinate[1], cell[0].coordinate[2])
+            neighbor_cells = grid.get_younger_neighbor_cell_indices(
+                ix, iy, iz, is_periodic=is_periodic
+            )
+            for i in range(n):
+                ball = cell[i]
+                calculate_repulsion_forces(
+                    i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
+                    softcore_ratio=softcore_ratio
+                )
+
+    total_force_x = 0
+    total_force_y = 0
+    total_force_z = 0
+    total_overlap = 0
+    total_neighbor_dist = 0
+    total_angle_diff = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
             total_force_x = total_force_x + ball.force[0]
@@ -102,36 +163,8 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         total_force_norm,
         total_overlap,
         total_neighbor_dist,
-        total_angle_diff,
-        shortlist_distance_sum
+        total_angle_diff
     )
-
-
-#def calculate_forces_endstep(
-#    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True
-#):
-#    """
-#    Calculates forces in the fiber system and adds them to corresponding ball#
-
-#    :param grid: SpatialHashing
-#        The spatial hashing grid for the model
-#    :param fiber_system: list[list[Ball]])
-#        The fiber system that contains all balls
-#    :return: np.ndarray
-#        total force of the fiber system
-#    """
-
-#    for cell in grid.cells:
-#        for i, ball in enumerate(cell):
-#            calculate_repulsion_forces(i, ball, cell, grid, is_periodic=is_periodic)#
-
-#    total_force = np.array([0.0, 0.0, 0.0])
-#    total_overlap = 0
-#    for fiber in fiber_system:
-#        for ball in fiber.balls:
-#            total_force = total_force + ball.force
-#            total_overlap = max(total_overlap, ball.overlap)
-#    return np.linalg.norm(total_force), total_overlap
 
 
 cdef inline void calculate_repulsion_forces(
@@ -401,6 +434,7 @@ cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
         return 1
     ratio = (x - x_s) / (x_e - x_s)
     return 0.5 * (1 - cos(ratio * PI))
+
 
 cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image_size,
     double contact_distance, double repulsion_factor = 1.1) noexcept:
