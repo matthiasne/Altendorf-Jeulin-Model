@@ -23,7 +23,6 @@ REPULSION_FACTOR:cython.double = 1.0
 cdef double PI = 3.141592653589793
 
 #TODO make cdef
-#TODO cythonize contact stuff
 #TODO include endsteps again
 #TODO cythonize fiber generation
 #TODO cleanly put AJ, AJ++, Contact++, PoissonLine; output for Contact++
@@ -41,8 +40,12 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     """
     cdef list balls, cell
     cdef set neighbor_cells
-    cdef Ball ball, ball_prev, ball_next
+    cdef Ball ball, ball_prev, ball_next, ball2
     cdef int n, ix, iy, iz
+    cdef double distance, shortlist_distance_sum
+    cdef total_force_x, total_force_y, total_force_z, total_force_norm
+    cdef double total_overlap, total_neighbor_dist, total_angle_diff
+    cdef int[:] image_size = grid.image_size
     for cell in grid.cells:
         n = len(cell)
         if n > 0:
@@ -70,30 +73,37 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             if i > 0 and i + 1 < n:
                 calculate_angle_force(ball, balls[i - 1], balls[i + 1])
 
-    contact_distances = 0
+    shortlist_distance_sum = 0
     for contact_edge in shortlist:
         ball = fiber_system[contact_edge[0][0]].balls[contact_edge[0][1]]
         ball2 = fiber_system[contact_edge[1][0]].balls[contact_edge[1][1]]
-        distance = calculate_contact_force(ball, ball2, image_size = grid.image_size, is_periodic=is_periodic,
-                                 contact_distance=contact_distance)
-        contact_distances += distance
+        if is_periodic:
+            distance = calculate_contact_force_periodic(ball, ball2, image_size, contact_distance)
+        else:
+            distance = calculate_contact_force_nonperiodic(ball, ball2, image_size, contact_distance)
+        shortlist_distance_sum += distance
 
-    total_force = np.array([0.0, 0.0, 0.0])
+    total_force_x = 0
+    total_force_y = 0
+    total_force_z = 0
     total_overlap = 0
     total_neighbor_dist = 0
     total_angle_diff = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
-            total_force = total_force + ball.force
+            total_force_x = total_force_x + ball.force[0]
+            total_force_y = total_force_y + ball.force[1]
+            total_force_z = total_force_z + ball.force[2]
             total_overlap = max(total_overlap, ball.overlap)
             total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
             total_angle_diff = max(total_angle_diff, abs(ball.angle_diff))
+    total_force_norm = sqrt(total_force_x*total_force_x + total_force_y*total_force_y + total_force_z*total_force_z)
     return (
-        np.linalg.norm(total_force),
+        total_force_norm,
         total_overlap,
         total_neighbor_dist,
         total_angle_diff,
-        contact_distances
+        shortlist_distance_sum
     )
 
 
@@ -284,29 +294,6 @@ cdef void calculate_repulsion_force_nonperiodic(
             ball2.overlap = max(ball2.overlap, overlap_true)
 
 
-
-cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
-    """
-    Calculate the smoothing factor
-    (arguments named after Altendorf&Jeulin 2011)
-
-    :param x: float
-        The ratio that is the argument of smoothing factor
-    :param x_s: float
-        if x < x_y, the factor is 0
-    :param x_e: float
-        if x > x_e, the factor is 1
-    :return: float
-        the smoothing factor
-    """
-    cdef double ratio
-    if x < x_s:
-        return 0
-    elif x > x_e:
-        return 1
-    ratio = (x - x_s) / (x_e - x_s)
-    return 0.5 * (1 - cos(ratio * PI))
-
 cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
@@ -394,8 +381,30 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     ball.angle_diff = alpha0 - alpha
 
 
-def calculate_contact_force(ball, ball2, is_periodic: bool, int[:] image_size, contact_distance: float,
-    repulsion_factor:float = 1.1):
+cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
+    """
+    Calculate the smoothing factor
+    (arguments named after Altendorf&Jeulin 2011)
+
+    :param x: float
+        The ratio that is the argument of smoothing factor
+    :param x_s: float
+        if x < x_y, the factor is 0
+    :param x_e: float
+        if x > x_e, the factor is 1
+    :return: float
+        the smoothing factor
+    """
+    cdef double ratio
+    if x < x_s:
+        return 0
+    elif x > x_e:
+        return 1
+    ratio = (x - x_s) / (x_e - x_s)
+    return 0.5 * (1 - cos(ratio * PI))
+
+cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[:] image_size,
+    double contact_distance, double repulsion_factor = 1.1) noexcept:
     """
     calculates the contact force between two balls
 
@@ -415,42 +424,91 @@ def calculate_contact_force(ball, ball2, is_periodic: bool, int[:] image_size, c
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
     """
-    coord = ball.coordinate
-    if is_periodic:
-        # calculate periodic distance of the balls' coordinates
-        coord2mod = np.mod(ball2.coordinate, image_size)
-        disp: cython.double
-        for i in range(3):
-            disp = coord2mod[i] - coord[i]
-            if abs(disp) > image_size[i] / 2.0:
-                if disp > 0:
-                    coord2mod[i] -= image_size[i]
-                else:
-                    coord2mod[i] += image_size[i]
-            coord2mod[i] -= coord[i]
-        dist: cython.double = np.linalg.norm(coord2mod)
+    cdef double dist, displaced, dist_perfect, displace, force_strength
+    cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
+    coordx = ball.coordinate[0]
+    coordy = ball.coordinate[1]
+    coordz = ball.coordinate[2]
+    coord2x = ball2.coordinate[0]
+    coord2y = ball2.coordinate[1]
+    coord2z = ball2.coordinate[2]
 
-        # calculate the force if balls are indeed overlapping
-        dist_perfect: cython.double = ball.radius + ball2.radius
-        displace: cython.double = dist - dist_perfect
-        if displace > 0:
-            coord2mod = coord2mod / dist
-            force = displace / 2.0 * coord2mod*repulsion_factor
-            ball.force = ball.force + force
-            ball2.force = ball2.force - force
-            return max(0, displace - contact_distance)
-    else:
-        coord2 = ball2.coordinate
-        dist: cython.double = np.linalg.norm(coord2 - coord)
-        dist_perfect: cython.double = ball.radius + ball2.radius
-        displace: cython.double = dist - dist_perfect
-        if displace > 0:
-            dir = (coord2 - coord)/dist
-            force = TAU * displace / 2.0 * dir*smoothing_factor(displace, 0, contact_distance)*repulsion_factor
-            ball.force = ball.force + force
-            ball2.force = ball2.force - force
-            return max(0, displace - contact_distance)
+    # calculate periodic distance/direction
+    displaced = coord2x - coordx
+    dx = displaced - image_size[0]*round(displaced/image_size[0])
+    displaced = coord2y - coordy
+    dy = displaced - image_size[1]*round(displaced/image_size[1])
+    displaced = coord2z - coordz
+    dz = displaced - image_size[2]*round(displaced/image_size[2])
+    dist = sqrt(dx*dx + dy*dy + dz*dz)
+    dist_perfect = ball.radius + ball2.radius
+    displace = dist - dist_perfect
+
+    if displace > 0:
+        force_strength = displace / 2.0*repulsion_factor
+        if dist > 0.0:
+            force_strength /= dist
+        ball.force[0] += force_strength * dx
+        ball.force[1] += force_strength * dy
+        ball.force[2] += force_strength * dz
+        ball2.force[0] -= force_strength * dx
+        ball2.force[1] -= force_strength * dy
+        ball2.force[2] -= force_strength * dz
+
+        return max(0, displace - contact_distance)
     return 0
+
+
+cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2, int[:] image_size,
+    double contact_distance, double repulsion_factor = 1.1) noexcept:
+    """
+    calculates the contact force between two balls in the nonperiodic case
+    
+    :param ball: Ball
+        The ball whose neighbors are currently considered
+    :param ball2: Ball
+        The neighboring ball that is currently considered
+    :param image_size: int
+        The image size (relevant for periodic case)
+    :param contact_distance: float
+        The maximal distance that balls can have to be considered in contact
+    :param repulsion_factor: float, default 1.1
+        This factor is 1 in the Altendorf-Jeulin model.
+        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
+        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
+        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+    """
+    cdef double dist, displaced, dist_perfect, displace, force_strength
+    cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
+    coordx = ball.coordinate[0]
+    coordy = ball.coordinate[1]
+    coordz = ball.coordinate[2]
+    coord2x = ball2.coordinate[0]
+    coord2y = ball2.coordinate[1]
+    coord2z = ball2.coordinate[2]
+
+    coord = ball.coordinate
+    coord2 = ball2.coordinate
+    dist = cdirection(ball2, ball, &dx, &dy, &dz)
+    dist_perfect = ball.radius + ball2.radius
+    displace = dist - dist_perfect
+
+    if displace > 0:
+        force_strength = displace / 2.0*repulsion_factor
+        if dist > 0.0:
+            force_strength /= dist
+        ball.force[0] += force_strength * dx
+        ball.force[1] += force_strength * dy
+        ball.force[2] += force_strength * dz
+        ball2.force[0] -= force_strength * dx
+        ball2.force[1] -= force_strength * dy
+        ball2.force[2] -= force_strength * dz
+
+        return max(0, displace - contact_distance)
+    return 0
+
+
+
 
 
 def apply_forces(fiber_system: list[Fiber]):

@@ -5,7 +5,6 @@ from Altendorf_Jeulin_Model.CalculateForces import (
     apply_forces,
     calculate_forces,
     #calculate_forces_endstep,
-    calculate_contact_force
 )
 
 import Altendorf_Jeulin_Model.Fiber as Fiber

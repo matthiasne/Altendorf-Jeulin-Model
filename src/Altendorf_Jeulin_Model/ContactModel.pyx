@@ -2,6 +2,9 @@
 from builtins import float
 
 import cython
+from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing
+from Altendorf_Jeulin_Model.Fiber cimport Ball
+
 from libc.stdint cimport int64_t
 cimport numpy as np
 np.import_array()
@@ -9,8 +12,6 @@ np.import_array()
 import numpy as np
 import networkx as nx
 import itertools
-
-import Altendorf_Jeulin_Model.SpatialHashing as sh
 
 def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: float = 0):
     """
@@ -140,15 +141,14 @@ def find_contact_pairs(fs, image_size, boundary_size: int = 0, is_periodic: bool
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
-    grid = sh.SpatialHashing(image_size, 2.5 * (max_radius + contact_distance))
+    grid = SpatialHashing(image_size, 2.5 * (max_radius + contact_distance))
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     
     contact_pairs = set()
     for cell in grid.cells:
         if len(cell) > 0:
-            neighbor_cells = grid.get_younger_neighbor_cell_indices(
-                grid.get_cell_index_of_coord(cell[0].coordinate), is_periodic=is_periodic
-            )
+            index = grid.get_cell_index_of_coord(cell[0].coordinate[0], cell[0].coordinate[1], cell[0].coordinate[2])
+            neighbor_cells = grid.get_younger_neighbor_cell_indices(index[0], index[1], index[2], is_periodic)
             for i, ball in enumerate(cell):
                 contact_set = identify_contact_partners(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic, contact_distance=contact_distance, is_weighted=is_weighted
@@ -183,13 +183,13 @@ def identify_contact_partners(i, ball, cell, grid,
         list of contact pairs in the format ((fiber label, ball label), (fiber label, ball label))
         or ((fiber label, ball label), (fiber label, ball label), distance) if is_weighted == True
     """
-    coord = ball.coordinate
+    coord = np.array(ball.coordinate)
     fiber_label = ball.fiber_label
     ball_label = ball.ball_label
 
     contact_pairs = set()
     # compare within cell
-    image_size = grid.image_size
+    image_size = np.array(grid.image_size)
     for ball2 in cell[i + 1 :]:
         is_in_contact, weight = test_in_contact(ball, ball2, is_periodic, coord, image_size,
                                               contact_distance)
@@ -212,8 +212,8 @@ def identify_contact_partners(i, ball, cell, grid,
                 contact_pairs.add(pair)
     return contact_pairs
 
-def test_in_contact(ball, ball2, is_periodic: bool, double[:] coord, int64_t[:] image_size,
-                contact_distance:float = 0):
+def test_in_contact(Ball ball, Ball ball2, bint is_periodic, double[:] coord, int64_t[:] image_size,
+                double contact_distance = 0):
     """
     test whether neighbors have a distance of at most contact_distance
     This function is called by identify_contact_partners
@@ -252,7 +252,7 @@ def test_in_contact(ball, ball2, is_periodic: bool, double[:] coord, int64_t[:] 
                 return True, weight
 
         else:
-            coord2 = ball2.coordinate
+            coord2 = np.array(ball2.coordinate)
             dist: cython.double = np.linalg.norm(coord2 - coord)
             weight = dist - (ball.radius + ball2.radius)
             if weight <= contact_distance:

@@ -44,7 +44,7 @@ cdef class SpatialHashing:
         self.cell_width[2] = ceil(image_size[2] / self.division[2])
 
 
-    cdef inline tuple get_cell_index_of_coord(
+    cdef public inline tuple get_cell_index_of_coord(
         self, double posx, double posy, double posz
     ):
         """
@@ -60,7 +60,7 @@ cdef class SpatialHashing:
                      floor(posz/self.cell_width[2]))
 
 
-    cdef set get_younger_neighbor_cell_indices(
+    cdef public set get_younger_neighbor_cell_indices(
         self, int i, int j, int k, bint is_periodic
     ):
         """
