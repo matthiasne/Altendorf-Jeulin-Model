@@ -16,8 +16,85 @@ from Altendorf_Jeulin_Model.ContactModel import (
 
 
 def main():
-    example_AJ_finite()
-    example_AJ_endless()
+    main_example()
+
+def main_example():
+    print("This is the most basic example to generate finite fibers allowing intersection.\n"
+          "We use a Schladitz distribution with parameter beta and save the result in an image.")
+    image_size = np.array([150, 150, 150])
+    intensity = 90
+    L = 100
+    R = 5
+    beta = 3.0
+    fs = fm.initialize_fiber_system(
+        intensity, L, R, beta, image_size, 10, 100
+    )
+    io.save_fibers_as_tif(
+        fs, domain=image_size, path="examples/outputs/AJ_model_intersect.tif", is_periodic=True
+    )
+
+    print("Next up, we pack the fibers to remove intersections. You can choose between the original force-biased\n"
+          "packing by Altendorf-Jeulin, called 'AJ', and the tuned version, called 'AJ++'. We recommend using the\n"
+          "tuned version, please refer to our paper for the explanation.\n"
+          "\n"
+          "If you have core-sheath fibers, you can allow for intersections corresponding to the percentage of the\n"
+          "sheath by setting the parameter hardcore_ratio. It's default is 1.0 (no sheath). Another reason for such\n"
+          "a choice may be a low resolution, which is why your image could not resolve this overlap clearly anyway.\n"
+          "On the other hand, you may ant to ensure a minimum distance between fibers, e.g., for avoiding stress\n"
+          "peaks. In this case, please choose the hardcore_ratio larger 1 according to the ratio of voxel size\n"
+          "and radius. The following output provides statistics on the packing procedure and result.")
+    run_force_biased(fs, image_size)
+    io.save_fibers_as_tif(
+        fs,
+        domain=image_size,
+        path="examples/outputs/AJ_model_nointersect.tif",
+        is_periodic=True,
+    )
+
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(
+        fs, image_size, is_periodic=True, contact_distance=1
+    )
+    print(
+        "As mentioned above, images may not be able to resolve a distance lower than the voxel size. Therefore, we\n"
+        "consider a distance between fibers lower than the voxel size (1um in this case) to be a contact area.\n"
+        "This system has ",
+        n_contacts,
+        " inter-fiber contacts. Their surface is approximated by the length of fibers that touch,\nwhich amounts to ",
+        contact_surface, "um.\n "
+        "We can increase the amount of contact using the contact packing. For this, we draw in fibers when they are\n"
+        "closer than the fiber radius."
+    )
+    shortlist = find_contact_candidates(
+        fs, image_size, is_periodic=True, interaction_distance= R
+    )
+    run_force_biased(
+        fs,
+        image_size,
+        verbose=True,
+        shortlist=shortlist,
+        hardcore_ratio=1.0,
+        contact_distance=1,
+        method="Contact++",
+    )
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(
+        fs, image_size, is_periodic=True, contact_distance=1
+    )
+    print(
+        "This system has ",
+        n_contacts,
+        " inter-fiber contacts and a contact 'length' of ",
+        contact_surface, "um."
+    )
+    io.save_fibers_as_tif(
+        fs,
+        domain=image_size,
+        path="examples/outputs/AJ_model_increasecontact.tif",
+        is_periodic=True,
+    )
+
+    print("The code allows for plenty of customization, e.g. nonperiodic boundaries, different stop criteria,\n"
+          "or different fiber models. We also offer an endless fiber model and a Poisson line process. Please\n"
+          "don't hesitate to reach out to us if you miss any functionality.")
 
 
 def example_AJ_finite():
@@ -39,7 +116,7 @@ def example_AJ_finite():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, verbose=True, softcore_ratio = 0.0)
+    run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -49,7 +126,7 @@ def example_AJ_finite():
           " contact surface: ", contact_surface)
     shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.2*R)
     print("shortlist has ", len(shortlist), " elements")
-    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, softcore_ratio=0, contact_distance=0.1*R,
+    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, hardcore_ratio=1.0, contact_distance=0.1*R,
                      method="Contact++")
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance=0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
@@ -94,7 +171,7 @@ def example_AJ_endless():
     # pack the fibers
     boundary_size = 100
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, verbose=True, softcore_ratio=0.1, boundary_size=boundary_size)
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True, hardcore_ratio=0.9, boundary_size=boundary_size)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
@@ -112,7 +189,7 @@ def example_AJ_endless():
         is_periodic=False,
         verbose=True,
         shortlist=shortlist,
-        softcore_ratio=0.1,
+        hardcore_ratio=0.9,
         contact_distance=0.5,
         boundary_size=boundary_size,
         method="Contact++",

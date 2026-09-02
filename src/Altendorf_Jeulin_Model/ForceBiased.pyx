@@ -20,10 +20,10 @@ def run_force_biased(
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
     output_file: str = "results.csv",
-    verbose: bool = False,
+    verbose: bool = True,
     is_periodic: bool = True,
     shortlist = [],
-    softcore_ratio: float = 0.0,
+    hardcore_ratio: float = 1.0,
     contact_distance: float = 1.0,
     method: str = "AJ++",
     boundary_size: int = 0,
@@ -33,12 +33,12 @@ def run_force_biased(
         image_size = image_size + 2 * boundary_size_vec
     if method == "AJ":
         run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_file, verbose,
-                            is_periodic, softcore_ratio)
+                            is_periodic, hardcore_ratio)
     elif method == "Contact++":
-        run_force_biased_Contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, softcore_ratio,
+        run_force_biased_Contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, hardcore_ratio,
                               contact_distance)
     else:
-        run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, softcore_ratio = softcore_ratio)
+        run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio)
 
 def run_force_biased_AJ(
     fs: list[Fiber],
@@ -46,9 +46,9 @@ def run_force_biased_AJ(
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
     output_file: str = "results.csv",
-    verbose: bool = False,
+    verbose: bool = True,
     is_periodic: bool = True,
-    softcore_ratio: float = 0.0,
+    hardcore_ratio: float = 1.0,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -61,7 +61,7 @@ def run_force_biased_AJ(
     :param output_file: str                     file path to store packing step statistics
     :param verbose: bool                        true: output information on packing statistics
     :param is_periodic: bool                    uses periodic boundary conditions
-    :param softcore_ratio: float                soft core ratio percentage of fiber core that must not be intersected
+    :param hardcore_ratio: float                hardcore ratio percentage of fiber core that must not be intersected
     """
     rows = []
 
@@ -71,7 +71,7 @@ def run_force_biased_AJ(
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio, repulsion_factor=1
+        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio, repulsion_factor=1
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, overlap, neighbor_dist, contact_distances))
@@ -87,7 +87,7 @@ def run_force_biased_AJ(
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio,
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
             repulsion_factor=1
         )
         if verbose and i % 100 == 0:
@@ -106,9 +106,9 @@ def run_force_biased_AJpp(
     fs: list[Fiber],
     image_size,
     output_file: str = "results.csv",
-    verbose: bool = False,
+    verbose: bool = True,
     is_periodic: bool = True,
-    softcore_ratio: float = 0.0,
+    hardcore_ratio: float = 1.0,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -132,12 +132,11 @@ def run_force_biased_AJpp(
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio,
+        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum))
-    print("We run the force-biased algorithm:")
     eps = np.finfo(float).eps
     end_force_biased = 0.01
     max_steps = 1000
@@ -150,7 +149,7 @@ def run_force_biased_AJpp(
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
         )
         if verbose and i % 100 == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
@@ -167,10 +166,10 @@ def run_force_biased_Contactpp(
     fs: list[Fiber],
     image_size,
     output_file: str = "results.csv",
-    verbose: bool = False,
+    verbose: bool = True,
     is_periodic: bool = True,
     shortlist = [],
-    softcore_ratio: float = 0.0,
+    hardcore_ratio: float = 1.0,
     contact_distance: float = 1.0,
 ):
     """
@@ -196,7 +195,7 @@ def run_force_biased_Contactpp(
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = (
         calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, softcore_ratio = softcore_ratio,
+        grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, hardcore_ratio = hardcore_ratio,
         contact_distance=contact_distance
     ))
     if verbose:
@@ -231,7 +230,7 @@ def run_force_biased_Contactpp(
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = (
             calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, softcore_ratio = softcore_ratio,
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
             shortlist=shortlist, contact_distance=contact_distance
         ))
         if verbose and i % 100 == 0:

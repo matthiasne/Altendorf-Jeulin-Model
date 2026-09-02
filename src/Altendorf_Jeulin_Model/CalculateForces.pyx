@@ -24,7 +24,7 @@ cdef double PI = 3.141592653589793
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
-                     shortlist = [], softcore_ratio: float = 0.0, contact_distance = 1):
+                     shortlist = [], hardcore_ratio: float = 1.0, contact_distance = 1):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -54,7 +54,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                 ball = cell[i]
                 calculate_repulsion_forces(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
-                    softcore_ratio=softcore_ratio
+                    hardcore_ratio=hardcore_ratio
                 )
     for fiber in fiber_system:
         balls = fiber.balls
@@ -109,7 +109,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
 
 
 def calculate_forces_endstep(
-    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True, softcore_ratio: float = 0.0
+    grid: sh, fiber_system: list[Fiber], is_periodic: bool = True, hardcore_ratio: float = 1.0
 ):
     """
     Calculates forces in the fiber system and adds them to corresponding ball#
@@ -140,7 +140,7 @@ def calculate_forces_endstep(
                 ball = cell[i]
                 calculate_repulsion_forces(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
-                    softcore_ratio=softcore_ratio
+                    hardcore_ratio=hardcore_ratio
                 )
 
     total_force_x = 0
@@ -173,7 +173,7 @@ cdef inline void calculate_repulsion_forces(
     sh grid,
     set neighbor_cells,
     bint is_periodic = True,
-    double softcore_ratio = 0.0,
+    double hardcore_ratio = 1.0,
     double repulsion_factor = 1.1
 ) noexcept:
     """
@@ -199,34 +199,34 @@ cdef inline void calculate_repulsion_forces(
         for j in range(i+1, n):
             ball2 = cell[j]
             calculate_repulsion_force_periodic(
-                ball, ball2, image_size, softcore_ratio, repulsion_factor
+                ball, ball2, image_size, hardcore_ratio, repulsion_factor
             )
         # compare with neighbor cells
         for cell_index in neighbor_cells:
             neighbor_cell = grid.cells[cell_index]
             for ball2 in neighbor_cell:
                 calculate_repulsion_force_periodic(
-                    ball, ball2, image_size, softcore_ratio, repulsion_factor
+                    ball, ball2, image_size, hardcore_ratio, repulsion_factor
                 )
     else:
         for j in range(i+1, n):
             ball2 = cell[j]
             calculate_repulsion_force_nonperiodic(
-                ball, ball2, softcore_ratio, repulsion_factor
+                ball, ball2, hardcore_ratio, repulsion_factor
             )
         # compare with neighbor cells
         for cell_index in neighbor_cells:
             neighbor_cell = grid.cells[cell_index]
             for ball2 in neighbor_cell:
                 calculate_repulsion_force_nonperiodic(
-                    ball, ball2, softcore_ratio, repulsion_factor
+                    ball, ball2, hardcore_ratio, repulsion_factor
                 )
 
 
 
 cdef void calculate_repulsion_force_periodic(
     Ball ball, Ball ball2, int[3] image_size,
-    double softcore_ratio,
+    double hardcore_ratio,
     double repulsion_factor
 ) noexcept:
     """
@@ -266,8 +266,8 @@ cdef void calculate_repulsion_force_periodic(
         dz = displaced - image_size[2]*round(displaced/image_size[2])
         dist = sqrt(dx*dx + dy*dy + dz*dz)
         overlap = ball.radius + ball2.radius
-        overlap_true = (1 - softcore_ratio)*overlap - dist
-        overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
+        overlap_true = hardcore_ratio*overlap - dist
+        overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
             force_strength = TAU * overlap / 2.0
             if dist > 0.0:
@@ -284,7 +284,7 @@ cdef void calculate_repulsion_force_periodic(
 
 cdef void calculate_repulsion_force_nonperiodic(
     Ball ball, Ball ball2,
-    double softcore_ratio,
+    double hardcore_ratio,
     double repulsion_factor
 ) noexcept:
     """
@@ -309,8 +309,8 @@ cdef void calculate_repulsion_force_nonperiodic(
     ):
         dist = cdirection(ball, ball2, &dx, &dy, &dz)
         overlap = ball.radius + ball2.radius
-        overlap_true = (1 - softcore_ratio)*overlap - dist
-        overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist
+        overlap_true = hardcore_ratio*overlap - dist
+        overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
             force_strength = TAU * overlap / 2.0
             ball.force[0] -= force_strength * dx
