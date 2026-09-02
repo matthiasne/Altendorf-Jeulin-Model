@@ -171,7 +171,7 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
 
 
 def is_in_image(
-    pos: np.ndarray, image_size, buffer: int = 100
+    pos, image_size, buffer: int = 100
 ) -> bool:
     """
     calculates whether a coordinate lies within an image/observation window

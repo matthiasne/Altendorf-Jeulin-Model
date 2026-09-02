@@ -341,11 +341,12 @@ def find_next_node(fiber, i_start: int, i_end: int) -> int:
     curvature = 0
     i = i_start
     while i + 2 <= i_end and curvature < 0.2:
+
         _, dir_prev = normalized(
-            fiber.balls[i + 1].coordinate - fiber.balls[i].coordinate
+            np.array(fiber.balls[i + 1].coordinate) - np.array(fiber.balls[i].coordinate)
         )
         _, dir_next = normalized(
-            fiber.balls[i + 2].coordinate - fiber.balls[i + 1].coordinate
+            np.array(fiber.balls[i + 2].coordinate) - np.array(fiber.balls[i + 1].coordinate)
         )
         angle = np.arccos(np.dot(dir_prev, dir_next))
         curvature += angle

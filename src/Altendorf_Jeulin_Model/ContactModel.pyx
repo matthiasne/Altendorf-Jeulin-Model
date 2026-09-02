@@ -13,7 +13,7 @@ np.import_array()
 import numpy as np
 import networkx as nx
 
-def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: float = 0):
+def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: float = 0, boundary_size=0):
     """
     Calculates statistics on the contact between fibers
 
@@ -29,7 +29,7 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
         number of connected components, number of clots (more than two fibers in a contact area),
          number of contact areas, measure of contact surface
     """
-    contact_pairs = find_contact_pairs(fs, image_size, is_periodic= is_periodic, contact_distance=contact_distance)
+    contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size, is_periodic= is_periodic, contact_distance=contact_distance)
     contact_graph = nx.Graph(contact_pairs)
 
     # extend contact pairs by fiber edges to find connected components
@@ -68,7 +68,7 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
             contact_surface += np.sum(sub_fiber_length)
     return n_connected_components, n_clots, n_contact_areas, contact_surface
 
-def find_contact_candidates(fs, image_size, is_periodic:bool = True, interaction_distance: float = 0):
+def find_contact_candidates(fs, image_size, boundary_size = 0, is_periodic:bool = True, interaction_distance: float = 0):
     """
     finds contact candidates and calculates a shortlist
 
@@ -83,7 +83,8 @@ def find_contact_candidates(fs, image_size, is_periodic:bool = True, interaction
         shortlist (see Keilmann et al. (2026) or tbd)
 
     """
-    contact_pairs = find_contact_pairs(fs, image_size, is_periodic=is_periodic, contact_distance=interaction_distance,
+    contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size,
+                                       is_periodic=is_periodic, contact_distance=interaction_distance,
                                        is_weighted=True)
     contact_graph = nx.Graph()
     contact_graph.add_weighted_edges_from(contact_pairs)

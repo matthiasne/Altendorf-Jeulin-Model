@@ -1,4 +1,5 @@
 import numpy as np
+from Altendorf_Jeulin_Model.utils cimport cdistance_ball
 
 
 cdef class Ball:
@@ -70,13 +71,7 @@ class Fiber:
     def get_length(self):
         length = 0
         for i in range(1, len(self.balls)):
-            # if i == 0:
-            #    length += self.balls[0].radius
-            #    length += self.balls[-1].radius
-            # else:
-            coord = self.balls[i].coordinate
-            prev_coord = self.balls[i - 1].coordinate
-            length += np.linalg.norm(coord - prev_coord)
+            length += cdistance_ball(self.balls[i], self.balls[i - 1])
         return length
 
     def get_direction(self):

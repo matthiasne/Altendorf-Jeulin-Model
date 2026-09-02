@@ -79,7 +79,6 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         else:
             distance = calculate_contact_force_nonperiodic(ball, ball2, contact_distance)
         shortlist_distance_sum += distance
-
     total_force_x = 0
     total_force_y = 0
     total_force_z = 0
@@ -308,9 +307,7 @@ cdef void calculate_repulsion_force_nonperiodic(
         ball.fiber_label != ball2.fiber_label
         or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
     ):
-        coord = ball.coordinate
-        coord2 = ball2.coordinate
-        dist = cdirection(ball2, ball, &dx, &dy, &dz)
+        dist = cdirection(ball, ball2, &dx, &dy, &dz)
         overlap = ball.radius + ball2.radius
         overlap_true = (1 - softcore_ratio)*overlap - dist
         overlap = repulsion_factor*(1 - softcore_ratio)*overlap - dist

@@ -25,12 +25,16 @@ def run_force_biased(
     shortlist = [],
     softcore_ratio: float = 0.0,
     contact_distance: float = 1.0,
-    method: str = "AJ++"
+    method: str = "AJ++",
+    boundary_size: int = 0,
 ):
+    boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
+    if not is_periodic:
+        image_size = image_size + 2 * boundary_size_vec
     if method == "AJ":
         run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_file, verbose,
                             is_periodic, softcore_ratio)
-    if method == "Contact++":
+    elif method == "Contact++":
         run_force_biased_Contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, softcore_ratio,
                               contact_distance)
     else:
@@ -156,6 +160,7 @@ def run_force_biased_AJpp(
         rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum))
         print_stats(output_file, rows)
+
 
 
 def run_force_biased_Contactpp(

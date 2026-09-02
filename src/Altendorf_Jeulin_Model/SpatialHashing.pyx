@@ -134,7 +134,8 @@ cdef class SpatialHashing:
             + iy * self.division[0]
             + iz * self.division[0] * self.division[1]
         )
-        self.cells[idx].append(ball)
+        if idx > 0 and idx < self.n_cells:
+            self.cells[idx].append(ball)
 
     cdef void add_fiber(self, object fiber, bint is_periodic):
         """

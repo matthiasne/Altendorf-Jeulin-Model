@@ -10,7 +10,6 @@ from Altendorf_Jeulin_Model.io_utils import (
     print_fiber_positions_to_file,
 )
 from Altendorf_Jeulin_Model.ContactModel import (
-    find_contact_pairs,
     find_contact_areas,
     find_contact_candidates
 )
@@ -18,7 +17,7 @@ from Altendorf_Jeulin_Model.ContactModel import (
 
 def main():
     example_AJ_finite()
-    #example_AJ_endless()
+    example_AJ_endless()
 
 
 def example_AJ_finite():
@@ -50,7 +49,8 @@ def example_AJ_finite():
           " contact surface: ", contact_surface)
     shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.2*R)
     print("shortlist has ", len(shortlist), " elements")
-    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, softcore_ratio=0, contact_distance=0.1*R)
+    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, softcore_ratio=0, contact_distance=0.1*R,
+                     method="Contact++")
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance=0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
@@ -90,21 +90,21 @@ def example_AJ_endless():
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, epsi=0, is_periodic=False)
-    print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
-          " contact surface: ", contact_surface)
 
     # pack the fibers
+    boundary_size = 100
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, verbose=True, softcore_ratio=0.1)
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True, softcore_ratio=0.1, boundary_size=boundary_size)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic = False, epsi=0.5)
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic = False,
+                                                                    contact_distance=0.5, boundary_size=boundary_size)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
-    shortlist = find_contact_candidates(fs, image_size, is_periodic=False, epsi=8.5)
+    shortlist = find_contact_candidates(fs, image_size, is_periodic=False, interaction_distance=8.5,
+                                        boundary_size=boundary_size)
     print("shortlist has ", len(shortlist), " elements")
     run_force_biased(
         fs,
@@ -114,8 +114,11 @@ def example_AJ_endless():
         shortlist=shortlist,
         softcore_ratio=0.1,
         contact_distance=0.5,
+        boundary_size=boundary_size,
+        method="Contact++",
     )
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=False, epsi=0.5)
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=False,
+                                                                    contact_distance=0.5, boundary_size=boundary_size)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
 
