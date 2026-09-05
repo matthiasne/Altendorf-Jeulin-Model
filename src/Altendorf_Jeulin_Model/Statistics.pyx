@@ -6,9 +6,9 @@ cimport numpy as np
 np.import_array()
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
-from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
+from Altendorf_Jeulin_Model.Fiber import Fiber
+from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical
 from Altendorf_Jeulin_Model.utils import (
-    cartesian_to_spherical,
     discretize_spheres_nonperiodic,
     discretize_spheres_periodic,
     normalized,
@@ -98,7 +98,7 @@ def estimate_beta(fs: list[Fiber], beta: float):
     """
     accuracy = beta / 100.0
     beta_0 = beta
-    thetas = [cartesian_to_spherical(*fiber.get_direction())[1] for fiber in fs]
+    thetas = [fiber.get_direction_spherical()[1] for fiber in fs]
 
     beta_last = beta_0 + 2 * accuracy
     beta_next = beta_0
@@ -148,7 +148,7 @@ def h_dif(beta: float, thetas: list):
 
 
 def volume_fraction(
-    fiber_system: list[Fiber], shape: tuple[int, int, int], is_periodic: bool = True
+    fiber_system: list[Fiber], shape, is_periodic: bool = True
 ):
     """
     calculates the volume fraction of the fiber system in an image

@@ -138,7 +138,7 @@ def run_force_biased_AJpp(
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum))
     eps = np.finfo(float).eps
-    end_force_biased = 0.01
+    end_force_biased = 0.01*max_radius
     max_steps = 1000
 
     for i in range(1, max_steps):

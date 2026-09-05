@@ -1,5 +1,5 @@
 import numpy as np
-from Altendorf_Jeulin_Model.utils cimport cdistance_ball
+from Altendorf_Jeulin_Model.utils cimport cdistance_ball, cartesian_to_spherical
 
 
 cdef class Ball:
@@ -87,6 +87,22 @@ class Fiber:
             last_ball.coordinate[1] - first_ball.coordinate[1],
             last_ball.coordinate[2] - first_ball.coordinate[2],
             ], dtype=np.float64)
+
+    def get_direction_spherical(self):
+        """
+        TODO make more efficient
+
+        """
+        cdef Ball first_ball = self.balls[0]
+        cdef Ball last_ball = self.balls[len(self.balls) - 1]
+
+        cdef double r, theta, phi
+        cartesian_to_spherical(last_ball.coordinate[0] - first_ball.coordinate[0],
+                               last_ball.coordinate[1] - first_ball.coordinate[1],
+                               last_ball.coordinate[1] - first_ball.coordinate[1],
+                               &r, &theta, &phi)
+
+        return theta, phi
 
     def add_ball(self, ball: Ball):
         self.balls.append(ball)

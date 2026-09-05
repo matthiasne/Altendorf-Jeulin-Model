@@ -8,7 +8,8 @@ import cython
 
 cimport numpy as np
 np.import_array()
-from libc.math cimport sqrt
+from libc.math cimport sin, cos, sqrt, atan2, acos
+
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 import Altendorf_Jeulin_Model.Fiber as Fiber
@@ -81,7 +82,7 @@ def normalized(v: np.ndarray):
     return v_length, v / v_length
 
 
-def cartesian_to_spherical(x, y, z):
+cdef inline void cartesian_to_spherical(double x, double y, double z, double *r, double *theta, double *phi) noexcept nogil:
     """
     transform cartesian coordinates to spherical coordinates
 
@@ -97,12 +98,18 @@ def cartesian_to_spherical(x, y, z):
     :return: float, float, float
         radius, theta angle, phi angle in radian
     """
-    r = np.sqrt(x**2 + y**2 + z**2)
-    if r == 0:
-        return 0, 0, 0
-    phi = np.arctan2(y, x)
-    theta = np.arccos(np.clip(z / r, -1, 1))  # avoid domain errors
-    return r, theta, phi
+    cdef double val_z_r
+    r[0] = sqrt(x*x + y*y + z*z)
+    if r[0] == 0.0:
+        return
+
+    phi[0] = atan2(y, x)
+    val_z_r = z/r[0]
+    if val_z_r > 1.0:
+        val_z_r = 1.0
+    elif val_z_r < -1.0:
+        val_z_r = -1.0
+    theta[0] = acos(val_z_r)  # avoid domain errors
 
 
 def spherical_to_cartesian(r, theta, phi):
@@ -121,9 +128,9 @@ def spherical_to_cartesian(r, theta, phi):
     :return: float, float, float
         cartesian coordinates
     """
-    x = r * np.sin(theta) * np.cos(phi)
-    y = r * np.sin(theta) * np.sin(phi)
-    z = r * np.cos(theta)
+    x = r * sin(theta) * cos(phi)
+    y = r * sin(theta) * sin(phi)
+    z = r * cos(theta)
     return x, y, z
 
 
@@ -149,8 +156,8 @@ def spherical_to_matrix(theta: float, phi: float):
         ]
     )
 
-
-def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
+cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, double n_z, double alpha,
+        double* rot_x, double* rot_y, double* rot_z) noexcept nogil:
     """
     rotation of a vector mu around normal n and angle alpha
 
@@ -163,11 +170,21 @@ def rot(mu: np.ndarray, n: np.ndarray, alpha: float) -> np.ndarray:
     :return: np.ndarray
         rotated vector
     """
-    return (
-        np.dot(n, mu) * n
-        + np.cos(alpha) * np.cross(np.cross(n, mu), n)
-        + np.sin(alpha) * np.cross(n, mu)
-    )
+    cdef double dot = n_x*mu_x + n_y*mu_y + n_z*mu_z
+    cdef double n_cross_mu_x = n_y*mu_z - n_z*mu_y
+    cdef double n_cross_mu_y = n_z*mu_x - n_x*mu_z
+    cdef double n_cross_mu_z = n_x*mu_y - n_y*mu_x
+
+    cdef double cross2_x = n_cross_mu_y*n_z - n_cross_mu_z*n_y
+    cdef double cross2_y = n_cross_mu_z*n_x - n_cross_mu_x*n_z
+    cdef double cross2_z = n_cross_mu_x*n_y - n_cross_mu_y*n_x
+
+    cdef double cosa = cos(alpha)
+    cdef double sina = sin(alpha)
+
+    rot_x[0] = dot*n_x + cosa*cross2_x + sina*n_cross_mu_x
+    rot_y[0] = dot*n_y + cosa*cross2_y + sina*n_cross_mu_y
+    rot_z[0] = dot*n_z + cosa*cross2_z + sina*n_cross_mu_z
 
 
 def is_in_image(
@@ -243,12 +260,11 @@ def schladitz_distribution(beta: float, rng):
     :return: np.ndarray, float, float
         direction vector, polar coordinates of direction vector
     """
-    U = uniform(loc=0, scale=1)
-    u1 = U.rvs(random_state=rng)
-    u2 = U.rvs(random_state=rng)
+    u1 = rng.random()
+    u2 = rng.random()
     phi0 = np.pi * 2 * u1
     theta0 = np.arccos(
-        (1 - 2 * u2) / np.sqrt(beta**2 - (beta**2 - 1) * (1 - 2 * u2) ** 2)
+        (1 - 2 * u2) / sqrt(beta*beta - (beta*beta - 1) * (1 - 2 * u2) ** 2)
     )
     mu0 = np.array(spherical_to_cartesian(1, theta0, phi0))
     return mu0, theta0, phi0
@@ -292,8 +308,10 @@ def discretize_spheres_periodic(
     coordinates = coordinates - min_coordinates
     image = np.zeros(image_shape, "uint16")
 
-    for iota in range(len(coordinates)):
-        r_square = radii[iota] ** 2
+    N = len(coordinates)
+
+    for iota in range(N):
+        r_square = radii[iota] **2
         for i in range(
             int(coordinates[iota, 0] - radii[iota]) - 1,
             int(coordinates[iota, 0] + radii[iota]) + 1,
@@ -378,7 +396,6 @@ def discretize_spheres_nonperiodic(
                         image[i, j, k] = 1
     return image
 
-@cython.cdivision(True)
 cdef inline double cdistance_ball(Ball a, Ball b) noexcept nogil:
     cdef double dx = b.coordinate[0] - a.coordinate[0]
     cdef double dy = b.coordinate[1] - a.coordinate[1]
@@ -393,6 +410,16 @@ cdef inline double cdistance3(double ax, double ay, double az, double bx, double
     cdef double dz = az - bz
 
     return sqrt(dx * dx + dy * dy + dz * dz)
+
+@cython.cdivision(True)
+cdef inline double cnormalized(double* ax, double* ay, double* az) noexcept nogil:
+    cdef double norm = sqrt (ax[0]*ax[0] + ay[0]*ay[0] + az[0]*az[0])
+    ax[0] = ax[0] / norm
+    ay[0] = ay[0] / norm
+    az[0] = az[0] / norm
+
+    return norm
+
 
 cdef inline double cdirection(Ball a, Ball b, double* dir_x, double* dir_y, double* dir_z) noexcept:
     cdef double dx = b.coordinate[0] - a.coordinate[0]

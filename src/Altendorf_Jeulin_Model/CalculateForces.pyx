@@ -8,7 +8,7 @@ np.import_array()
 
 from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber cimport Ball
-from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
+from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3
 
 MIN_REPULSION_DISTANCE = 5
@@ -19,7 +19,6 @@ ALPHA_E:cython.double = 0.2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
 RHO:cython.double = 0.25
-REPULSION_FACTOR:cython.double = 1.0
 cdef double PI = 3.141592653589793
 
 
