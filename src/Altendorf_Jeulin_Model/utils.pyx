@@ -1,9 +1,8 @@
 import copy
 
+cimport numpy as cnp
 import numpy as np
 from line_profiler import profile
-from scipy.linalg import cholesky
-from scipy.stats import norm, uniform
 import cython
 
 cimport numpy as np
@@ -247,50 +246,10 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     return fs_cut
 
 
-def schladitz_distribution(beta: float, rng):
-    """
-    generate random direction following the Schladitz distribution
 
-    Spherical coordinates theta and phi are used as the geographical
-    coordinates in Fisher et al. (1987).
-
-    :param beta: float
-        beta parameter of the Schladitz distribution
-    :param rng: random state
-    :return: np.ndarray, float, float
-        direction vector, polar coordinates of direction vector
-    """
-    u1 = rng.random()
-    u2 = rng.random()
-    phi0 = np.pi * 2 * u1
-    theta0 = np.arccos(
-        (1 - 2 * u2) / sqrt(beta*beta - (beta*beta - 1) * (1 - 2 * u2) ** 2)
-    )
-    mu0 = np.array(spherical_to_cartesian(1, theta0, phi0))
-    return mu0, theta0, phi0
-
-
-def acg_distribution(param_matrix, rng):
-    """
-    generates a direction following the Angular Central Gaussian (ACG) distribution
-
-    :param param_matrix: np.ndarray
-        parameter matrix of the ACG distribution
-    :param rng: random state
-    :return: np.ndarray
-        direction vector
-    """
-    r = norm.rvs(size=3, random_state=rng)
-    L = cholesky(param_matrix)
-    _, r_acg = normalized(np.dot(L, r))
-    return r_acg
-
-
-def discretize_spheres_periodic(
-    coordinates: np.ndarray,
-    radii: np.ndarray,
-    min_coordinates: np.ndarray,
-    image_shape: np.ndarray,
+cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
+    object fiber_system,
+    int i_x, int i_y, int i_z
 ):
     """
     Discretize spheres to an image with periodic boundary conditions
@@ -305,45 +264,41 @@ def discretize_spheres_periodic(
     :return: np.ndarray
         The image containing spheres
     """
-    coordinates = coordinates - min_coordinates
-    image = np.zeros(image_shape, "uint16")
+    cdef cnp.ndarray[cnp.uint8_t, ndim=3] image = \
+            np.zeros((i_x, i_y, i_z), dtype=np.uint8)
+    cdef object fiber
+    cdef Ball ball
+    cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij, d_k, delta_ijk
+    cdef int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max
 
-    N = len(coordinates)
-
-    for iota in range(N):
-        r_square = radii[iota] **2
-        for i in range(
-            int(coordinates[iota, 0] - radii[iota]) - 1,
-            int(coordinates[iota, 0] + radii[iota]) + 1,
-        ):
-            i_corr = i
-            if i < 0:
-                i_corr = image_shape[0] + i
-            if i >= image_shape[0]:
-                i_corr = i - image_shape[0]
-            delta_i = (i - coordinates[iota, 0]) ** 2
-            for j in range(
-                int(coordinates[iota, 1] - radii[iota]) - 1,
-                int(coordinates[iota, 1] + radii[iota]) + 1,
-            ):
-                j_corr = j
-                if j < 0:
-                    j_corr = image_shape[1] + j
-                if j >= image_shape[1]:
-                    j_corr = j - image_shape[1]
-                delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
-                for k in range(
-                    int(coordinates[iota, 2] - radii[iota]) - 1,
-                    int(coordinates[iota, 2] + radii[iota]) + 1,
-                ):
-                    k_corr = k
-                    if k < 0:
-                        k_corr = image_shape[2] + k
-                    if k >= image_shape[2]:
-                        k_corr = k - image_shape[2]
-                    delta_ijk = delta_ij + (k - coordinates[iota, 2]) ** 2
-                    if delta_ijk <= r_square:
-                        image[i_corr, j_corr, k_corr] = 1
+    for fiber in fiber_system:
+        for ball in fiber.balls:
+            r = ball.radius
+            r_square = r*r
+            c_x = ball.coordinate[0]
+            c_y = ball.coordinate[1]
+            c_z = ball.coordinate[2]
+            i_min = int(c_x - r) - 1
+            i_max = int(c_x + r) + 1
+            j_min = int(c_y - r) - 1
+            j_max = int(c_y + r) + 1
+            k_min = int(c_z - r) - 1
+            k_max = int(c_z + r) + 1
+            for i in range(i_min, i_max):
+                i_corr = i % i_x
+                d_i = i - c_x
+                delta_i = d_i*d_i
+                for j in range(j_min, j_max):
+                    j_corr = j % i_y
+                    d_j = j - c_y
+                    delta_ij = delta_i + d_j*d_j
+                    if delta_ij > r_square:
+                        continue
+                    for k in range(k_min, k_max):
+                        d_z = k - c_z
+                        if delta_ij + d_z*d_z <= r_square:
+                            k_corr = k % i_z
+                            image[i_corr, j_corr, k_corr] = 1
     return image
 
 

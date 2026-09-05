@@ -3,7 +3,6 @@ import cython
 from math import ceil, floor
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
-from Altendorf_Jeulin_Model.Fiber import Fiber
 
 
 cdef class SpatialHashing:

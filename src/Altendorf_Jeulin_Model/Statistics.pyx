@@ -7,10 +7,9 @@ np.import_array()
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical
+from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, discretize_spheres_periodic
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
-    discretize_spheres_periodic,
     normalized,
 )
 
@@ -150,6 +149,8 @@ def h_dif(beta: float, thetas: list):
 def volume_fraction(
     fiber_system: list[Fiber], shape, is_periodic: bool = True
 ):
+    image = discretize_spheres_periodic(fiber_system, shape[0], shape[1], shape[2])
+    return image.mean()
     """
     calculates the volume fraction of the fiber system in an image
 
@@ -162,7 +163,7 @@ def volume_fraction(
     :return: float
         the volume fraction of the fiber system
     """
-    coords = []
+    """coords = []
     radii = []
     for fiber in fiber_system:
         for ball in fiber.balls:
@@ -182,7 +183,7 @@ def volume_fraction(
         image = discretize_spheres_nonperiodic(
             coords, radii, min_coordinates, max_coordinates
         )
-    return np.mean(image)
+    return np.mean(image)"""
 
 
 def estimate_kappa1(fs: list[Fiber]):

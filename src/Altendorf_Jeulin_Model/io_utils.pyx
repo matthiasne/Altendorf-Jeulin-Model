@@ -1,12 +1,13 @@
 import csv
+import cython
 from pathlib import Path
 
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 import numpy as np
 import tifffile
+from Altendorf_Jeulin_Model.utils cimport discretize_spheres_periodic
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
-    discretize_spheres_periodic,
     normalized,
 )
 
@@ -93,7 +94,7 @@ def save_fibers_as_tif(
     image_shape = np.array([d / scale for d in domain], dtype=int)
 
     if is_periodic:
-        image = discretize_spheres_periodic(coords, radii, min_coordinates, image_shape)
+        image = discretize_spheres_periodic(fiber_system, image_shape[0], image_shape[1], image_shape[2])
     else:
         image = discretize_spheres_nonperiodic(
             coords, radii, min_coordinates, image_shape

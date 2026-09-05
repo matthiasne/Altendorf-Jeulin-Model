@@ -1,8 +1,10 @@
 import time
+import scipy
 
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 from Altendorf_Jeulin_Model.utils import cut_border
+from Altendorf_Jeulin_Model.rv_utils import schladitz_distribution
 
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
@@ -13,10 +15,12 @@ from Altendorf_Jeulin_Model.ContactModel import (
     find_contact_areas,
     find_contact_candidates
 )
+from Altendorf_Jeulin_Model.Statistics import volume_fraction
 
 
 def main():
-    main_example()
+    #main_example()
+    example_AJ_finite()
 
 def main_example():
     print("This is the most basic example to generate finite fibers allowing intersection.\n"
@@ -27,7 +31,7 @@ def main_example():
     R = 5
     beta = 3.0
     fs = fm.initialize_fiber_system(
-        intensity, L, R, beta, image_size, 10, 100
+        intensity, L, R, beta, image_size, 10, 100, seed = 42
     )
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model_intersect.tif", is_periodic=True
@@ -96,26 +100,33 @@ def main_example():
           "or different fiber models. We also offer an endless fiber model and a Poisson line process. Please\n"
           "don't hesitate to reach out to us if you miss any functionality.")
 
+def direction_distribution(rng):
+    beta = 3.0
+    return schladitz_distribution(beta, rng)
 
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
-    image_size = np.array([150, 150, 150])
-    intensity = 90
-    L = 80
-    R = 4
-    beta = 3.0
+    image_size = np.array([384, 384, 384])
+    N = 6000
+    L = 200
+    R = 2
 
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system(
-        intensity, L, R, beta, image_size, 100, 100, is_poisson=False, seed=42
+        N, L, R, direction_distribution, image_size, 100, 100, seed=42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
+    start_time = time.time()
+    vf = volume_fraction(fs, image_size, True)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"volume fraction from image {vf:.3f} - elapsed time: {elapsed_time:.6f} seconds")
 
     # pack the fibers
-    start_time = time.time()
+    """start_time = time.time()
     run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0)
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -131,7 +142,7 @@ def example_AJ_finite():
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance=0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
-
+    """
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )

@@ -1,13 +1,13 @@
 import numpy as np
 import cython
-from numpy.ma.core import arccos, cos, sin
+from numbers import Real
+from libc.math cimport sin, cos, sqrt, atan2, acos
 
 cimport numpy as np
 np.import_array()
 from numpy.random import default_rng
 from scipy.stats import poisson, uniform
-from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher
-from Altendorf_Jeulin_Model.Statistics import volume_fraction
+from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher, acg_distribution, schladitz_distribution
 cdef double PI = 3.141592653589793
 
 
@@ -15,10 +15,8 @@ from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized
 
 from Altendorf_Jeulin_Model.utils import (
-    acg_distribution,
     is_in_image,
     normalized,
-    schladitz_distribution,
     spherical_to_matrix,
 )
 
@@ -33,17 +31,14 @@ class FiberModel:
 
 
 def initialize_fiber_system(
-    intensity: float|int,
+    intensity,
     L,
     R,
-    beta: float|int,
+    direction_distribution,
     image_size,
     kappa1: float|int,
     kappa2: float|int,
     seed: int = None,
-    has_beta: bool = True,
-    is_poisson: bool = True,
-    volume_fraction_should: float|int = 1.0,
 ):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
@@ -78,10 +73,8 @@ def initialize_fiber_system(
     cdef double mu_bar_x, mu_bar_y, mu_bar_z, n_axis_x, n_axis_y, n_axis_z
     cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z
     rng = default_rng(seed)
-    if is_poisson:
-        N = poisson(intensity).rvs(random_state=rng)
-    else:
-        N = intensity
+    N = set_value(intensity, rng)
+
 
     #TODO (5) utilize ball as class/struct
     fiber_system = []
@@ -91,13 +84,7 @@ def initialize_fiber_system(
         r_fiber = set_value(R, rng)
         l_fiber_discrete = int(2 * ((l_fiber-2*r_fiber )/ r_fiber))
         # 2. Simulate the mean orientation
-        if has_beta:
-            mu0, theta0, phi0 = schladitz_distribution(beta, rng)
-        else:
-            mu0 = acg_distribution(beta, rng)
-        mu0_x = mu0[0]
-        mu0_y = mu0[1]
-        mu0_z = mu0[2]
+        mu0_x, mu0_y, mu0_z = direction_distribution(rng)
 
         # 3. Simulating a random walk for the fiber system
         coord = np.zeros((l_fiber_discrete, 3))
@@ -129,7 +116,7 @@ def initialize_fiber_system(
         n_axis_y = mu0_z*mu_bar_x - mu0_x*mu_bar_z
         n_axis_z = mu0_x*mu_bar_y - mu0_y*mu_bar_x
         cnormalized(&n_axis_x, &n_axis_y, &n_axis_z)
-        alpha = 2*PI - arccos(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z)
+        alpha = 2*PI - acos(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z)
 
         if alpha > 0:
             cos_alpha = cos(alpha)
@@ -142,26 +129,8 @@ def initialize_fiber_system(
                 coord[j, 1] = coord[0, 1] + rot_y
                 coord[j, 2] = coord[0, 2] + rot_z
 
-        #save_balls_in_fiber_system(fiber_system, coord, i, r_fiber)
-        fiber_system.append(Fiber(Ball(coord[0], r_fiber, i, 0)))
-        for j in range(1, l_fiber_discrete):
-            angle = PI
-            if j < l_fiber_discrete - 1:
-                dir_prev_x = coord[j, 0] - coord[j-1, 0]
-                dir_prev_y = coord[j, 1] - coord[j-1, 1]
-                dir_prev_z = coord[j, 2] - coord[j-1, 2]
-                cnormalized(&dir_prev_x, &dir_prev_y, &dir_prev_z)
-                dir_next_x = coord[j+1, 0] - coord[j, 0]
-                dir_next_y = coord[j+1, 1] - coord[j, 1]
-                dir_next_z = coord[j+1, 2] - coord[j, 2]
-                cnormalized(&dir_next_x, &dir_next_y, &dir_next_z)
-                angle = PI - arccos(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z)
-            fiber_system[i].add_ball(Ball(coord[j], r_fiber, i, j, angle))
+        save_balls_in_fiber_system(fiber_system, coord, i, r_fiber)
 
-        #TODO!!!
-        #volume_fraction_is = volume_fraction(fiber_system, image_size, True)
-        #if volume_fraction_is > volume_fraction_should:
-        #    break
     return fiber_system
 
 """
@@ -293,20 +262,15 @@ def set_value(input_value, rng):
     :param rng: random number Generator providing the random state
     :return: float
         value that the variable should be set to
-    TODO optimize
     """
-    if isinstance(input_value, float) or isinstance(input_value, int):
-        # L is a constant number
-        result = input_value
-    elif hasattr(input_value, "rvs"):
-        # L is a Poisson generator (or any similar object with an rvs method)
-        result = input_value.rvs(random_state=rng)
-    else:
-        raise ValueError(
-            "Input must be a float/int or a distribution object with an 'rvs' method."
-        )
-
-    return result
+    if isinstance(input_value, Real):
+        return input_value
+    rvs = getattr(input_value, "rvs", None)
+    if callable(rvs):
+        return rvs(random_state=rng)
+    raise ValueError(
+        "Input must be a float/int or a distribution object with an 'rvs' method."
+    )
 
 
 def save_balls_in_fiber_system(
@@ -323,14 +287,21 @@ def save_balls_in_fiber_system(
     :param r_fiber: float
         fiber radius
     """
-    l_fiber_discrete = len(coords)
+    cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z, angle
+    cdef int l_fiber_discrete = len(coords)
     fiber_system.append(Fiber(Ball(coords[0], r_fiber, i, 0)))
     for j in range(1, l_fiber_discrete):
         angle = PI
         if j < l_fiber_discrete - 1:
-            _, dir_prev = normalized(coords[j] - coords[j - 1])
-            _, dir_next = normalized(coords[j + 1] - coords[j])
-            angle = PI - np.arccos(np.dot(dir_prev, dir_next))
+            dir_prev_x = coords[j, 0] - coords[j-1, 0]
+            dir_prev_y = coords[j, 1] - coords[j-1, 1]
+            dir_prev_z = coords[j, 2] - coords[j-1, 2]
+            cnormalized(&dir_prev_x, &dir_prev_y, &dir_prev_z)
+            dir_next_x = coords[j+1, 0] - coords[j, 0]
+            dir_next_y = coords[j+1, 1] - coords[j, 1]
+            dir_next_z = coords[j+1, 2] - coords[j, 2]
+            cnormalized(&dir_next_x, &dir_next_y, &dir_next_z)
+            angle = PI - acos(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z)
         fiber_system[i].add_ball(Ball(coords[j], r_fiber, i, j, angle))
 
 
