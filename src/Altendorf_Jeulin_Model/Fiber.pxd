@@ -29,4 +29,5 @@ cdef class Ball:
     cdef public double angle
     cdef public double neighbor_dist
     cdef public double angle_diff
+    cdef public double optim_sum
 

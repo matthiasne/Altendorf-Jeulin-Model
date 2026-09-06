@@ -1,6 +1,5 @@
 import time
 import scipy
-
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 from Altendorf_Jeulin_Model.utils import cut_border
@@ -107,32 +106,33 @@ def direction_distribution(rng):
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = np.array([384, 384, 384])
-    N = 6000
+    N = 2000
     L = 200
     R = 2
 
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system(
-        N, L, R, direction_distribution, image_size, 100, 100, seed=42
+        N, L, R, direction_distribution, image_size, 10, 100, seed=42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
-    start_time = time.time()
     vf = volume_fraction(fs, image_size, True)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"volume fraction from image {vf:.3f} - elapsed time: {elapsed_time:.6f} seconds")
+    print(f"volume fraction {vf:.3f}")
 
     # pack the fibers
-    """start_time = time.time()
-    run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0)
+    start_time = time.time()
+    run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 25)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+    vf = volume_fraction(fs, image_size, True)
+    print(f"volume fraction {vf:.3f}")
+    # TODO contact model fixen: anderer abbruch, und repulsion_factor ist falsch gesetzt
+    # TODO contact model speed up
 
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance= 0.1*R)
+    """n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance= 0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
     shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.2*R)
@@ -141,8 +141,8 @@ def example_AJ_finite():
                      method="Contact++")
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance=0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
-          " contact surface: ", contact_surface)
-    """
+          " contact surface: ", contact_surface)"""
+
     io.save_fibers_as_tif(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )

@@ -40,7 +40,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     cdef int n, ix, iy, iz
     cdef double distance, shortlist_distance_sum
     cdef total_force_x, total_force_y, total_force_z, total_force_norm, force_norm, max_force_norm
-    cdef double total_overlap, total_neighbor_dist, total_angle_diff
+    cdef double total_overlap, total_neighbor_dist, total_angle_diff, optim_sum
     cdef int[3] image_size = grid.image_size
     for cell in grid.cells:
         n = len(cell)
@@ -85,6 +85,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
     total_neighbor_dist = 0
     total_angle_diff = 0
     max_force_norm = 0
+    optim_sum = 0
     for fiber in fiber_system:
         for ball in fiber.balls:
             force_norm = sqrt(ball.force[0]*ball.force[0] + ball.force[1]*ball.force[1] + ball.force[2]*ball.force[2])
@@ -96,6 +97,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             total_overlap = max(total_overlap, ball.overlap)
             total_neighbor_dist = max(total_neighbor_dist, ball.neighbor_dist)
             total_angle_diff = max(total_angle_diff, abs(ball.angle_diff))
+            optim_sum += ball.optim_sum
     total_force_norm = sqrt(total_force_x*total_force_x + total_force_y*total_force_y + total_force_z*total_force_z)
     return (
         total_force_norm,
@@ -103,7 +105,8 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
         total_overlap,
         total_neighbor_dist,
         total_angle_diff,
-        shortlist_distance_sum
+        shortlist_distance_sum,
+        optim_sum
     )
 
 
@@ -268,17 +271,19 @@ cdef void calculate_repulsion_force_periodic(
         overlap_true = hardcore_ratio*overlap - dist
         overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
-            force_strength = TAU * overlap / 2.0
+            force_strength = TAU*overlap / 2.0
             if dist > 0.0:
                 force_strength /= dist
             ball.force[0] -= force_strength * dx
             ball.force[1] -= force_strength * dy
             ball.force[2] -= force_strength * dz
             ball.overlap = max(ball.overlap, overlap_true)
+            ball.optim_sum += force_strength
             ball2.force[0] += force_strength * dx
             ball2.force[1] += force_strength * dy
             ball2.force[2] += force_strength * dz
             ball2.overlap = max(ball2.overlap, overlap_true)
+            ball2.optim_sum += force_strength
 
 
 cdef void calculate_repulsion_force_nonperiodic(
@@ -348,7 +353,8 @@ cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
     ball1.force[0] += dx*s_f
     ball1.force[1] += dy*s_f
     ball1.force[2] += dz*s_f
-    ball1.neighbor_dist = max(ball1.neighbor_dist, dist_is)
+    ball1.neighbor_dist = dist_is#max(ball1.neighbor_dist, dist_is)
+    ball1.optim_sum += s_f
 
 
 cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexcept:
@@ -407,6 +413,7 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     ball.force[1] += (my-coord[1])*f
     ball.force[2] += (mz-coord[2])*f
     ball.angle_diff = alpha0 - alpha
+    ball.optim_sum += f
 
 
 cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
@@ -480,9 +487,11 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
         ball.force[0] += force_strength * dx
         ball.force[1] += force_strength * dy
         ball.force[2] += force_strength * dz
+        ball.optim_sum += force_strength
         ball2.force[0] -= force_strength * dx
         ball2.force[1] -= force_strength * dy
         ball2.force[2] -= force_strength * dz
+        ball2.optim_sum += force_strength
 
         return max(0, displace - contact_distance)
     return 0
@@ -551,3 +560,4 @@ def apply_forces(fiber_system: list[Fiber]):
             ball.overlap = 0
             ball.neighbor_dist = ball.radius / 2.0
             ball.angle_diff = 0
+            ball.optim_sum = 0

@@ -50,20 +50,15 @@ def initialize_fiber_system(
         length of the fiber
     :param R: float or random variable
         radius of the fiber
-    :param beta: float
-        direction parameter for the Schladitz distribution
-    :param image_size: tuple[int, int, int]
+    :param direction_distribution: function
+        a direction distribution that takes rng as input and returns the direction vector
+    :param image_size:
     :param kappa1: float
         curvature parameter for the random walk
     :param kappa2: float
         curvature parameter for the random walk
     :param seed: int, default 42
         seed for the random variables
-    :param is_poisson: bool, default True
-        whether to sample the number of fibers from a Poisson distribution (Poisson line process)
-    :param volume_fraction_should: float, default 1.0
-        volume fraction that should not be exceeded. When it is set to 1.0, the volume fraction is not tested.
-        In general, the number of fibers will not be exceeded.
     :return: list[Fiber]
         the generated fiber system
     """
@@ -75,11 +70,9 @@ def initialize_fiber_system(
     rng = default_rng(seed)
     N = set_value(intensity, rng)
 
-
-    #TODO (5) utilize ball as class/struct
     fiber_system = []
     for i in range(0, N):
-        # 1. Simulate the length of the ith Fiber and its radius (for now only constant) TODO (4)
+        # 1. Simulate the length of the ith Fiber and its radius
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
         l_fiber_discrete = int(2 * ((l_fiber-2*r_fiber )/ r_fiber))

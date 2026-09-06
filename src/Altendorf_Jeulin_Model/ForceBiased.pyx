@@ -27,18 +27,25 @@ def run_force_biased(
     contact_distance: float = 1.0,
     method: str = "AJ++",
     boundary_size: int = 0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
+    stop_criterion: Callable[[float], bool] = default_stop_criterion,
 ):
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
     if method == "AJ":
         run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_file, verbose,
-                            is_periodic, hardcore_ratio)
+                            is_periodic, hardcore_ratio, output_step_size, max_steps)
+    elif method == "AJ++":
+        run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+                              output_step_size=output_step_size, max_steps=max_steps)
     elif method == "Contact++":
         run_force_biased_Contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, hardcore_ratio,
-                              contact_distance)
+                              contact_distance, output_step_size, max_steps)
     else:
-        run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio)
+        run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+                              output_step_size=output_step_size, max_steps=max_steps)
 
 def run_force_biased_AJ(
     fs: list[Fiber],
@@ -49,6 +56,8 @@ def run_force_biased_AJ(
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -70,14 +79,14 @@ def run_force_biased_AJ(
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
+    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances, optim_sum\
+        = calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio, repulsion_factor=1
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, overlap, neighbor_dist, contact_distances))
     print("We run the force-biased algorithm:")
     end_force_biased = 0.002 * max(image_size) * len(fs)
-    max_steps = 1000
 
     for i in range(1, max_steps):
         if total_force_strength < end_force_biased and overlap < 0.1 * min_radius:
@@ -90,7 +99,7 @@ def run_force_biased_AJ(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
             repulsion_factor=1
         )
-        if verbose and i % 100 == 0:
+        if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, overlap, neighbor_dist, contact_distances))
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, 0.1 * min_radius)
@@ -109,6 +118,8 @@ def run_force_biased_AJpp(
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -131,34 +142,98 @@ def run_force_biased_AJpp(
 
     grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
-    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = calculate_forces(
+    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
+        calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum))
+                                    shortlist_distance_sum, optim_sum))
     eps = np.finfo(float).eps
-    end_force_biased = 0.01*max_radius
-    max_steps = 1000
+    end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
         if max_force_strength < end_force_biased and overlap < eps:
             break
-
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum = calculate_forces(
+        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
+            = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
         )
-        if verbose and i % 100 == 0:
+        if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum))
+                                        shortlist_distance_sum, optim_sum))
 
     if verbose:
         rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum))
+                                    shortlist_distance_sum, optim_sum))
         print_stats(output_file, rows)
+
+def run_force_biased_general(
+    fs: list[Fiber],
+    image_size,
+    stop_criterion: Callable[[float], bool],
+    output_file: str = "results.csv",
+    verbose: bool = True,
+    is_periodic: bool = True,
+    hardcore_ratio: float = 1.0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
+):
+    """
+    Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
+
+    :param fs: list[Fiber]
+        the fiber system to be packed
+    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
+    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
+    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
+    :param output_file: str                     file path to store packing step statistics
+    :param verbose: bool                        true: output information on packing statistics
+    :param is_periodic: bool                    uses periodic boundary conditions
+    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
+                                                distribution, otherwise the ACG distribution with parameter matrix is used
+    :param beta: float                          parameter of direction distribution
+    """
+    rows = []
+
+    max_radius = max(fiber.get_max_radius() for fiber in fs)
+
+    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid.add_fiber_system(fs, is_periodic=is_periodic)
+    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
+        calculate_forces(
+        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+    )
+    if verbose:
+        rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum))
+    eps = np.finfo(float).eps
+    end_force_biased = 0.1*max_radius
+
+    for i in range(1, max_steps):
+        if not stop_criterion(overlap, eps, total_force_strength, max_force_strength, shortlist_distance_sum,
+                              end_force_biased):
+            break
+        apply_forces(fs)
+        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid.add_fiber_system(fs, is_periodic)
+        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
+            = calculate_forces(
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
+        )
+        if verbose and i % output_step_size == 0:
+            rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
+                                        shortlist_distance_sum, optim_sum))
+
+    if verbose:
+        rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum))
+        print_stats(output_file, rows)
+
+
 
 
 
@@ -171,6 +246,8 @@ def run_force_biased_Contactpp(
     shortlist = [],
     hardcore_ratio: float = 1.0,
     contact_distance: float = 1.0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -204,7 +281,6 @@ def run_force_biased_Contactpp(
     print("We run the force-biased algorithm:")
     #eps = np.finfo(float).eps
     #end_force_biased = 0.01 * len([fiber.get_number_of_balls() for fiber in fs])
-    max_steps = 150
 
     for i in range(1, max_steps):
         #if force_strength < end_force_biased and overlap < eps and shortlist_distance_sum < eps:
@@ -233,7 +309,7 @@ def run_force_biased_Contactpp(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
             shortlist=shortlist, contact_distance=contact_distance
         ))
-        if verbose and i % 100 == 0:
+        if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                         shortlist_distance_sum))
 
@@ -288,3 +364,11 @@ def end_step_repulsion(
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs)
+
+cdef inline bint default_stop_criterion(double overlap, double eps,
+                                double total_force_strength,
+                                double max_force_strength, double contact_distances,
+                                double end_force_biased):
+    if max_force_strength < end_force_biased and overlap < eps:
+        return True
+    return False
