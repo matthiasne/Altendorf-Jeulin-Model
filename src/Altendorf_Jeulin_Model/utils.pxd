@@ -16,4 +16,4 @@ cpdef cnp.ndarray discretize_spheres_periodic(
     object fiber_system,
     int i_x, int i_y, int i_z
 )
-
+cdef double clip(double val) noexcept nogil

@@ -390,3 +390,10 @@ cdef inline double cdirection(Ball a, Ball b, double* dir_x, double* dir_y, doub
     dir_y[0] = dy/dist
     dir_z[0] = dz/dist
     return dist
+
+cdef inline double clip(double val) noexcept nogil:
+    if val > 1:
+        val = 1
+    if val < -1:
+        val = -1
+    return val

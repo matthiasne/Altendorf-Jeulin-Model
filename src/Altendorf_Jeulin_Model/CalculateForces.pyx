@@ -9,13 +9,13 @@ np.import_array()
 from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3
+from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3, clip
 
 MIN_REPULSION_DISTANCE = 5
-X_S:cython.double = 0.05
-X_E:cython.double = 0.1
-ALPHA_S:cython.double = 0.1 * np.pi / 180
-ALPHA_E:cython.double = 0.2 * np.pi / 180
+X_S:cython.double = 0.25
+X_E:cython.double = 0.5
+ALPHA_S:cython.double = 1 * np.pi / 180
+ALPHA_E:cython.double = 2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
 RHO:cython.double = 0.25
@@ -23,7 +23,8 @@ cdef double PI = 3.141592653589793
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
-                     shortlist = [], hardcore_ratio: float = 1.0, contact_distance = 1):
+                     shortlist = [], hardcore_ratio: float = 1.0, contact_distance = 1,
+                     repulsion_factor = 1.1):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -53,7 +54,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                 ball = cell[i]
                 calculate_repulsion_forces(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
-                    hardcore_ratio=hardcore_ratio
+                    hardcore_ratio=hardcore_ratio, repulsion_factor=repulsion_factor
                 )
     for fiber in fiber_system:
         balls = fiber.balls
@@ -388,8 +389,9 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     mx = coord_prev[0] + d*ax
     my = coord_prev[1] + d*ay
     mz = coord_prev[2] + d*az
-    alpha = PI - acos(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z) #TODO np
-
+    alpha = PI - acos(clip(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z))
+    if abs(alpha - alpha0) < 1e-6:
+        return
     # z, z0: calculate distances of ball.coordinate to m
     h1 = abs(d)
     h2  = cdistance3(mx, my, mz, coord_next[0], coord_next[1], coord_next[2])
@@ -406,7 +408,6 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
         z0 = (
             h1 + h2 + sqrt((h1 + h2)*(h1 + h2) + 4 * h1 * h2 * tan_alpha0*tan_alpha0)
         ) / (2 * tan_alpha0)
-
     # calculate force
     f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
     ball.force[0] += (mx-coord[0])*f
@@ -460,7 +461,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
     """
-    cdef double dist, displaced, dist_perfect, displace, force_strength
+    cdef double dist, displaced, dist_perfect, displace, true_displace, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
     coordx = ball.coordinate[0]
     coordy = ball.coordinate[1]
@@ -478,10 +479,11 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
     dz = displaced - image_size[2]*round(displaced/image_size[2])
     dist = sqrt(dx*dx + dy*dy + dz*dz)
     dist_perfect = ball.radius + ball2.radius
+    true_displace = dist - dist_perfect - contact_distance
     displace = dist - dist_perfect
 
     if displace > 0:
-        force_strength = displace / 2.0*repulsion_factor
+        force_strength = displace / 2.0*RHO*smoothing_factor(displace/dist, contact_distance/2., contact_distance)
         if dist > 0.0:
             force_strength /= dist
         ball.force[0] += force_strength * dx
@@ -493,7 +495,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
         ball2.force[2] -= force_strength * dz
         ball2.optim_sum += force_strength
 
-        return max(0, displace - contact_distance)
+        return max(0, true_displace)
     return 0
 
 

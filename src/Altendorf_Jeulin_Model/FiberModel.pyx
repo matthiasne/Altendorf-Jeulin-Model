@@ -6,18 +6,15 @@ from libc.math cimport sin, cos, sqrt, atan2, acos
 cimport numpy as np
 np.import_array()
 from numpy.random import default_rng
-from scipy.stats import poisson, uniform
 from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher, acg_distribution, schladitz_distribution
 cdef double PI = 3.141592653589793
 
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized
+from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip
 
 from Altendorf_Jeulin_Model.utils import (
     is_in_image,
-    normalized,
-    spherical_to_matrix,
 )
 
 
@@ -29,8 +26,74 @@ class FiberModel:
         ):
             raise TypeError("Initial_fiber_system must be a list of fibers")
 
-
 def initialize_fiber_system(
+    intensity,
+    L,
+    R,
+    direction_distribution,
+    image_size,
+    seed: int = None,
+):
+    """
+    initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
+    Altendorf&Jeulin (2011), further systems tbd
+
+    :param intensity: float
+        expected number of fibers
+    :param L: float or random variable
+        length of the fiber
+    :param R: float or random variable
+        radius of the fiber
+    :param direction_distribution: function
+        a direction distribution that takes rng as input and returns the direction vector
+    :param image_size:
+    :param kappa1: float
+        curvature parameter for the random walk
+    :param kappa2: float
+        curvature parameter for the random walk
+    :param seed: int, default 42
+        seed for the random variables
+    :return: list[Fiber]
+        the generated fiber system
+    """
+    cdef double r, theta, phi
+    cdef double mu0_x, mu0_y, mu0_z, rot_x, rot_y, rot_z
+    cdef double mu_old_x, mu_old_y, mu_old_z, mu_new_x, mu_new_y, mu_new_z
+    cdef double mu_bar_x, mu_bar_y, mu_bar_z, n_axis_x, n_axis_y, n_axis_z
+    cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z
+    rng = default_rng(seed)
+    N = set_value(intensity, rng)
+
+    fiber_system = []
+    for i in range(0, N):
+        # 1. Simulate the length of the ith Fiber and its radius
+        l_fiber = set_value(L, rng)
+        r_fiber = set_value(R, rng)
+        l_fiber_discrete = int(2 * ((l_fiber-2*r_fiber )/ r_fiber))
+        # 2. Simulate the mean orientation
+        mu0_x, mu0_y, mu0_z = direction_distribution(rng)
+
+        # 3. Simulating a random walk for the fiber system
+        coord = np.zeros((l_fiber_discrete, 3))
+        coord[0, 0] = image_size[0] * rng.random()
+        coord[0, 1] = image_size[1] * rng.random()
+        coord[0, 2] = image_size[2] * rng.random()
+
+        cnt = 1
+        mu_old_x = mu0_x
+        mu_old_y = mu0_y
+        mu_old_z = mu0_z
+        while cnt < l_fiber_discrete:
+            coord[cnt, 0] = coord[cnt - 1, 0] + r_fiber/2 * mu_old_x
+            coord[cnt, 1] = coord[cnt - 1, 1] + r_fiber/2 * mu_old_y
+            coord[cnt, 2] = coord[cnt - 1, 2] + r_fiber/2 * mu_old_z
+            cnt = cnt + 1
+
+        save_balls_in_fiber_system(fiber_system, coord, i, r_fiber)
+
+    return fiber_system
+
+def initialize_fiber_system_AJ(
     intensity,
     L,
     R,
@@ -109,7 +172,7 @@ def initialize_fiber_system(
         n_axis_y = mu0_z*mu_bar_x - mu0_x*mu_bar_z
         n_axis_z = mu0_x*mu_bar_y - mu0_y*mu_bar_x
         cnormalized(&n_axis_x, &n_axis_y, &n_axis_z)
-        alpha = 2*PI - acos(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z)
+        alpha = 2*PI - acos(clip(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z))
 
         if alpha > 0:
             cos_alpha = cos(alpha)
@@ -294,7 +357,7 @@ def save_balls_in_fiber_system(
             dir_next_y = coords[j+1, 1] - coords[j, 1]
             dir_next_z = coords[j+1, 2] - coords[j, 2]
             cnormalized(&dir_next_x, &dir_next_y, &dir_next_z)
-            angle = PI - acos(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z)
+            angle = PI - acos(clip(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z))
         fiber_system[i].add_ball(Ball(coords[j], r_fiber, i, j, angle))
 
 

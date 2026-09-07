@@ -7,7 +7,7 @@ np.import_array()
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, discretize_spheres_periodic
+from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, discretize_spheres_periodic, clip
 from Altendorf_Jeulin_Model.utils import (
     discretize_spheres_nonperiodic,
     normalized,
@@ -72,7 +72,7 @@ def mean_angle_error(fs: list[Fiber]):
                 ball_next.coordinate[2] - ball.coordinate[2],
                 ], dtype=np.float64)
             _, dir_next = normalized(dir_next)
-            alpha = np.pi - np.arccos(np.dot(dir_prev, dir_next))
+            alpha = np.pi - np.arccos(clip(np.dot(dir_prev, dir_next)))
 
             alpha0 = ball.angle
             angles.append(abs(alpha - alpha0))
