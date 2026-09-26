@@ -1,6 +1,8 @@
 import numpy as np
 import cython
 from numbers import Real
+
+from Altendorf_Jeulin_Model.Statistics import volume_fraction
 from libc.math cimport sin, cos, sqrt, atan2, acos
 
 cimport numpy as np
@@ -12,9 +14,13 @@ cdef double PI = 3.141592653589793
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip
+from Altendorf_Jeulin_Model.utils import spherical_to_cartesian
+from Altendorf_Jeulin_Model.Statistics import volume_fraction
+
 
 from Altendorf_Jeulin_Model.utils import (
     is_in_image,
+    spherical_to_matrix,
 )
 
 
@@ -189,7 +195,7 @@ def initialize_fiber_system_AJ(
 
     return fiber_system
 
-"""
+
 def initialize_fiber_system_endless(
     mu: float|int,
     R,
@@ -200,11 +206,8 @@ def initialize_fiber_system_endless(
     kappa2: float|int,
     seed: int = None,
     has_beta: bool = True,
-    is_poisson: bool = True,
-    volume_fraction_should: float|int = 1.0,
-):"""
-
-"""
+):
+    """
     initializes a fiber system of endless fibers, where fibers still overlap.
     This method follows the initial fiber system by Prakash Easwaran
 
@@ -233,11 +236,8 @@ def initialize_fiber_system_endless(
         the generated fiber system
     
 """
-"""rng = default_rng(seed)
-    if is_poisson:
-        n = poisson(mu).rvs(random_state=rng)
-    else:
-        n = mu
+    rng = default_rng(seed)
+    n = int(set_value(mu, rng))
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     ext_image_size = image_size + 2 * boundary_size_vec
     print("image size ", ext_image_size)
@@ -280,19 +280,9 @@ def initialize_fiber_system_endless(
                 continue
             else:
                 n_lines += 1
-                save_balls_in_fiber_system(fiber_system, coords, n_lines - 1, r_fiber)
-        # test for volume fraction starting late and only every tenth trial to save time
-        if volume_fraction_should != 1 and i > 3 / 4 * n and i % 10 == 0:
-            volume_fraction_is = (
-                len(fiber_system) * mean_length(fiber_system) * R**2 * np.pi
-            )
-            volume_fraction_is /= (
-                ext_image_size[0] * ext_image_size[1] * ext_image_size[2]
-            )
-            if volume_fraction_is > volume_fraction_should:
-                break
+                save_balls_in_fiber_system_endless(fiber_system, coords, n_lines - 1, r_fiber)
     return fiber_system
-"""
+
 
 cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, double n_z,
         double cos_alpha, double sin_alpha, double* cross_x, double* cross_y, double* cross_z) noexcept:
@@ -360,11 +350,42 @@ def save_balls_in_fiber_system(
             angle = PI - acos(clip(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z))
         fiber_system[i].add_ball(Ball(coords[j], r_fiber, i, j, angle))
 
+def save_balls_in_fiber_system_endless(
+    fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
+):
+    """
+    saves balls in fiber system
+
+    :param fiber_system: list[Fiber]
+    :param coords: list[np.ndarray]
+        coordinates of balls
+    :param i: int
+        fiber index within the fiber system
+    :param r_fiber: float
+        fiber radius
+    """
+    cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z, angle
+    cdef int l_fiber_discrete = len(coords)
+    fiber_system.append(Fiber(Ball(coords[0], r_fiber, i, 0)))
+    for j in range(1, l_fiber_discrete):
+        angle = PI
+        if j < l_fiber_discrete - 1:
+            dir_prev_x = coords[j][0] - coords[j-1][0]
+            dir_prev_y = coords[j][1] - coords[j-1][1]
+            dir_prev_z = coords[j][2] - coords[j-1][2]
+            cnormalized(&dir_prev_x, &dir_prev_y, &dir_prev_z)
+            dir_next_x = coords[j+1][0] - coords[j][0]
+            dir_next_y = coords[j+1][1] - coords[j][1]
+            dir_next_z = coords[j+1][2] - coords[j][2]
+            cnormalized(&dir_next_x, &dir_next_y, &dir_next_z)
+            angle = PI - acos(clip(dir_prev_x*dir_next_x + dir_prev_y*dir_next_y + dir_prev_z*dir_next_z))
+        fiber_system[i].add_ball(Ball(np.array([coords[j][0], coords[j][1], coords[j][2]]), r_fiber, i, j, angle))
+
 
 ####### Poisson line generation #####################################
-#def generate_poisson_line(
-#    rng, beta, image_size, has_beta: bool = True
-#):
+def generate_poisson_line(
+    rng, beta, image_size, has_beta: bool = True
+):
     """
     generates Poisson line within the observation window
 
@@ -376,29 +397,31 @@ def save_balls_in_fiber_system(
     :return: np.ndarray, np.ndarray
         the line's position (center of the line) and direction
     """
-    """U = uniform(loc=-1, scale=2)
+    cdef double r, theta0, phi0
     # 2. Simulate the mean orientation (Schladitz distribution)
     if has_beta:
-        mu0, theta0, phi0 = schladitz_distribution(beta, rng)
+        mu0_x, mu0_y, mu0_z = schladitz_distribution(beta, rng)
+        mu0 = np.array([mu0_x, mu0_y, mu0_z])
+        cartesian_to_spherical(mu0_x, mu0_y, mu0_z, &r, &theta0, &phi0)
     else:
         mu0 = acg_distribution(beta, rng)
-        _, theta0, phi0 = cartesian_to_spherical(mu0[0], mu0[1], mu0[2])
-        # print(mu0, theta0, phi0, spherical_to_cartesian(1, theta0, phi0))
+        cartesian_to_spherical(mu0[0], mu0[1], mu0[2], &r, &theta0, &phi0)
     # 3. Generate Poisson line
-    M = spherical_to_matrix(theta0, phi0)
     r = 2
     while r > 3 / 2:
-        r = 3 / 2 * np.sqrt(abs(U.rvs(random_state=rng)))
-        phi = 2 * np.pi * U.rvs(random_state=rng)
-        u1 = r * np.cos(phi)
-        u2 = r * np.sin(phi)
-    linepos = np.array([u1, u2, 0])
-    linepos = np.matvec(M, linepos) + np.array([0.5, 0.5, 0.5])
+        r = 3 / 2 * np.sqrt(abs(rng.random()*2-1))
+        phi = 2 * PI * (rng.random()*2-1)
+        u1 = r * cos(phi)
+        u2 = r * sin(phi)
+    lp_x = cos(theta0) * cos(phi0)* u1 - sin(phi0)*u2 + 0.5
+    lp_y = cos(theta0)*sin(phi0)*u1 + cos(phi0)*u2 + 0.5
+    lp_z = 0.5 - sin(theta0)*u1
+    linepos = np.array([lp_x, lp_y, lp_z])
     # 4. if it cuts 2 planes, calculate midpoint
     is_cut, mid_pos, length = line_cut_cube(linepos, mu0)
-    mid_pos = linepos * np.array(image_size)
+    mid_pos = mid_pos * np.array(image_size)
     return mid_pos, mu0, length
-"""
+
 
 def line_cut_sphere_length(linepos: np.ndarray, mu0: np.ndarray):
     """
@@ -424,7 +447,7 @@ def line_cut_sphere_length(linepos: np.ndarray, mu0: np.ndarray):
     return np.linalg.norm(p2 - p1)
 
 
-def line_cut_cube(linepos: np.ndarray, mu0: np.ndarray):
+def line_cut_cube(linepos: np.ndarray, mu0):
     """
     calculates whether a given line cuts a unit cube and the line's midpoint
 
@@ -483,11 +506,13 @@ def line_cut_face(
     :return: np.ndarray
         intersection of line and face
     """
-    cos = np.dot(face_normal, mu0)
+    cdef double cos = face_normal[0]*mu0[0] + face_normal[1]*mu0[1] + face_normal[2]*mu0[2]
+    cdef double other_dot, lambd
     if np.isclose(cos, 0):
         return np.array([2, 2, 2])  # TODO ok?
     else:
-        lambd = (face_dist - np.dot(face_normal, linepos)) / cos
+        other_dot = face_normal[0]*linepos[0] + face_normal[1]*linepos[1] + face_normal[2]*linepos[2]
+        lambd = (face_dist - other_dot) / cos
         return linepos + lambd * mu0
 
 
@@ -524,26 +549,36 @@ def generate_half_fiber(
     :return: list[np.ndarray]
         coordinates of the fiber
     """
+    cdef double mu0_x, mu0_y, mu0_z, mu_old_x, mu_old_y, mu_old_z, mu_new_x, mu_new_y, mu_new_z
+    cdef double current_pos_x, current_pos_y, current_pos_z
+    cdef int sign
     if is_forward:
         sign = 1
     else:
         sign = -1
-    mu_old = sign * mu0
-    current_pos = mid_pos
-    while is_in_image(current_pos, image_size, 0):
-        old_pos = current_pos
-        kappa_new: cython.double = np.linalg.norm(sign * kappa1 * mu0 + kappa2 * mu_old)
-        mu_new = (sign * kappa1 * mu0 + kappa2 * mu_old) / kappa_new
-        vmf = vonmises_fisher(mu_new, kappa_new)
+    mu0_x = mu0[0]
+    mu0_y = mu0[1]
+    mu0_z = mu0[2]
+    mu_old_x = sign*mu0_x
+    mu_old_y = sign*mu0_y
+    mu_old_z = sign*mu0_z
+    current_pos_x = mid_pos[0]
+    current_pos_y = mid_pos[1]
+    current_pos_z = mid_pos[2]
 
-        direction = vmf.rvs(random_state=rng)[0]
-
-        current_pos = old_pos + r_fiber * direction / 2
+    while is_in_image(np.array([current_pos_x, current_pos_y, current_pos_z]), image_size, 0):
+        mu_new_x = sign*kappa1*mu0_x + kappa2*mu_old_x
+        mu_new_y = sign*kappa1*mu0_y + kappa2*mu_old_y
+        mu_new_z = sign*kappa1*mu0_z + kappa2*mu_old_z
+        kappa_new = cnormalized(&mu_new_x, &mu_new_y, &mu_new_z)
+        mu_old_x, mu_old_y, mu_old_z = vonmises_fisher(kappa_new, mu_new_x, mu_new_y, mu_new_z, rng)
+        current_pos_x += r_fiber * mu_old_x / 2
+        current_pos_y += r_fiber * mu_old_y / 2
+        current_pos_z += r_fiber * mu_old_z / 2
         if is_forward:
-            coords.append(current_pos)
+            coords.append(np.array([current_pos_x, current_pos_y, current_pos_z]))
         else:
-            coords.insert(0, current_pos)
-        mu_old = direction
+            coords.insert(0, np.array([current_pos_x, current_pos_y, current_pos_z]))
     return coords
 
 

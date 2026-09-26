@@ -396,6 +396,8 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     h1 = abs(d)
     h2  = cdistance3(mx, my, mz, coord_next[0], coord_next[1], coord_next[2])
     z = cdistance3(mx, my, mz, coord[0], coord[1], coord[2])
+    if np.isclose(z,0):
+        return
 
     tan_alpha0 = tan(alpha0)
     if tan_alpha0 < 0:

@@ -13,6 +13,9 @@ from libc.math cimport sin, cos, sqrt, atan2, acos
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
+cdef double PI = 3.141592653589793
+
+
 
 def periodic_distance(
     coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[int, int, int]
@@ -103,12 +106,8 @@ cdef inline void cartesian_to_spherical(double x, double y, double z, double *r,
         return
 
     phi[0] = atan2(y, x)
-    val_z_r = z/r[0]
-    if val_z_r > 1.0:
-        val_z_r = 1.0
-    elif val_z_r < -1.0:
-        val_z_r = -1.0
-    theta[0] = acos(val_z_r)  # avoid domain errors
+
+    theta[0] = acos(clip(z/r[0]))  # avoid domain errors
 
 
 def spherical_to_cartesian(r, theta, phi):
@@ -302,11 +301,8 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
     return image
 
 
-def discretize_spheres_nonperiodic(
-    coordinates: np.ndarray,
-    radii: np.ndarray,
-    min_coordinates: np.ndarray,
-    image_shape: np.ndarray,
+cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
+        object fiber_system, int i_x, int i_y, int i_z
 ):
     """
     Discretize spheres to an image (no periodic boundary conditions)
@@ -321,34 +317,44 @@ def discretize_spheres_nonperiodic(
     :return: np.ndarray
         The image containing spheres
     """
-    image = np.zeros(image_shape, "uint16")
-    coordinates = coordinates - min_coordinates
+    cdef cnp.ndarray[cnp.uint8_t, ndim=3] image = \
+                np.zeros((i_x, i_y, i_z), dtype=np.uint8)
+    cdef object fiber
+    cdef Ball ball
+    cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij, d_z
+    cdef int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max
 
-    for iota in range(len(coordinates)):
-        r_square = radii[iota] ** 2
-        for i in range(
-            int(coordinates[iota, 0] - radii[iota]) - 1,
-            int(coordinates[iota, 0] + radii[iota]) + 1,
-        ):
-            if i < 0 or i >= image_shape[0]:
-                continue
-            delta_i = (i - coordinates[iota, 0]) ** 2
-            for j in range(
-                int(coordinates[iota, 1] - radii[iota]) - 1,
-                int(coordinates[iota, 1] + radii[iota]) + 1,
-            ):
-                if j < 0 or j >= image_shape[1]:
+    for fiber in fiber_system:
+        for ball in fiber.balls:
+            r = ball.radius
+            r_square = r*r
+            c_x = ball.coordinate[0]
+            c_y = ball.coordinate[1]
+            c_z = ball.coordinate[2]
+            i_min = int(c_x - r) - 1
+            i_max = int(c_x + r) + 1
+            j_min = int(c_y - r) - 1
+            j_max = int(c_y + r) + 1
+            k_min = int(c_z - r) - 1
+            k_max = int(c_z + r) + 1
+            for i in range(i_min, i_max):
+                if i < 0 or i >= i_x:
                     continue
-                delta_ij = delta_i + (j - coordinates[iota, 1]) ** 2
-                for k in range(
-                    int(coordinates[iota, 2] - radii[iota]) - 1,
-                    int(coordinates[iota, 2] + radii[iota]) + 1,
-                ):
-                    if k < 0 or k >= image_shape[2]:
+                d_i = i - c_x
+                delta_i = d_i*d_i
+                for j in range(j_min, j_max):
+                    if j < 0 or j >= i_y:
                         continue
-                    delta_ijk = delta_ij + (k - coordinates[iota, 2]) ** 2
-                    if delta_ijk <= r_square:
-                        image[i, j, k] = 1
+                    d_j = j - c_y
+                    delta_ij = delta_i + d_j*d_j
+                    if delta_ij > r_square:
+                        continue
+                    for k in range(k_min, k_max):
+                        if k < 0 or k >= i_z:
+                            continue
+                        d_z = k - c_z
+                        if delta_ij + d_z*d_z <= r_square:
+                            image[i, j, k] = 1
     return image
 
 cdef inline double cdistance_ball(Ball a, Ball b) noexcept nogil:

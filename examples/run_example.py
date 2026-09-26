@@ -3,7 +3,7 @@ import scipy
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 from Altendorf_Jeulin_Model.utils import cut_border
-from Altendorf_Jeulin_Model.rv_utils import schladitz_distribution
+from Altendorf_Jeulin_Model.rv_utils import schladitz_distribution, acg_distribution
 
 import Altendorf_Jeulin_Model.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
@@ -20,6 +20,7 @@ from Altendorf_Jeulin_Model.Statistics import volume_fraction
 def main():
     #main_example()
     example_AJ_finite()
+    #example_AJ_endless()
 
 def main_example():
     print("This is the most basic example to generate finite fibers allowing intersection.\n"
@@ -103,6 +104,12 @@ def direction_distribution(rng):
     beta = 3.0
     return schladitz_distribution(beta, rng)
 
+def direction_distribution_acg(rng):
+    A = np.array(
+        [[1.697, 0.023, -0.028], [0.023, 0.873, -0.031], [-0.028, -0.031, 0.324]]
+    )
+    return acg_distribution(A, rng)
+
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = np.array([200, 200, 200])
@@ -123,15 +130,13 @@ def example_AJ_finite():
 
     # pack the fibers
     start_time = time.time()
-    run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 100, max_steps=50000,
-                     method="AJX")
+    run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 100,
+                     method="AJ++")
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
     vf = volume_fraction(fs, image_size, True)
     print(f"volume fraction {vf:.3f}")
-    # abbruchbedingung in AJ++ zurücksetzen, random walk in fiber model wieder herstellen
-    # TODO contact model speed up
 
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance= 0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
@@ -152,7 +157,7 @@ def example_AJ_finite():
 
 def example_AJ_endless():
     print("This is the Altendorf-Jeulin model for endless fibers")
-    image_size = np.array([200, 200, 200])
+    image_size = np.array([1800, 1800, 1800])
     boundary_size = 50
     VV = 0.12
     R = 8.5 #np.random.normal(loc=8.5, scale=1.0)
@@ -170,20 +175,31 @@ def example_AJ_endless():
         A,
         image_size,
         boundary_size,
-        10,
         100,
-        volume_fraction_should=VV,
+        100,
         has_beta=False,
         seed = 42
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
+    vf = volume_fraction(fs, image_size, False)
+    print(f"volume fraction {vf:.3f}")
+    io.save_fibers_as_tif(
+        fs,
+        scale=4,
+        domain=image_size,
+        boundary=(boundary_size, boundary_size, boundary_size),
+        path="examples/outputs/AJ_model_endless.tif",
+        is_periodic=False,
+    )
+    #TODO alles sauber dokumentieren - erster push
 
     # pack the fibers
     boundary_size = 100
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, verbose=True, hardcore_ratio=0.9, boundary_size=boundary_size)
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True, hardcore_ratio=0.9, boundary_size=boundary_size,
+                     output_step_size = 10, method="AJ++")
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")

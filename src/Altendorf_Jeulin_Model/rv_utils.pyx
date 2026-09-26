@@ -31,8 +31,8 @@ def vonmises_fisher(double kappa, double mu_x, double mu_y, double mu_z, rng):
     dx = sin(theta) * cos(phi)
     dy = sin(theta) * sin(phi)
     dz = cos(theta)
-    dir_x = cos(mean_theta) * cos(mean_phi)* dx - sin(mean_phi)*dy + sin(mean_theta)*cos(mean_phi)*dz
-    dir_y = cos(mean_theta)*sin(mean_phi)*dx + cos(mean_phi)*dz + sin(mean_theta)*sin(mean_phi)*dz
+    dir_x = cos(mean_theta)*cos(mean_phi)*dx - sin(mean_phi)*dy + sin(mean_theta)*cos(mean_phi)*dz
+    dir_y = cos(mean_theta)*sin(mean_phi)*dx + cos(mean_phi)*dy + sin(mean_theta)*sin(mean_phi)*dz
     dir_z = cos(mean_theta)*dz-sin(mean_theta)*dx
     return dir_x, dir_y, dir_z
 
