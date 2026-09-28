@@ -2,7 +2,9 @@
 This python module generates fiber-based microstructures. 
 The implementation is based on the original paper by 
 Altendorf & Jeulin [1] and the extension to endless fibers
-by Easwaran [2]. For the fiber direction distribution, we
+by Easwaran [2]. It also contains a modified version of
+the contact model [4].
+For the fiber direction distribution, we
 implemented generators based on Franke et al. [3].
 
 The module is an early release and still under development. 
@@ -40,7 +42,7 @@ Run the example script
 python examples/run_example.py
 ```
 This runs:
-- a finite-fiber model (directional distribution: Schladitz), 
+- a finite-fiber model (directional distribution: Schladitz) and the contact model,
 - an infinite-fiber model (directional distribution: angular central Gaussian).
 
 Outputs are written to ./outputs/ (adjust if different).
@@ -52,6 +54,8 @@ Outputs are written to ./outputs/ (adjust if different).
 [2] P. Easwaran, 2017. Stochastic geometry models for interacting fibers. Doctoral dissertation, Technische Universität Kaiserslautern.
 
 [3] J. Franke, C. Redenbach, & N. Zhang, 2016. On a Mixture Model for Directional Data on the Sphere. Scandinavian Journal of Statistics, 43(1), 139–155. https://doi.org/10.1111/sjos.12169
+
+[4] A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science.
 
 ## Further Fiber Models
 - [SAMSON Microstructure Generator](https://git.uni-due.de/publicsoftwareingmath/samson)

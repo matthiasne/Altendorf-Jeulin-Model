@@ -347,8 +347,7 @@ def run_force_biased_Contactpp(
     end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
-        if (max_force_strength < end_force_biased and overlap < eps and
-                (shortlist_distance_sum < eps or i > max_steps/2)):
+        if (max_force_strength < end_force_biased and overlap < eps):
             break
         if i == int(max_steps/2):
             print("remove tense links")
@@ -356,7 +355,7 @@ def run_force_biased_Contactpp(
             for contact_edge in shortlist:
                 ball = fs[contact_edge[0][0]].balls[contact_edge[0][1]]
                 ball2 = fs[contact_edge[1][0]].balls[contact_edge[1][1]]
-                is_in_contact, _ = test_in_contact(                    ball,
+                is_in_contact, _ = test_in_contact(ball,
                     ball2,
                     image_size=grid.image_size,
                     is_periodic=is_periodic,
