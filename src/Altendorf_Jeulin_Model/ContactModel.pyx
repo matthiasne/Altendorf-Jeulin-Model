@@ -1,6 +1,7 @@
 # cython: language_level=3, infer_type=True
 
 import cython
+from Altendorf_Jeulin_Model.Graph import Graph, CC
 from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.utils cimport cdistance_ball
@@ -30,7 +31,11 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
          number of contact areas, measure of contact surface
     """
     contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size, is_periodic= is_periodic, contact_distance=contact_distance)
-    contact_graph = nx.Graph(contact_pairs)
+    my_contact_graph = Graph()
+    my_ext_contact_graph = Graph()
+    for pair in contact_pairs:
+        my_contact_graph.add_edge(pair[0], pair[1])
+        my_ext_contact_graph.add_edge(pair[0], pair[1])
 
     # extend contact pairs by fiber edges to find connected components
     incident_fiber_edges = set()
@@ -40,32 +45,43 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
                 incident_fiber_edges.add(((node), (node[0], node[1] + 1)))
             if node[1] - 1 >= 0:
                 incident_fiber_edges.add(((node[0], node[1] - 1), (node)))
-    fiber_parts = nx.Graph(incident_fiber_edges)
-    ext_contact_graph = nx.compose(fiber_parts, contact_graph)
+    for pair in incident_fiber_edges:
+        my_ext_contact_graph.add_edge(pair[0], pair[1])
 
+    my_cc = CC(my_ext_contact_graph)
     # find number of pairwise contact areas
-    n_connected_components = 0
+    n_connected_components = my_cc.n_cc
     n_contact_areas = 0
-    contact_surface = 0
     n_clots = 0
-    cc = [ext_contact_graph.subgraph(c).copy() for c in nx.connected_components(ext_contact_graph)]
-    for component in cc:
-        fiber_edges = incident_fiber_edges.intersection(set(component.edges))
-        if len(fiber_edges) == 0:
-            continue
-        n_connected_components += 1
-        fiber_sub_graph = nx.intersection(component, fiber_parts)
-        fibers_in_contact = [fiber_sub_graph.subgraph(c).copy() for c in nx.connected_components(fiber_sub_graph)]
-        if len(fibers_in_contact) > 2:
+    contact_surface = 0
+    for i in range(my_cc.n_cc):
+        cc_edges = my_cc.edges(my_ext_contact_graph, i)
+        fiber_edges = incident_fiber_edges.intersection(cc_edges)
+        fiber_graph = Graph()
+        for pair in fiber_edges:
+            fiber_graph.add_edge(pair[0], pair[1])
+        cc_fiber = CC(fiber_graph)
+        if cc_fiber.n_cc > 2:
             n_clots += 1
-        # calculate measure for the contact surface
-        for fiber in fibers_in_contact:
-            contact_partners = {nbr_ball[0] for ball in fiber if contact_graph.has_node(ball)
-                for nbr_ball in contact_graph.adj[ball]
-            }
+
+        for cc_index in range(cc_fiber.n_cc):
+            cc_fiber_vertices = cc_fiber.vertices(fiber_graph, cc_index)
+            contact_partners = set()
+            for i in range(len(cc_fiber_vertices)):
+                ball = cc_fiber_vertices[i]
+                id = my_contact_graph.vertex_to_id.get(ball)
+                if id is None:
+                    continue
+                adjacent_balls = my_contact_graph.adjacency_list[id]
+                contact_partners_loc = set()
+                for adj_ball in adjacent_balls:
+                    adj_fiber = my_contact_graph.id_to_vertex[adj_ball][0]
+                    if adj_fiber != ball[0]:
+                        contact_partners.add(adj_fiber)
+                        contact_partners_loc.add(adj_fiber)
+                contact_surface += fs[ball[0]].balls[ball[1]].neighbor_dist * len(contact_partners_loc)
             n_contact_areas += len(contact_partners)
-            sub_fiber_length = [fs[ball[0]].balls[ball[1]].neighbor_dist for ball in fiber if fiber_sub_graph.has_node(ball)]
-            contact_surface += np.sum(sub_fiber_length)
+            #print("fiber ", ball[0], " in contact with ", contact_partners) TODO how to deal with broken contact areas
     return n_connected_components, n_clots, n_contact_areas, contact_surface
 
 def find_contact_candidates(fs, image_size, boundary_size = 0, is_periodic:bool = True, interaction_distance: float = 0):
