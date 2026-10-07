@@ -30,32 +30,33 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
         number of connected components, number of clots (more than two fibers in a contact area),
          number of contact areas, measure of contact surface
     """
-    contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size, is_periodic= is_periodic, contact_distance=contact_distance)
-    my_contact_graph = Graph()
-    my_ext_contact_graph = Graph()
+    contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size, is_periodic= is_periodic,
+                                       contact_distance=contact_distance)
+    contact_graph = Graph()
+    ext_contact_graph = Graph()
     for pair in contact_pairs:
-        my_contact_graph.add_edge(pair[0], pair[1])
-        my_ext_contact_graph.add_edge(pair[0], pair[1])
+        contact_graph.add_edge(pair[0], pair[1])
+        ext_contact_graph.add_edge(pair[0], pair[1])
 
     # extend contact pairs by fiber edges to find connected components
     incident_fiber_edges = set()
     for pair in contact_pairs:
         for node in pair:
             if node[1] + 1 < fs[node[0]].get_number_of_balls():
-                incident_fiber_edges.add(((node), (node[0], node[1] + 1)))
+                incident_fiber_edges.add((node, (node[0], node[1] + 1)))
             if node[1] - 1 >= 0:
-                incident_fiber_edges.add(((node[0], node[1] - 1), (node)))
+                incident_fiber_edges.add(((node[0], node[1] - 1), node))
     for pair in incident_fiber_edges:
-        my_ext_contact_graph.add_edge(pair[0], pair[1])
+        ext_contact_graph.add_edge(pair[0], pair[1])
 
-    my_cc = CC(my_ext_contact_graph)
+    my_cc = CC(ext_contact_graph)
     # find number of pairwise contact areas
     n_connected_components = my_cc.n_cc
     n_contact_areas = 0
     n_clots = 0
     contact_surface = 0
-    for i in range(my_cc.n_cc):
-        cc_edges = my_cc.edges(my_ext_contact_graph, i)
+    for i in range(n_connected_components):
+        cc_edges = my_cc.edges(ext_contact_graph, i)
         fiber_edges = incident_fiber_edges.intersection(cc_edges)
         fiber_graph = Graph()
         for pair in fiber_edges:
@@ -67,15 +68,15 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
         for cc_index in range(cc_fiber.n_cc):
             cc_fiber_vertices = cc_fiber.vertices(fiber_graph, cc_index)
             contact_partners = set()
-            for i in range(len(cc_fiber_vertices)):
-                ball = cc_fiber_vertices[i]
-                id = my_contact_graph.vertex_to_id.get(ball)
+            for j in range(len(cc_fiber_vertices)):
+                ball = cc_fiber_vertices[j]
+                id = contact_graph.vertex_to_id.get(ball)
                 if id is None:
                     continue
-                adjacent_balls = my_contact_graph.adjacency_list[id]
+                adjacent_balls = contact_graph.adjacency_list[id]
                 contact_partners_loc = set()
                 for adj_ball in adjacent_balls:
-                    adj_fiber = my_contact_graph.id_to_vertex[adj_ball][0]
+                    adj_fiber = contact_graph.id_to_vertex[adj_ball][0]
                     if adj_fiber != ball[0]:
                         contact_partners.add(adj_fiber)
                         contact_partners_loc.add(adj_fiber)

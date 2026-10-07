@@ -194,7 +194,7 @@ cdef inline void calculate_repulsion_forces(
     """
     cdef Ball ball2
     cdef list neighbor_cell
-    cdef j
+    cdef int j, cell_index
     cdef int n = len(cell)
     cdef int[3] image_size = grid.image_size
     # compare within cell

@@ -337,7 +337,7 @@ def run_force_biased_Contactpp(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
         = (calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, hardcore_ratio = hardcore_ratio,
-        contact_distance=contact_distance, repulsion_factor=1.05
+        contact_distance=contact_distance, repulsion_factor=1.1
     ))
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
@@ -347,21 +347,21 @@ def run_force_biased_Contactpp(
     end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
-        if (max_force_strength < end_force_biased and overlap < eps):
+        if (max_force_strength < end_force_biased and overlap < eps and shortlist_distance_sum < eps):
             break
-        if i == int(max_steps/2):
+        if i > 0 and i%50 == 0:
             print("remove tense links")
             tense_links = list()
             for contact_edge in shortlist:
                 ball = fs[contact_edge[0][0]].balls[contact_edge[0][1]]
                 ball2 = fs[contact_edge[1][0]].balls[contact_edge[1][1]]
-                is_in_contact, _ = test_in_contact(ball,
+                is_in_contact, dist = test_in_contact(ball,
                     ball2,
                     image_size=grid.image_size,
                     is_periodic=is_periodic,
                     contact_distance=contact_distance,
                 )
-                if not is_in_contact:
+                if not is_in_contact or dist < 0:
                     tense_links.append(contact_edge)
             shortlist = [x for x in shortlist if x not in tense_links]
             print(len(shortlist))

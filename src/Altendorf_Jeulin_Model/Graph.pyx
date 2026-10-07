@@ -1,8 +1,5 @@
 # cython: language_level=3, infer_type=True
 import cython
-from networkx.algorithms.traversal import breadth_first_search
-from collections import defaultdict
-
 
 class Graph:
     def __init__(self):
@@ -32,63 +29,64 @@ class Graph:
 
 class CC:
     def __init__(self, graph):
-        self.marked = [False] * len(graph.adjacency_list)
-        self.id = [-1] * len(graph.adjacency_list)
-        self.n_cc = 0
+        n = len(graph.adjacency_list)
 
-        n_vertices = len(graph.adjacency_list)
-        for vertex in range(n_vertices):
-            if not self.marked[vertex]:
-                self.depth_first_search(vertex, graph)
-                self.n_cc += 1
+        self.id = [-1] * n
+        self.vertices_by_component = []
+        self.edges_by_component = []
 
-    def depth_first_search(self, start, graph):
-        stack = [start]
-        self.marked[start] = True
-        self.id[start] = self.n_cc
+        for start in range(n):
+            if self.id[start] != -1:
+                continue
 
-        while stack:
-            vertex = stack.pop()
+            component_id = len(self.vertices_by_component)
+            component_vertices = []
+            component_edges = []
 
-            for neighbor in graph.adjacency_list[vertex]:
-                if not self.marked[neighbor]:
-                    self.marked[neighbor] = True
-                    self.id[neighbor] = self.n_cc
-                    stack.append(neighbor)
+            stack = [start]
+            self.id[start] = component_id
 
-    def components(self, graph):
-        result = defaultdict(list)
+            while stack:
+                u = stack.pop()
+                component_vertices.append(u)
 
-        for vertex, vertex_id in graph.vertex_to_id.items():
-            component_id = self.id[vertex_id]
-            result[component_id].append(vertex)
+                for v in graph.adjacency_list[u]:
+                    if self.id[v] == -1:
+                        self.id[v] = component_id
+                        stack.append(v)
 
-        return dict(result)
+                    # Store each undirected edge only once.
+                    if u < v and self.id[v] == component_id:
+                        component_edges.append((u, v))
+
+            self.vertices_by_component.append(component_vertices)
+            self.edges_by_component.append(component_edges)
+
+        self.n_cc = len(self.vertices_by_component)
 
     def vertices(self, graph, component_id):
-        result = list()
-        for vertex, vertex_id in graph.vertex_to_id.items():
-            if self.id[vertex_id] != component_id:
-                continue
-            result.append(vertex)
-
-        return result
-
-    def edges(self, graph, component_id):
-        if component_id < 0 or component_id >= self.n_cc:
+        if not 0 <= component_id < self.n_cc:
             raise ValueError(f"Invalid component ID: {component_id}")
 
-        result = set()
+        return [
+            graph.id_to_vertex[vertex_id]
+            for vertex_id in self.vertices_by_component[component_id]
+        ]
 
-        for u_id, neighbors in enumerate(graph.adjacency_list):
-            if self.id[u_id] != component_id:
-                continue
+    def edges(self, graph, component_id):
+        if not 0 <= component_id < self.n_cc:
+            raise ValueError(f"Invalid component ID: {component_id}")
 
-            for v_id in neighbors:
-                if self.id[v_id] == component_id:
-                    u = graph.id_to_vertex[u_id]
-                    v = graph.id_to_vertex[v_id]
-                    result.add((u, v))
-                    result.add((v, u))
+        return [
+            (graph.id_to_vertex[u], graph.id_to_vertex[v])
+            for u, v in self.edges_by_component[component_id]
+        ]
 
-        return result
+    def components(self, graph):
+        return {
+            component_id: [
+                graph.id_to_vertex[vertex_id]
+                for vertex_id in vertex_ids
+            ]
+            for component_id, vertex_ids in enumerate(self.vertices_by_component)
+        }
