@@ -316,6 +316,7 @@ def run_force_biased_Contactpp(
     hardcore_ratio: float = 1.0,
     contact_distance: float = 1.0,
     output_step_size: int = 100,
+    steps_tension_reduction: int = 50,
     max_steps: int = 1000,
     tol: float = 1e-5
 ):
@@ -357,7 +358,7 @@ def run_force_biased_Contactpp(
     for i in range(1, max_steps):
         if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps and shortlist_distance_sum < eps:
             break
-        if i == 50:
+        if i == steps_tension_reduction:
             print("remove tense links")
             tense_links = list()
             for contact_edge in shortlist:
@@ -377,7 +378,7 @@ def run_force_biased_Contactpp(
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        if i < 100:
+        if i < steps_tension_reduction:
             prev_optim_sum = optim_sum
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
                 optim_sum = (calculate_forces(
