@@ -469,6 +469,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
     """
     cdef double dist, displaced, dist_perfect, displace, true_displace, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
+    cdef double optim_summand
     coordx = ball.coordinate[0]
     coordy = ball.coordinate[1]
     coordz = ball.coordinate[2]
@@ -489,17 +490,19 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
     displace = dist - dist_perfect
 
     if displace > 0:
-        force_strength = displace / 2.0*RHO*smoothing_factor(displace/dist, contact_distance/2., contact_distance)
+        force_strength = displace / 2.0*smoothing_factor(displace/dist, contact_distance/2., contact_distance)
         if dist > 0.0:
             force_strength /= dist
+        optim_summand = force_strength*force_strength
+        force_strength *= RHO
         ball.force[0] += force_strength * dx
         ball.force[1] += force_strength * dy
         ball.force[2] += force_strength * dz
-        ball.optim_sum += force_strength
+        ball.optim_sum += optim_summand
         ball2.force[0] -= force_strength * dx
         ball2.force[1] -= force_strength * dy
         ball2.force[2] -= force_strength * dz
-        ball2.optim_sum += force_strength
+        ball2.optim_sum += optim_summand
 
         return max(0, true_displace)
     return 0
@@ -530,15 +533,19 @@ cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
     displace = dist - dist_perfect
 
     if displace > 0:
-        force_strength = displace / 2.0*repulsion_factor
+        force_strength = displace / 2.0*smoothing_factor(displace/dist, contact_distance/2., contact_distance)
         if dist > 0.0:
             force_strength /= dist
+        optim_summand = force_strength*force_strength
+        force_strength *= RHO
         ball.force[0] += force_strength * dx
         ball.force[1] += force_strength * dy
         ball.force[2] += force_strength * dz
+        ball.optim_sum += optim_summand
         ball2.force[0] -= force_strength * dx
         ball2.force[1] -= force_strength * dy
         ball2.force[2] -= force_strength * dz
+        ball2.optim_sum += optim_summand
 
         return max(0, displace - contact_distance)
     return 0

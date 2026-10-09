@@ -17,7 +17,7 @@ from Altendorf_Jeulin_Model.Statistics import volume_fraction
 
 
 def main():
-    #example_AJ_finite()
+    example_AJ_finite()
     example_AJ_endless()
 
 def direction_distribution(rng):
