@@ -156,7 +156,7 @@ def run_force_biased_AJpp(
     prev_optim_sum = optim_sum*optim_sum
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
+                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum ))
     eps = np.finfo(float).eps
     end_force_biased = 0.1*max_radius
 
@@ -175,11 +175,11 @@ def run_force_biased_AJpp(
         )
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, optim_sum))
+                                        shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
 
     if verbose:
         rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
+                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
         print_stats(output_file, rows)
 
 

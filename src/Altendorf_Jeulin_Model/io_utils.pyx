@@ -150,7 +150,7 @@ def print_stats(output_file: str, rows):
 
 def print_stats_row(
     fs: list[Fiber], i, total_force_strength: float, max_force_strength: float, overlap: float,
-        neighbor_dist: float, contact_distance:float, optim_sum:float
+        neighbor_dist: float, contact_distance:float, res:float
 ):
     """
     Prints the statistics into the console and returns a list of them
@@ -163,17 +163,20 @@ def print_stats_row(
     :param max_force_strength: float
         maximal force strength
     :param overlap: float
-        maximal overlap between balls
+        maximal overlap between balls (should be 0)
     :param neighbor_dist: float
         maximal distance between neighbors (should be half the radius)
+    :param contact_distance: float
+        maximal distance between contacts (should be 0)
+    :param res: float
+        relative difference from optimization function in this step to previous step
     :return: rows to be printed, containing
         "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
     """
     FOT = calculate_fot(fs)
     mae = mean_angle_error(fs)
     print(
-        f"step {i} total force {total_force_strength:.3f} max force {max_force_strength:.3f}"
-        f" optimization sum {optim_sum:.3f} max overlap {overlap:.3f} "
+        f"step {i} rel. difference {res:.3f} max overlap {overlap:.3f} "
         f"contact distance {contact_distance:.3f} "
         f"max neighbor dist {neighbor_dist:.3f} mean angle diff {mae*180/np.pi:.3f}° "
         f"FOT xx {FOT[0, 0]:.3f} xy {FOT[0, 1]:.3f} xz {FOT[0, 2]:.3f} "
