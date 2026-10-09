@@ -41,15 +41,12 @@ def run_force_biased(
     elif method == "AJ++":
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, tol=tol)
-    elif method == "AJX":
-        run_force_biased_AJX(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps)
     elif method == "Contact++":
-        run_force_biased_Contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, hardcore_ratio,
+        run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, hardcore_ratio,
                               contact_distance, output_step_size, max_steps)
     else:
-        run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps)
+        run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic,
+                                 hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps)
 
 def run_force_biased_AJ(
     fs: list[Fiber],
@@ -68,13 +65,24 @@ def run_force_biased_AJ(
 
     :param fs: list[Fiber]
         the fiber system to be packed
-    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
-    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
-    :param is_periodic: bool                    uses periodic boundary conditions
-    :param hardcore_ratio: float                hardcore ratio percentage of fiber core that must not be intersected
+    :param image_size:
+        the image size/domain to be modeled on
+    :param use_end_step_radius: bool, default: False
+        if necessary, reduces the radius to remove intersections at the end
+    :param use_end_step_repulsion: bool, default: False
+        if necessary, applies repulsion force to remove intersections at the end
+    :param output_file: str, default: "results.csv"
+        file path to store packing step statistics
+    :param verbose: bool, default: True
+        true: output information on packing statistics
+    :param is_periodic: bool, default: True
+        uses periodic boundary conditions
+    :param hardcore_ratio: float, default: 1.0
+        hardcore ratio percentage of fiber core that must not be intersected
+    :param output_step_size: int, default: 100
+        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
+    :param max_steps: int, default: 1000
+        maximum number of iterations
     """
     rows = []
 
@@ -127,19 +135,26 @@ def run_force_biased_AJpp(
     tol: float = 1e-5
 ):
     """
-    Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
+    Run the force-biased packing by Altendorf & Jeulin in the refined version
 
     :param fs: list[Fiber]
         the fiber system to be packed
-    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
-    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
-    :param is_periodic: bool                    uses periodic boundary conditions
-    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
-                                                distribution, otherwise the ACG distribution with parameter matrix is used
-    :param beta: float                          parameter of direction distribution
+    :param image_size:
+        the image size/domain to be modeled on
+    :param output_file: str, default: "results.csv
+        file path to store packing step statistics
+    :param verbose: bool, default: True
+        True: output information on packing statistics
+    :param is_periodic: bool, default: True
+        uses periodic boundary conditions
+    :param hardcore_ratio: float, default: 1.0
+        the hardcore ratio determines the fraction of the radius that can be penetrated
+    :param output_step_size: int, default: 100
+        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
+    :param max_steps: int, default: 1000
+        maximum number of iterations
+    :param tol: float, default: 1e-5
+        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
     """
     rows = []
 
@@ -180,65 +195,6 @@ def run_force_biased_AJpp(
         print_stats(output_file, rows)
 
 
-def run_force_biased_AJX(
-    fs: list[Fiber],
-    image_size,
-    output_file: str = "results.csv",
-    verbose: bool = True,
-    is_periodic: bool = True,
-    hardcore_ratio: float = 1.0,
-    output_step_size: int = 100,
-    max_steps: int = 1000,
-):
-    """
-    Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
-
-    :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
-    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
-    :param is_periodic: bool                    uses periodic boundary conditions
-    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
-                                                distribution, otherwise the ACG distribution with parameter matrix is used
-    :param beta: float                          parameter of direction distribution
-    """
-    rows = []
-
-    max_radius = max(fiber.get_max_radius() for fiber in fs)
-
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
-    grid.add_fiber_system(fs, is_periodic=is_periodic)
-    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
-        calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-    )
-    if verbose:
-        rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
-    eps = np.finfo(float).eps
-    end_force_biased = 1e-6
-
-    for i in range(1, max_steps):
-        if max_force_strength < end_force_biased and overlap < eps:
-            break
-        apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
-        grid.add_fiber_system(fs, is_periodic)
-        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
-            = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
-        )
-        if verbose and i % output_step_size == 0:
-            rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, optim_sum))
-
-    if verbose:
-        rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
-        print_stats(output_file, rows)
 
 def run_force_biased_general(
     fs: list[Fiber],
@@ -256,15 +212,23 @@ def run_force_biased_general(
 
     :param fs: list[Fiber]
         the fiber system to be packed
-    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
-    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
-    :param is_periodic: bool                    uses periodic boundary conditions
-    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
-                                                distribution, otherwise the ACG distribution with parameter matrix is used
-    :param beta: float                          parameter of direction distribution
+    :param image_size:
+        the image size/domain to be modeled on
+    :param stop_criterion: Callable[[float], bool]
+        a customized stop criterion. We recommend writing your own run_force_biased function though and hardcoding
+        the stop criterion into it because it improves the runtime and allows for more customization
+    :param output_file: str, default: "results.csv
+        file path to store packing step statistics
+    :param verbose: bool, default: True
+        True: output information on packing statistics
+    :param is_periodic: bool, default: True
+        uses periodic boundary conditions
+    :param hardcore_ratio: float, default: 1.0
+        the hardcore ratio determines the fraction of the radius that can be penetrated
+    :param output_step_size: int, default: 100
+        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
+    :param max_steps: int, default: 1000
+        maximum number of iterations
     """
     rows = []
 
@@ -306,7 +270,7 @@ def run_force_biased_general(
 
 
 
-def run_force_biased_Contactpp(
+def run_force_biased_contactpp(
     fs: list[Fiber],
     image_size,
     output_file: str = "results.csv",
@@ -314,26 +278,39 @@ def run_force_biased_Contactpp(
     is_periodic: bool = True,
     shortlist = [],
     hardcore_ratio: float = 1.0,
-    contact_distance: float = 1.0,
+    contact_distance: float = 0.0,
     output_step_size: int = 100,
     steps_tension_reduction: int = 50,
     max_steps: int = 1000,
     tol: float = 1e-5
 ):
     """
-    Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
+    Run the improved contact extension
 
     :param fs: list[Fiber]
         the fiber system to be packed
-    :param image_size: tuple[int, int, int]     the image size/domain to be modeled on
-    :param use_end_step_radius: bool            if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool         if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str                     file path to store packing step statistics
-    :param verbose: bool                        true: output information on packing statistics
-    :param is_periodic: bool                    uses periodic boundary conditions
-    :param has_beta: bool                       uses the Schladitz distribution with parameter beta for the direction
-                                                distribution, otherwise the ACG distribution with parameter matrix is used
-    :param beta: float                          parameter of direction distribution
+    :param image_size:
+        the image size/domain to be modeled on
+    :param output_file: str
+        file path to store packing step statistics
+    :param verbose: bool, default: True
+        True: output information on packing statistics
+    :param is_periodic: bool, default: True
+        uses periodic boundary conditions
+    :param shortlist: list, default: []
+        list of contact edges on which the contact force acts
+    :param hardcore_ratio: float, default: 1.0
+        the hardcore ratio determines the fraction of the radius that can be penetrated
+    :param contact_distance: float, default: 0.0
+        the contact distance describes the distance under which balls are considered in contact
+    :param output_step_size: int, default: 100
+        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
+    :param steps_tension_reduction: int, default: 50
+        number of iteration steps after which contact edges are reduced to allow convergence
+    :param max_steps: int, default: 1000
+        maximum number of iterations
+    :param tol: float, default: 1e-5
+        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
     """
     rows = []
 
