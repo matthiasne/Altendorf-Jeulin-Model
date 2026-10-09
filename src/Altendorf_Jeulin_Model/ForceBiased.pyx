@@ -158,11 +158,8 @@ def run_force_biased_AJpp(
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum ))
     eps = np.finfo(float).eps
-    end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
-        #if max_force_strength < end_force_biased and overlap < eps:
-        #    break
         if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps:
             break
         apply_forces(fs)
@@ -320,6 +317,7 @@ def run_force_biased_Contactpp(
     contact_distance: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
+    tol: float = 1e-5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -347,15 +345,17 @@ def run_force_biased_Contactpp(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, hardcore_ratio = hardcore_ratio,
         contact_distance=contact_distance, repulsion_factor=1.1
     ))
+    if optim_sum < 1:
+        optim_sum = 1
+    prev_optim_sum = optim_sum*optim_sum
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum))
     print("We run the force-biased algorithm:")
     eps = np.finfo(float).eps
-    end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
-        if (max_force_strength < end_force_biased and overlap < eps and shortlist_distance_sum < eps):
+        if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps and shortlist_distance_sum < eps:
             break
         if i == 50:
             print("remove tense links")
@@ -378,12 +378,14 @@ def run_force_biased_Contactpp(
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         if i < 100:
+            prev_optim_sum = optim_sum
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
                 optim_sum = (calculate_forces(
                 grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
                 shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.1
             ))
         else:
+            prev_optim_sum = optim_sum
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, \
                 optim_sum = (calculate_forces(
                 grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
