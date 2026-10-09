@@ -30,6 +30,7 @@ def run_force_biased(
     output_step_size: int = 100,
     max_steps: int = 1000,
     stop_criterion: Callable[[float], bool] = default_stop_criterion,
+    tol: float = 1e-5
 ):
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
@@ -39,7 +40,7 @@ def run_force_biased(
                             is_periodic, hardcore_ratio, output_step_size, max_steps)
     elif method == "AJ++":
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps)
+                              output_step_size=output_step_size, max_steps=max_steps, tol=tol)
     elif method == "AJX":
         run_force_biased_AJX(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps)
@@ -123,6 +124,7 @@ def run_force_biased_AJpp(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
+    tol: float = 1e-5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -149,6 +151,9 @@ def run_force_biased_AJpp(
         calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
     )
+    if optim_sum < 1:
+        optim_sum = 1
+    prev_optim_sum = optim_sum*optim_sum
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum))
@@ -156,11 +161,14 @@ def run_force_biased_AJpp(
     end_force_biased = 0.1*max_radius
 
     for i in range(1, max_steps):
-        if max_force_strength < end_force_biased and overlap < eps:
+        #if max_force_strength < end_force_biased and overlap < eps:
+        #    break
+        if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps:
             break
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
+        prev_optim_sum = optim_sum
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
@@ -349,7 +357,7 @@ def run_force_biased_Contactpp(
     for i in range(1, max_steps):
         if (max_force_strength < end_force_biased and overlap < eps and shortlist_distance_sum < eps):
             break
-        if i > 0 and i%50 == 0:
+        if i == 50:
             print("remove tense links")
             tense_links = list()
             for contact_edge in shortlist:
@@ -369,11 +377,18 @@ def run_force_biased_Contactpp(
         apply_forces(fs)
         grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
-        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
-            optim_sum = (calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-            shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.05
-        ))
+        if i < 100:
+            total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
+                optim_sum = (calculate_forces(
+                grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+                shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.1
+            ))
+        else:
+            total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, \
+                optim_sum = (calculate_forces(
+                grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+                contact_distance=contact_distance, repulsion_factor=1.1
+            ))
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                         shortlist_distance_sum, optim_sum))

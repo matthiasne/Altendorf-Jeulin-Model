@@ -14,8 +14,8 @@ from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3, clip
 MIN_REPULSION_DISTANCE = 5
 X_S:cython.double = 0.25
 X_E:cython.double = 0.5
-ALPHA_S:cython.double = 1 * np.pi / 180
-ALPHA_E:cython.double = 2 * np.pi / 180
+ALPHA_S:cython.double = 2 * np.pi / 180
+ALPHA_E:cython.double = 3 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
 RHO:cython.double = 0.25

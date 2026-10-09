@@ -19,7 +19,7 @@ from Altendorf_Jeulin_Model.Statistics import volume_fraction
 
 def main():
     example_AJ_finite()
-    example_AJ_endless()
+    #example_AJ_endless()
 
 def direction_distribution(rng):
     beta = 3.0
@@ -36,7 +36,7 @@ def example_AJ_finite():
     image_size = np.array([200, 200, 200])
     N = 500
     #image_size = np.array([384, 384, 384])
-    #N = 4000
+    #N = 8000
     L = 120
     R = 2
 
@@ -54,7 +54,7 @@ def example_AJ_finite():
     # pack the fibers
     start_time = time.time()
     run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 10,
-                     method="AJ++")
+                     method="AJ++", tol=1e-3)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")

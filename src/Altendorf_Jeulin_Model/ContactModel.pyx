@@ -83,6 +83,7 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
                 contact_surface += fs[ball[0]].balls[ball[1]].neighbor_dist * len(contact_partners_loc)
             n_contact_areas += len(contact_partners)
             #print("fiber ", ball[0], " in contact with ", contact_partners) TODO how to deal with broken contact areas
+            #TODO warum nicht einfach contact edges zählen
     return n_connected_components, n_clots, n_contact_areas, contact_surface
 
 def find_contact_candidates(fs, image_size, boundary_size = 0, is_periodic:bool = True, interaction_distance: float = 0):
