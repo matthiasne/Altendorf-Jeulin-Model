@@ -42,8 +42,9 @@ def run_force_biased(
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, tol=tol)
     elif method == "Contact++":
-        run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist, hardcore_ratio,
-                              contact_distance, output_step_size, max_steps)
+        run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist,
+                                   hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
+                                   output_step_size=output_step_size, max_steps=max_steps, tol=tol)
     else:
         run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic,
                                  hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps)
@@ -371,11 +372,11 @@ def run_force_biased_contactpp(
             ))
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, optim_sum))
+                                        shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
 
     if verbose:
         rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
+                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
         print_stats(output_file, rows)
 
 

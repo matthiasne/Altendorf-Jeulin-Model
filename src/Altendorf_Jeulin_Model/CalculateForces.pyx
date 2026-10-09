@@ -245,7 +245,6 @@ cdef void calculate_repulsion_force_periodic(
         However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
         which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
         A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
-        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
     """
     cdef double dist, displaced, overlap, overlap_true, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z

@@ -1,5 +1,4 @@
 import time
-import scipy
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 from Altendorf_Jeulin_Model.utils import cut_border
@@ -18,8 +17,8 @@ from Altendorf_Jeulin_Model.Statistics import volume_fraction
 
 
 def main():
-    example_AJ_finite()
-    #example_AJ_endless()
+    #example_AJ_finite()
+    example_AJ_endless()
 
 def direction_distribution(rng):
     beta = 3.0
@@ -36,7 +35,7 @@ def example_AJ_finite():
     image_size = np.array([200, 200, 200])
     N = 500
     #image_size = np.array([384, 384, 384])
-    #N = 8000
+    #N = 4000
     L = 120
     R = 2
 
@@ -57,19 +56,25 @@ def example_AJ_finite():
                      method="AJ++", tol=1e-3)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+    print(f"AJ++ Packing - Elapsed time: {elapsed_time:.6f} seconds")
     vf = volume_fraction(fs, image_size, True)
     print(f"volume fraction {vf:.3f}")
 
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance= 0.1*R)
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True,
+                                                                    contact_distance= 0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
     shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.2*R)
     print("shortlist has ", len(shortlist), " elements")
-    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, hardcore_ratio=0.9, contact_distance=0.1*R,
-                     method="Contact++")
     start_time = time.time()
-    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True, contact_distance=0.1*R)
+    run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, hardcore_ratio=0.9, output_step_size = 10,
+                     contact_distance=0.1*R, method="Contact++", tol=1e-3)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Contact++ Packing - Elapsed time: {elapsed_time:.6f} seconds")
+    start_time = time.time()
+    n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=True,
+                                                                    contact_distance=0.1*R)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
@@ -111,43 +116,40 @@ def example_AJ_endless():
     print(f"Fiber initialization - Elapsed time: {elapsed_time:.6f} seconds")
     vf = volume_fraction(fs, image_size, False)
     print(f"volume fraction {vf:.3f}")
-    io.save_fibers_as_tif(
-        fs,
-        scale=4,
-        domain=image_size,
-        boundary=(boundary_size, boundary_size, boundary_size),
-        path="examples/outputs/AJ_model_endless.tif",
-        is_periodic=False,
-    )
 
     # pack the fibers
     boundary_size = 100
     start_time = time.time()
-    run_force_biased(fs, image_size, is_periodic=False, verbose=True, hardcore_ratio=1.0, boundary_size=boundary_size,
-                     output_step_size = 10, method="AJ++")
+    run_force_biased(fs, image_size, is_periodic=False, verbose=True, hardcore_ratio=1.0,
+                     boundary_size=boundary_size, output_step_size = 10, method="AJ++", tol=1e-3)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Packing - Elapsed time: {elapsed_time:.6f} seconds")
+    print(f"AJ++ Packing - Elapsed time: {elapsed_time:.6f} seconds")
 
     start_time = time.time()
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic = False,
-                                                                    contact_distance=0.5, boundary_size=boundary_size)
+                                                                    contact_distance=0.1*R, boundary_size=boundary_size)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts, " contact surface: ",
         contact_surface, " in ", elapsed_time, "s")
 
     start_time = time.time()
-    shortlist = find_contact_candidates(fs, image_size, is_periodic=False, interaction_distance=8.5,
+    shortlist = find_contact_candidates(fs, image_size, is_periodic=False, interaction_distance=0.2*R,
                                         boundary_size=boundary_size)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("shortlist has ", len(shortlist), " elements", " in ", elapsed_time, "s")
+    start_time = time.time()
     run_force_biased(fs, image_size, is_periodic=False, verbose=True, shortlist=shortlist, hardcore_ratio=0.9,
-                     contact_distance=0.5, boundary_size=boundary_size, method="Contact++")
+                     contact_distance=0.1*R, boundary_size=boundary_size, output_step_size = 10, method="Contact++",
+                     tol=1e-3)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Contact++ Packing - Elapsed time: {elapsed_time:.6f} seconds")
     start_time = time.time()
     n_cc, n_clots, n_contacts, contact_surface = find_contact_areas(fs, image_size, is_periodic=False,
-                                                                    contact_distance=0.5, boundary_size=boundary_size)
+                                                                    contact_distance=0.1*R, boundary_size=boundary_size)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts, " contact surface: ",
