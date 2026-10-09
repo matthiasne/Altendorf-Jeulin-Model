@@ -249,6 +249,7 @@ cdef void calculate_repulsion_force_periodic(
     """
     cdef double dist, displaced, overlap, overlap_true, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
+    cdef double optim_summand
     if (
         ball.fiber_label != ball2.fiber_label
         or abs(ball.ball_label - ball2.ball_label) >= MIN_REPULSION_DISTANCE
@@ -273,18 +274,19 @@ cdef void calculate_repulsion_force_periodic(
         overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
             force_strength = TAU*overlap / 2.0
+            optim_summand = overlap*overlap/4.0
             if dist > 0.0:
                 force_strength /= dist
             ball.force[0] -= force_strength * dx
             ball.force[1] -= force_strength * dy
             ball.force[2] -= force_strength * dz
             ball.overlap = max(ball.overlap, overlap_true)
-            ball.optim_sum += force_strength
+            ball.optim_sum += optim_summand
             ball2.force[0] += force_strength * dx
             ball2.force[1] += force_strength * dy
             ball2.force[2] += force_strength * dz
             ball2.overlap = max(ball2.overlap, overlap_true)
-            ball2.optim_sum += force_strength
+            ball2.optim_sum += optim_summand
 
 
 cdef void calculate_repulsion_force_nonperiodic(
@@ -318,14 +320,17 @@ cdef void calculate_repulsion_force_nonperiodic(
         overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
             force_strength = TAU * overlap / 2.0
+            optim_summand = overlap*overlap/4.0
             ball.force[0] -= force_strength * dx
             ball.force[1] -= force_strength * dy
             ball.force[2] -= force_strength * dz
             ball.overlap = max(ball.overlap, overlap_true)
+            ball.optim_sum += optim_summand
             ball2.force[0] += force_strength * dx
             ball2.force[1] += force_strength * dy
             ball2.force[2] += force_strength * dz
             ball2.overlap = max(ball2.overlap, overlap_true)
+            ball.optim_sum += optim_summand
 
 
 cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
@@ -355,7 +360,7 @@ cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
     ball1.force[1] += dy*s_f
     ball1.force[2] += dz*s_f
     ball1.neighbor_dist = dist_is#max(ball1.neighbor_dist, dist_is)
-    ball1.optim_sum += s_f
+    ball1.optim_sum += s_f*s_f/(RHO*RHO)
 
 
 cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexcept:
@@ -416,7 +421,7 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
     ball.force[1] += (my-coord[1])*f
     ball.force[2] += (mz-coord[2])*f
     ball.angle_diff = alpha0 - alpha
-    ball.optim_sum += f
+    ball.optim_sum += f*f/(RHO*RHO)
 
 
 cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
