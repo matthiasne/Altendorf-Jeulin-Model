@@ -12,7 +12,7 @@ from Altendorf_Jeulin_Model.utils import (
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.Statistics import calculate_fot, mean_angle_error
+from Altendorf_Jeulin_Model.Statistics import mean_angle_error, volume_fraction, calculate_kl
 
 
 def print_fiber_positions(
@@ -131,26 +131,21 @@ def print_stats(output_file: str, rows):
             [
                 "Step",
                 "#Fibers",
-                "FOTxx",
-                "FOTxy",
-                "FOTxz",
-                "FOTyy",
-                "FOTyz",
-                "FOTzz",
-                "MeanAngleError",
-                "MaxNeighborDist",
+                "VF",
+                "MAE",
+                "meanLength",
+                "KL",
                 "MaxOverlap",
-                "ContactDistances"
-                "TotalForceStrength",
-                "MaxForceStrength"
+                "ContactDistances",
+                "change"
             ]
         )  # Header
         writer.writerows(rows)
 
 
 def print_stats_row(
-    fs: list[Fiber], i, total_force_strength: float, max_force_strength: float, overlap: float,
-        neighbor_dist: float, contact_distance:float, res:float
+    fs: list[Fiber], i, overlap: float, neighbor_dist: float, contact_distance:float,
+        objective:float, change:float, image_size, dir_matrix, is_periodic: bool
 ):
     """
     Prints the statistics into the console and returns a list of them
@@ -173,31 +168,95 @@ def print_stats_row(
     :return: rows to be printed, containing
         "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
     """
-    FOT = calculate_fot(fs)
     mae = mean_angle_error(fs)
+    mean_length = np.mean([fiber.get_length() for fiber in fs])
+    vf = volume_fraction(fs, image_size, is_periodic=is_periodic)
+    kl = calculate_kl(fs, dir_matrix)
     print(
-        f"step {i} rel. difference {res:.3f} max overlap {overlap:.3f} "
+        f"step {i} objective {objective:.3f} change {change:.5f} max overlap {overlap:.3f} "
+        f"MAE {mae*180/np.pi:.3f}° max neighbor dist {neighbor_dist:.3f} "
+        f"KL divergence {kl:.3f} "
         f"contact distance {contact_distance:.3f} "
-        f"max neighbor dist {neighbor_dist:.3f} mean angle diff {mae*180/np.pi:.3f}° "
-        f"FOT xx {FOT[0, 0]:.3f} xy {FOT[0, 1]:.3f} xz {FOT[0, 2]:.3f} "
-        f"yy {FOT[1, 1]:.3f} yz {FOT[1, 2]:.3f} zz {FOT[2, 2]:.3f}"
     )
     return [
         i,
         len(fs),
-        FOT[0, 0],
-        FOT[0, 1],
-        FOT[0, 2],
-        FOT[1, 1],
-        FOT[1, 2],
-        FOT[2, 2],
+        vf,
         mae,
-        neighbor_dist,
+        mean_length,
+        kl,
         overlap,
         contact_distance,
-        total_force_strength,
-        max_force_strength
+        change
     ]
+
+
+def print_stats_row(
+    fs: list[Fiber], i, overlap: float, neighbor_dist: float, contact_distance:float,
+        objective:float, change:float, image_size, dir_matrix, is_periodic: bool
+):
+    """
+    Prints the statistics into the console and returns a list of them
+    :param fs: list[Fiber]
+        fiber system
+    :param i: int
+        iteration step of force-biased algorithm
+    :param total_force_strength: float
+        force strength, length of vector of displacements
+    :param max_force_strength: float
+        maximal force strength
+    :param overlap: float
+        maximal overlap between balls (should be 0)
+    :param neighbor_dist: float
+        maximal distance between neighbors (should be half the radius)
+    :param contact_distance: float
+        maximal distance between contacts (should be 0)
+    :param res: float
+        relative difference from optimization function in this step to previous step
+    :return: rows to be printed, containing
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
+    """
+    mae = mean_angle_error(fs)
+    mean_length = np.mean([fiber.get_length() for fiber in fs])
+    vf = volume_fraction(fs, image_size, is_periodic=is_periodic)
+    kl = calculate_kl(fs, dir_matrix)
+    print(
+        f"step {i} objective {objective:.3f} change {change:.5f} max overlap {overlap:.3f} "
+        f"MAE {mae*180/np.pi:.3f}° max neighbor dist {neighbor_dist:.3f} "
+        f"KL divergence {kl:.3f} "
+        f"contact distance {contact_distance:.3f} "
+    )
+    return [
+        i,
+        len(fs),
+        vf,
+        mae,
+        mean_length,
+        kl,
+        overlap,
+        contact_distance,
+        change
+    ]
+
+
+def print_contact_stats(output_file: str, rows):
+    """
+    Prints the statistics into an output file
+    :param output_file: str
+        path to the output file
+    :param rows: list
+        rows to be printed, containing
+        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
+    """
+    with open(output_file, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            [
+                "#connected_components", "#clots", "#contacts", "contact_surface"
+            ]
+        )  # Header
+        writer.writerows(rows)
+
 
 
 def save_fibers_as_graph(file_path: str, fs: sh):

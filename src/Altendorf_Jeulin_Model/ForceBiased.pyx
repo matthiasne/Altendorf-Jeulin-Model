@@ -11,6 +11,7 @@ import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 
 from Altendorf_Jeulin_Model.ContactModel import test_in_contact
+from Altendorf_Jeulin_Model.Statistics import volume_fraction, calculate_kl
 from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
 
 
@@ -30,7 +31,8 @@ def run_force_biased(
     output_step_size: int = 100,
     max_steps: int = 1000,
     stop_criterion: Callable[[float], bool] = default_stop_criterion,
-    tol: float = 1e-5
+    tol: float = 1e-5,
+    dir_matrix = np.diag([1,1,1])
 ):
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
@@ -40,7 +42,7 @@ def run_force_biased(
                             is_periodic, hardcore_ratio, output_step_size, max_steps)
     elif method == "AJ++":
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps, tol=tol)
+                              output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix)
     elif method == "Contact++":
         run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist,
                                    hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
@@ -133,7 +135,8 @@ def run_force_biased_AJpp(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
-    tol: float = 1e-5
+    tol: float = 1e-5,
+    dir_matrix = np.diag([1,1,1])
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin in the refined version
@@ -171,8 +174,8 @@ def run_force_biased_AJpp(
         optim_sum = 1
     prev_optim_sum = optim_sum*optim_sum
     if verbose:
-        rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum ))
+        rows.append(print_stats_row(fs, 0, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, 0, image_size, dir_matrix, is_periodic))
     eps = np.finfo(float).eps
 
     for i in range(1, max_steps):
@@ -187,12 +190,14 @@ def run_force_biased_AJpp(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
         )
         if verbose and i % output_step_size == 0:
-            rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
+            rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                        shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                        image_size, dir_matrix, is_periodic))
 
     if verbose:
-        rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
+        rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                    image_size, dir_matrix, is_periodic))
         print_stats(output_file, rows)
 
 
@@ -283,7 +288,8 @@ def run_force_biased_contactpp(
     output_step_size: int = 100,
     steps_tension_reduction: int = 50,
     max_steps: int = 1000,
-    tol: float = 1e-5
+    tol: float = 1e-5,
+    dir_matrix = np.diag([1,1,1])
 ):
     """
     Run the improved contact extension
@@ -328,8 +334,9 @@ def run_force_biased_contactpp(
         optim_sum = 1
     prev_optim_sum = optim_sum*optim_sum
     if verbose:
-        rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
+        rows.append(print_stats_row(fs, 0, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, 0,
+                                    image_size, dir_matrix, is_periodic))
     print("We run the force-biased algorithm:")
     eps = np.finfo(float).eps
 
@@ -371,12 +378,14 @@ def run_force_biased_contactpp(
                 contact_distance=contact_distance, repulsion_factor=1.1
             ))
         if verbose and i % output_step_size == 0:
-            rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
+            rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                        shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                        image_size, dir_matrix, is_periodic))
 
     if verbose:
-        rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, abs(optim_sum - prev_optim_sum)/optim_sum))
+        rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                    image_size, dir_matrix, is_periodic))
         print_stats(output_file, rows)
 
 
