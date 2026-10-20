@@ -91,13 +91,13 @@ cdef class SpatialHashing:
                         ni %= self.division[0]
                         nj %= self.division[1]
                         nk %= self.division[2]
-                    else:
-                        if (
-                                ni < 0 or ni >= self.division[0]
-                                or nj < 0 or nj >= self.division[1]
-                                or nk < 0 or nk >= self.division[2]
-                        ):
-                            continue
+                    #else:
+                    #    if (
+                    #            ni < 0 or ni >= self.division[0]
+                    #            or nj < 0 or nj >= self.division[1]
+                    #            or nk < 0 or nk >= self.division[2]
+                    #    ):
+                    #        continue
 
                     neighbor = (
                             ni

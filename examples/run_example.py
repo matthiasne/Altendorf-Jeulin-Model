@@ -21,7 +21,7 @@ def main():
     example_AJ_endless()
 
 def direction_distribution(rng):
-    beta = 3.0
+    beta = 0.1
     return schladitz_distribution(beta, rng)
 
 def direction_distribution_acg(rng):
@@ -32,12 +32,10 @@ def direction_distribution_acg(rng):
 
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
-    image_size = np.array([200, 200, 200])
-    N = 500
-    #image_size = np.array([384, 384, 384])
-    #N = 4000
-    L = 120
-    R = 2
+    image_size = np.array([612, 612, 612])
+    N = 100
+    L = 2550
+    R = 8.5
 
     # create a fiber system
     start_time = time.time()
@@ -53,7 +51,7 @@ def example_AJ_finite():
     # pack the fibers
     start_time = time.time()
     run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 10,
-                     method="AJ++", tol=1e-3)
+                     method="AJ++", tol=1e-3, max_steps=10000, dir_matrix = np.diag([1,1,1/0.1**2]))
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"AJ++ Packing - Elapsed time: {elapsed_time:.6f} seconds")

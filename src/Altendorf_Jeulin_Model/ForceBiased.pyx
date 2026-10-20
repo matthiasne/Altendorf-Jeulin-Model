@@ -92,7 +92,7 @@ def run_force_biased_AJ(
     max_radius = np.max([fiber.get_max_radius() for fiber in fs])
     min_radius = np.min([fiber.get_min_radius() for fiber in fs])
 
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 10 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances, optim_sum\
         = calculate_forces(
@@ -108,7 +108,7 @@ def run_force_biased_AJ(
             break
 
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid = sh.SpatialHashing(image_size, 10 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
@@ -164,7 +164,7 @@ def run_force_biased_AJpp(
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
 
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
         calculate_forces(
@@ -182,7 +182,7 @@ def run_force_biased_AJpp(
         if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps:
             break
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         prev_optim_sum = optim_sum
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
@@ -240,7 +240,7 @@ def run_force_biased_general(
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
 
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
         calculate_forces(
@@ -257,7 +257,7 @@ def run_force_biased_general(
                               end_force_biased):
             break
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
@@ -323,7 +323,7 @@ def run_force_biased_contactpp(
 
     max_radius = max(fiber.get_max_radius() for fiber in fs)
 
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
         = (calculate_forces(
@@ -361,7 +361,7 @@ def run_force_biased_contactpp(
             print(len(shortlist))
 
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         if i < steps_tension_reduction:
             prev_optim_sum = optim_sum
@@ -428,12 +428,12 @@ def end_step_repulsion(
         for ball in fiber.balls:
             ball.force = np.array([0, 0, 0])
             ball.overlap = 0
-    grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
     grid.add_fiber_system(fs)
     while overlap > 0:
         force_strength, overlap = calculate_forces_endstep(grid, fiber_system=fs)
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 2.5 * max_radius)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs)
 
 cdef inline bint default_stop_criterion(double overlap, double eps,
