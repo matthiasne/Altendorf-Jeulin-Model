@@ -17,8 +17,8 @@ X_E:cython.double = 0.5
 ALPHA_S:cython.double = 1 * np.pi / 180
 ALPHA_E:cython.double = 2 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
-TAU:cython.double = 0.125
-RHO:cython.double = 0.125
+TAU:cython.double = 0.25
+RHO:cython.double = 0.25
 cdef double PI = 3.141592653589793
 
 

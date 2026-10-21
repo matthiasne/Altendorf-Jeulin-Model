@@ -33,7 +33,7 @@ def direction_distribution_acg(rng):
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = np.array([612, 612, 612])
-    N = 200
+    N = 50
     L = 2550
     R = 8.5
 
