@@ -21,26 +21,26 @@ cdef class SpatialHashing:
         The cell size in each direction x, y, and z
     """
 
-    def __cinit__(self, image_size, max_cell_size: int):
+    def __cinit__(self, image_size, min_cell_size: int):
         """
         Initializes the SpatialHashing object, i.e. a grid for spatial hashing
 
         :param image_size: tuple[int, int, int]
             The size of the image that the grid needs to cover
-        :param max_cell_size: int
-            The maximal size for each cell
+        :param min_cell_size: int
+            The minimal size for each cell
         """
         self.image_size[0] = image_size[0]
         self.image_size[1] = image_size[1]
         self.image_size[2] = image_size[2]
-        self.division[0] = ceil(image_size[0] / max_cell_size)
-        self.division[1] = ceil(image_size[1] / max_cell_size)
-        self.division[2] = ceil(image_size[2] / max_cell_size)
+        self.division[0] = max(1, floor(image_size[0] / min_cell_size))
+        self.division[1] = max(1, floor(image_size[1] / min_cell_size))
+        self.division[2] = max(1, floor(image_size[2] / min_cell_size))
         self.n_cells = self.division[0] * self.division[1] * self.division[2]
-        self.cells = [[] for i in range(self.n_cells)]
-        self.cell_width[0] = ceil(image_size[0] / self.division[0])
-        self.cell_width[1] = ceil(image_size[1] / self.division[1])
-        self.cell_width[2] = ceil(image_size[2] / self.division[2])
+        self.cells = [[] for _ in range(self.n_cells)]
+        self.cell_width[0] = floor(image_size[0] / self.division[0])
+        self.cell_width[1] = floor(image_size[1] / self.division[1])
+        self.cell_width[2] = floor(image_size[2] / self.division[2])
 
 
     cdef public inline tuple get_cell_index_of_coord(
@@ -77,27 +77,32 @@ cdef class SpatialHashing:
         for di in range(-1, 2):
             for dj in range(-1, 2):
                 for dk in range(-1, 2):
-                    if di > 0:
+                    if di == 0 and dj == 0 and dk == 0:
                         continue
-                    if di == 0 and dj > 0:
-                        continue
-                    if di == 0 and dj == 0 and dk >= 0:
-                        continue
+                    #if di >= 0:
+                    #    continue
+                    #if di == 0 and dj >= 0:
+                    #    continue
+                    #if di == 0 and dj == 0 and dk >= 0:
+                    #    continue
                     ni = i + di
                     nj = j + dj
                     nk = k + dk
 
                     if is_periodic:
+                        ni += self.division[0]
                         ni %= self.division[0]
+                        nj += self.division[1]
                         nj %= self.division[1]
+                        nk += self.division[2]
                         nk %= self.division[2]
-                    #else:
-                    #    if (
-                    #            ni < 0 or ni >= self.division[0]
-                    #            or nj < 0 or nj >= self.division[1]
-                    #            or nk < 0 or nk >= self.division[2]
-                    #    ):
-                    #        continue
+                    else:
+                        if (
+                                ni < 0 or ni >= self.division[0]
+                                or nj < 0 or nj >= self.division[1]
+                                or nk < 0 or nk >= self.division[2]
+                        ):
+                            continue
 
                     neighbor = (
                             ni

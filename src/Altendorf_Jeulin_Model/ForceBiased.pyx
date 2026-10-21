@@ -92,7 +92,7 @@ def run_force_biased_AJ(
     max_radius = np.max([fiber.get_max_radius() for fiber in fs])
     min_radius = np.min([fiber.get_min_radius() for fiber in fs])
 
-    grid = sh.SpatialHashing(image_size, 10 * max_radius)
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances, optim_sum\
         = calculate_forces(
@@ -108,7 +108,7 @@ def run_force_biased_AJ(
             break
 
         apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 10 * max_radius)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, contact_distances = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,

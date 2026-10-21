@@ -33,7 +33,7 @@ def direction_distribution_acg(rng):
 def example_AJ_finite():
     print("This is the Altendorf-Jeulin model")
     image_size = np.array([612, 612, 612])
-    N = 100
+    N = 200
     L = 2550
     R = 8.5
 
@@ -62,7 +62,7 @@ def example_AJ_finite():
                                                                     contact_distance= 0.1*R)
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface)
-    shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.2*R)
+    shortlist = find_contact_candidates(fs, image_size, is_periodic = True, interaction_distance=0.1*R)
     print("shortlist has ", len(shortlist), " elements")
     start_time = time.time()
     run_force_biased(fs, image_size, verbose=True, shortlist=shortlist, hardcore_ratio=0.9, output_step_size = 10,
