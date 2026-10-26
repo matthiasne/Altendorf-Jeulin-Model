@@ -38,9 +38,9 @@ cdef class SpatialHashing:
         self.division[2] = max(1, floor(image_size[2] / min_cell_size))
         self.n_cells = self.division[0] * self.division[1] * self.division[2]
         self.cells = [[] for _ in range(self.n_cells)]
-        self.cell_width[0] = floor(image_size[0] / self.division[0])
-        self.cell_width[1] = floor(image_size[1] / self.division[1])
-        self.cell_width[2] = floor(image_size[2] / self.division[2])
+        self.cell_width[0] = ceil(image_size[0] / self.division[0])
+        self.cell_width[1] = ceil(image_size[1] / self.division[1])
+        self.cell_width[2] = ceil(image_size[2] / self.division[2])
 
 
     cdef public inline tuple get_cell_index_of_coord(
@@ -54,9 +54,11 @@ cdef class SpatialHashing:
         :return: tuple[int, int, int]
             The cell index
         """
-        return (floor(posx/self.cell_width[0]),
-                     floor(posy/self.cell_width[1]),
-                     floor(posz/self.cell_width[2]))
+        cdef int ix, iy, iz
+        ix = min(<int>floor(posx/self.cell_width[0]), self.division[0] - 1)
+        iy = min(<int>floor(posy/self.cell_width[1]), self.division[1] - 1)
+        iz = min(<int>floor(posz/self.cell_width[2]), self.division[2] - 1)
+        return (ix, iy, iz)
 
 
     cdef public set get_younger_neighbor_cell_indices(
@@ -79,23 +81,20 @@ cdef class SpatialHashing:
                 for dk in range(-1, 2):
                     if di == 0 and dj == 0 and dk == 0:
                         continue
-                    #if di >= 0:
-                    #    continue
-                    #if di == 0 and dj >= 0:
-                    #    continue
-                    #if di == 0 and dj == 0 and dk >= 0:
-                    #    continue
+                    if di < 0:
+                        continue
+                    if di == 0 and dj < 0:
+                        continue
+                    if di == 0 and dj == 0 and dk < 0:
+                        continue
                     ni = i + di
                     nj = j + dj
                     nk = k + dk
 
                     if is_periodic:
-                        ni += self.division[0]
-                        ni %= self.division[0]
-                        nj += self.division[1]
-                        nj %= self.division[1]
-                        nk += self.division[2]
-                        nk %= self.division[2]
+                        ni = (ni + self.division[0])%self.division[0]
+                        nj = (nj + self.division[1])%self.division[1]
+                        nk = (nk + self.division[2])%self.division[2]
                     else:
                         if (
                                 ni < 0 or ni >= self.division[0]
@@ -130,15 +129,15 @@ cdef class SpatialHashing:
             y = y % self.image_size[1]
             z = z % self.image_size[2]
 
-        ix = floor(x / self.cell_width[0])
-        iy = floor(y / self.cell_width[1])
-        iz = floor(z / self.cell_width[2])
+        ix = min(floor(x / self.cell_width[0]), self.division[0] - 1)
+        iy = min(floor(y / self.cell_width[1]), self.division[1] - 1)
+        iz = min(floor(z / self.cell_width[2]), self.division[2] - 1)
         idx = (
             ix
             + iy * self.division[0]
             + iz * self.division[0] * self.division[1]
         )
-        if idx > 0 and idx < self.n_cells:
+        if idx >= 0 and idx < self.n_cells:
             self.cells[idx].append(ball)
 
     cdef void add_fiber(self, object fiber, bint is_periodic):

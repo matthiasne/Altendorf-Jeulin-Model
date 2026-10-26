@@ -14,8 +14,8 @@ from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3, clip
 MIN_REPULSION_DISTANCE = 5
 X_S:cython.double = 0.25
 X_E:cython.double = 0.5
-ALPHA_S:cython.double = 1 * np.pi / 180
-ALPHA_E:cython.double = 2 * np.pi / 180
+ALPHA_S:cython.double = 4 * np.pi / 180
+ALPHA_E:cython.double = 5 * np.pi / 180
 # factors to balance forces, see Altendorf & Jeulin
 TAU:cython.double = 0.25
 RHO:cython.double = 0.25
@@ -199,10 +199,7 @@ cdef inline void calculate_repulsion_forces(
     cdef int[3] image_size = grid.image_size
     # compare within cell
     if is_periodic:
-        #for j in range(i+1, n):
-        for j in range(0, n):
-            if j == i:
-                continue
+        for j in range(i+1, n):
             ball2 = cell[j]
             calculate_repulsion_force_periodic(
                 ball, ball2, image_size, hardcore_ratio, repulsion_factor
@@ -332,7 +329,7 @@ cdef void calculate_repulsion_force_nonperiodic(
             ball2.force[1] += force_strength * dy
             ball2.force[2] += force_strength * dz
             ball2.overlap = max(ball2.overlap, overlap_true)
-            ball.optim_sum += optim_summand
+            ball2.optim_sum += optim_summand
 
 
 cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
