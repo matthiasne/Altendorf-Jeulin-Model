@@ -55,6 +55,9 @@ cdef class SpatialHashing:
             The cell index
         """
         cdef int ix, iy, iz
+        posx = posx%self.image_size[0]
+        posy = posy%self.image_size[1]
+        posz = posz%self.image_size[2]
         ix = min(<int>floor(posx/self.cell_width[0]), self.division[0] - 1)
         iy = min(<int>floor(posy/self.cell_width[1]), self.division[1] - 1)
         iz = min(<int>floor(posz/self.cell_width[2]), self.division[2] - 1)
