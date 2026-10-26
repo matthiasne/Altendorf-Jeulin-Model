@@ -235,8 +235,8 @@ cdef set identify_contact_partners(int i, Ball ball, list cell, SpatialHashing g
             contact_pairs.add(pair)
     # compare with neighbor cells
     for cell_index in neighbor_cells:
-        cell = grid.cells[cell_index]
-        for ball2 in cell:
+        neighbor_cell = grid.cells[cell_index]
+        for ball2 in neighbor_cell:
             if is_periodic:
                 is_in_contact, weight = test_in_contact_periodic(ball, ball2, image_size, contact_distance)
             else:
@@ -273,7 +273,7 @@ cdef tuple test_in_contact_periodic(Ball ball, Ball ball2, int[3] image_size,
     :param contact_distance: float, default 0
         The maximal distance that balls can have to be considered in contact
     :return: bool, float
-        whether the neighbors are "in contact", and if so, the distance, otherwise -1
+        whether the neighbors are "in contact" and the distance
     """
     cdef double dist, displaced, dist_perfect, weight
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
@@ -301,7 +301,7 @@ cdef tuple test_in_contact_periodic(Ball ball, Ball ball2, int[3] image_size,
         if weight <= contact_distance:
             return True, weight
 
-    return False, -1
+    return False, weight
 
 
 cdef tuple test_in_contact_nonperiodic(Ball ball, Ball ball2, double contact_distance = 0) noexcept:

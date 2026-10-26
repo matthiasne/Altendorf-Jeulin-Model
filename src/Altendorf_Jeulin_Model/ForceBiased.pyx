@@ -328,7 +328,7 @@ def run_force_biased_contactpp(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
         = (calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, hardcore_ratio = hardcore_ratio,
-        contact_distance=contact_distance, repulsion_factor=1.1
+        contact_distance=contact_distance, repulsion_factor=1.05
     ))
     if optim_sum < 1:
         optim_sum = 1
@@ -368,7 +368,7 @@ def run_force_biased_contactpp(
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
                 optim_sum = (calculate_forces(
                 grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-                shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.1
+                shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.05
             ))
         else:
             prev_optim_sum = optim_sum
