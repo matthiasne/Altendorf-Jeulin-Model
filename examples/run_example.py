@@ -40,7 +40,7 @@ def example_AJ_finite():
     # create a fiber system
     start_time = time.time()
     fs = fm.initialize_fiber_system(
-        N, L, R, direction_distribution, image_size, seed=42
+        N, L, R, direction_distribution, image_size, seed=43
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
