@@ -12,19 +12,14 @@ from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3, clip
 
 MIN_REPULSION_DISTANCE = 5
-X_S:cython.double = 0.25
-X_E:cython.double = 0.5
-ALPHA_S:cython.double = 4 * np.pi / 180
-ALPHA_E:cython.double = 5 * np.pi / 180
-# factors to balance forces, see Altendorf & Jeulin
-TAU:cython.double = 0.25
-RHO:cython.double = 0.25
 cdef double PI = 3.141592653589793
 
 
 def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = True,
                      shortlist = [], hardcore_ratio: float = 1.0, contact_distance = 1,
-                     repulsion_factor = 1.1):
+                     repulsion_factor = 1.1, tau: float = 0.25, rho: float = 0.25,
+                     alpha_s: float = 1*PI/180, alpha_e: float = 2*PI/180,
+                     x_s: float = 0.25, x_e: float = 0.5):
     """
     Calculates forces in the fiber system and adds them to corresponding ball
 
@@ -54,7 +49,7 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                 ball = cell[i]
                 calculate_repulsion_forces(
                     i, ball, cell, grid, neighbor_cells, is_periodic=is_periodic,
-                    hardcore_ratio=hardcore_ratio, repulsion_factor=repulsion_factor
+                    hardcore_ratio=hardcore_ratio, repulsion_factor=repulsion_factor, tau=tau
                 )
     for fiber in fiber_system:
         balls = fiber.balls
@@ -63,21 +58,21 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
             ball = balls[i]
             if i + 1 < n:
                 next_ball = balls[i+1]
-                calculate_spring_force(ball, next_ball, is_next=True)
+                calculate_spring_force(ball, next_ball, is_next=True, rho=rho, x_s=x_s, x_e=x_e)
             if i > 0:
                 prev_ball = balls[i-1]
-                calculate_spring_force(ball, prev_ball, is_next=False)
+                calculate_spring_force(ball, prev_ball, is_next=False, rho=rho, x_s=x_s, x_e=x_e)
             if i > 0 and i + 1 < n:
-                calculate_angle_force(ball, balls[i - 1], balls[i + 1])
+                calculate_angle_force(ball, balls[i - 1], balls[i + 1], rho=rho, alpha_s=alpha_s, alpha_e=alpha_e)
 
     shortlist_distance_sum = 0
     for contact_edge in shortlist:
         ball = fiber_system[contact_edge[0][0]].balls[contact_edge[0][1]]
         ball2 = fiber_system[contact_edge[1][0]].balls[contact_edge[1][1]]
         if is_periodic:
-            distance = calculate_contact_force_periodic(ball, ball2, image_size, contact_distance)
+            distance = calculate_contact_force_periodic(ball, ball2, image_size, contact_distance, rho)
         else:
-            distance = calculate_contact_force_nonperiodic(ball, ball2, contact_distance)
+            distance = calculate_contact_force_nonperiodic(ball, ball2, contact_distance, rho)
         shortlist_distance_sum += distance
     total_force_x = 0
     total_force_y = 0
@@ -177,7 +172,8 @@ cdef inline void calculate_repulsion_forces(
     set neighbor_cells,
     bint is_periodic = True,
     double hardcore_ratio = 1.0,
-    double repulsion_factor = 1.1
+    double repulsion_factor = 1.1,
+    double tau = 0.25
 ) noexcept:
     """
     Calculates the repulsion force for the whole fiber system
@@ -202,27 +198,27 @@ cdef inline void calculate_repulsion_forces(
         for j in range(i+1, n):
             ball2 = cell[j]
             calculate_repulsion_force_periodic(
-                ball, ball2, image_size, hardcore_ratio, repulsion_factor
+                ball, ball2, image_size, hardcore_ratio, repulsion_factor, tau
             )
         # compare with neighbor cells
         for cell_index in neighbor_cells:
             neighbor_cell = grid.cells[cell_index]
             for ball2 in neighbor_cell:
                 calculate_repulsion_force_periodic(
-                    ball, ball2, image_size, hardcore_ratio, repulsion_factor
+                    ball, ball2, image_size, hardcore_ratio, repulsion_factor, tau
                 )
     else:
         for j in range(i+1, n):
             ball2 = cell[j]
             calculate_repulsion_force_nonperiodic(
-                ball, ball2, hardcore_ratio, repulsion_factor
+                ball, ball2, hardcore_ratio, repulsion_factor, tau
             )
         # compare with neighbor cells
         for cell_index in neighbor_cells:
             neighbor_cell = grid.cells[cell_index]
             for ball2 in neighbor_cell:
                 calculate_repulsion_force_nonperiodic(
-                    ball, ball2, hardcore_ratio, repulsion_factor
+                    ball, ball2, hardcore_ratio, repulsion_factor, tau
                 )
 
 
@@ -230,7 +226,8 @@ cdef inline void calculate_repulsion_forces(
 cdef void calculate_repulsion_force_periodic(
     Ball ball, Ball ball2, int[3] image_size,
     double hardcore_ratio,
-    double repulsion_factor
+    double repulsion_factor,
+    double tau = 0.25
 ) noexcept:
     """
     calculates the repulsion force between two balls in the periodic case
@@ -272,7 +269,7 @@ cdef void calculate_repulsion_force_periodic(
         overlap_true = hardcore_ratio*overlap - dist
         overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
-            force_strength = TAU*overlap / 2.0
+            force_strength = tau*overlap / 2.0
             optim_summand = overlap*overlap/4.0
             if dist > 0.0:
                 force_strength /= dist
@@ -291,7 +288,8 @@ cdef void calculate_repulsion_force_periodic(
 cdef void calculate_repulsion_force_nonperiodic(
     Ball ball, Ball ball2,
     double hardcore_ratio,
-    double repulsion_factor
+    double repulsion_factor,
+    double tau = 0.25
 ) noexcept:
     """
     calculates the repulsion force between two balls in the nonperiodic case
@@ -318,7 +316,7 @@ cdef void calculate_repulsion_force_nonperiodic(
         overlap_true = hardcore_ratio*overlap - dist
         overlap = repulsion_factor*hardcore_ratio*overlap - dist
         if overlap > 0:
-            force_strength = TAU * overlap / 2.0
+            force_strength = tau * overlap / 2.0
             optim_summand = overlap*overlap/4.0
             ball.force[0] -= force_strength * dx
             ball.force[1] -= force_strength * dy
@@ -332,7 +330,8 @@ cdef void calculate_repulsion_force_nonperiodic(
             ball2.optim_sum += optim_summand
 
 
-cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
+cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next, double rho = 0.25,
+        double x_s = 0.25, double x_e = 0.5) noexcept:
     """
     Calculates the spring force between 2 balls and adds it to corresponding balls
 
@@ -353,16 +352,17 @@ cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next) noexcept:
     dist_displaced = dist_is - dist_should
     ratio_displaced = abs(dist_displaced) / dist_should
     # smoothing_factor
-    s_f = smoothing_factor(ratio_displaced, X_S, X_E) * RHO * dist_displaced
+    s_f = smoothing_factor(ratio_displaced, x_s, x_e) * rho * dist_displaced
     # add to recover force
     ball1.force[0] += dx*s_f
     ball1.force[1] += dy*s_f
     ball1.force[2] += dz*s_f
     ball1.neighbor_dist = dist_is#max(ball1.neighbor_dist, dist_is)
-    ball1.optim_sum += s_f*s_f/(RHO*RHO)
+    ball1.optim_sum += s_f*s_f/(rho*rho)
 
 
-cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexcept:
+cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next, double rho = 0.25,
+        double alpha_s = 1*PI/180, double alpha_e = 2*PI/180) noexcept:
     """
     Calculates angle force between 3 neighboring balls and adds it to the center ball
     Note: this code does not directly follow the paper by Altendorf&Jeulin
@@ -415,12 +415,12 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next) noexc
             h1 + h2 + sqrt((h1 + h2)*(h1 + h2) + 4 * h1 * h2 * tan_alpha0*tan_alpha0)
         ) / (2 * tan_alpha0)
     # calculate force
-    f = smoothing_factor(alpha0 - alpha, ALPHA_S, ALPHA_E) / z * RHO * (z - z0) / 2.0
+    f = smoothing_factor(alpha0 - alpha, alpha_s, alpha_e) / z * rho * (z - z0) / 2.0
     ball.force[0] += (mx-coord[0])*f
     ball.force[1] += (my-coord[1])*f
     ball.force[2] += (mz-coord[2])*f
     ball.angle_diff = alpha0 - alpha
-    ball.optim_sum += f*f/(RHO*RHO)
+    ball.optim_sum += f*f/(rho*rho)
 
 
 cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
@@ -447,7 +447,7 @@ cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
 
 
 cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image_size,
-    double contact_distance, double repulsion_factor = 1.1) noexcept:
+    double contact_distance, double repulsion_factor = 1.1, double rho = 0.25) noexcept:
     """
     calculates the contact force between two balls
 
@@ -494,7 +494,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
         if dist > 0.0:
             force_strength /= dist
         optim_summand = force_strength*force_strength
-        force_strength *= RHO
+        force_strength *= rho
         ball.force[0] += force_strength * dx
         ball.force[1] += force_strength * dy
         ball.force[2] += force_strength * dz
@@ -509,7 +509,7 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
 
 
 cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
-    double contact_distance, double repulsion_factor = 1.1) noexcept:
+    double contact_distance, double repulsion_factor = 1.1, double rho = 0.25) noexcept:
     """
     calculates the contact force between two balls in the nonperiodic case
     
@@ -537,7 +537,7 @@ cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
         if dist > 0.0:
             force_strength /= dist
         optim_summand = force_strength*force_strength
-        force_strength *= RHO
+        force_strength *= rho
         ball.force[0] += force_strength * dx
         ball.force[1] += force_strength * dy
         ball.force[2] += force_strength * dz

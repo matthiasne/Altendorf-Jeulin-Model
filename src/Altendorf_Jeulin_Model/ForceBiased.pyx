@@ -32,27 +32,36 @@ def run_force_biased(
     max_steps: int = 1000,
     stop_criterion: Callable[[float], bool] = default_stop_criterion,
     tol: float = 1e-5,
-    dir_matrix = np.diag([1,1,1])
+    dir_matrix = np.diag([1,1,1]),
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
     if method == "AJ":
         run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_file, verbose,
-                            is_periodic, hardcore_ratio, output_step_size, max_steps, dir_matrix=dir_matrix)
+                            is_periodic, hardcore_ratio, output_step_size, max_steps, dir_matrix=dir_matrix,
+                            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "AJ++":
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix)
+                              output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix,
+                              tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "AJ++fast":
         run_force_biased_AJppfast(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
-                              output_step_size=output_step_size, max_steps=max_steps, dir_matrix=dir_matrix)
+                              output_step_size=output_step_size, max_steps=max_steps, dir_matrix=dir_matrix,
+                                  tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "Contact++":
         run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist,
                                    hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
-                                   output_step_size=output_step_size, max_steps=max_steps, tol=tol)
+                                   output_step_size=output_step_size, max_steps=max_steps, tol=tol,
+                                   tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     else:
         run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic,
-                                 hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps)
+                                 hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps,
+                                 tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
 
 def run_force_biased_AJ(
     fs: list[Fiber],
@@ -65,7 +74,11 @@ def run_force_biased_AJ(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
-    dir_matrix = np.diag([1,1,1])
+    dir_matrix = np.diag([1,1,1]),
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -100,7 +113,8 @@ def run_force_biased_AJ(
     grid.add_fiber_system(fs, is_periodic=is_periodic)
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
         = calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio, repulsion_factor=1
+        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio, repulsion_factor=1,
+        tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, overlap, neighbor_dist,
@@ -119,7 +133,7 @@ def run_force_biased_AJ(
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
             grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-            repulsion_factor=1
+            repulsion_factor=1, tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
         )
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
@@ -147,7 +161,11 @@ def run_force_biased_AJpp(
     output_step_size: int = 100,
     max_steps: int = 1000,
     tol: float = 1e-5,
-    dir_matrix = np.diag([1,1,1])
+    dir_matrix = np.diag([1,1,1]),
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin in the refined version
@@ -180,6 +198,7 @@ def run_force_biased_AJpp(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
         calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     )
     if optim_sum < 1:
         optim_sum = 1
@@ -198,7 +217,8 @@ def run_force_biased_AJpp(
         prev_optim_sum = optim_sum
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
         )
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
@@ -220,7 +240,11 @@ def run_force_biased_AJppfast(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
-    dir_matrix = np.diag([1,1,1])
+    dir_matrix = np.diag([1,1,1]),
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin in the refined version but stop when the overlap is 0
@@ -253,6 +277,7 @@ def run_force_biased_AJppfast(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
         calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     )
     if optim_sum < 1:
         optim_sum = 1
@@ -271,7 +296,8 @@ def run_force_biased_AJppfast(
         prev_optim_sum = optim_sum
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
         )
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
@@ -295,6 +321,10 @@ def run_force_biased_general(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     """
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
@@ -328,6 +358,7 @@ def run_force_biased_general(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
         calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     )
     if verbose:
         rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
@@ -344,7 +375,8 @@ def run_force_biased_general(
         grid.add_fiber_system(fs, is_periodic)
         total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
             = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
         )
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
@@ -372,7 +404,11 @@ def run_force_biased_contactpp(
     steps_tension_reduction: int = 500,
     max_steps: int = 1000,
     tol: float = 1e-5,
-    dir_matrix = np.diag([1,1,1])
+    dir_matrix = np.diag([1,1,1]),
+    tau: float = 0.25,
+    rho: float = 0.25,
+    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
+    x_s: float = 0.25, x_e: float = 0.5
 ):
     """
     Run the improved contact extension
