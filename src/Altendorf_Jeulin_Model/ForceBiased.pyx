@@ -294,7 +294,7 @@ def run_force_biased_contactpp(
     hardcore_ratio: float = 1.0,
     contact_distance: float = 0.0,
     output_step_size: int = 100,
-    steps_tension_reduction: int = 50,
+    steps_tension_reduction: int = 500,
     max_steps: int = 1000,
     tol: float = 1e-5,
     dir_matrix = np.diag([1,1,1])
@@ -349,7 +349,7 @@ def run_force_biased_contactpp(
     eps = np.finfo(float).eps
 
     for i in range(1, max_steps):
-        if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps and shortlist_distance_sum < eps:
+        if abs(optim_sum - prev_optim_sum)/optim_sum < tol and overlap < eps:
             break
         if i == steps_tension_reduction:
             print("remove tense links")
