@@ -43,6 +43,9 @@ def run_force_biased(
     elif method == "AJ++":
         run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix)
+    elif method == "AJ++fast":
+        run_force_biased_AJppfast(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+                              output_step_size=output_step_size, max_steps=max_steps, dir_matrix=dir_matrix)
     elif method == "Contact++":
         run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist,
                                    hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
@@ -208,6 +211,78 @@ def run_force_biased_AJpp(
                                     image_size, dir_matrix, is_periodic))
         print_stats(output_file, rows)
 
+def run_force_biased_AJppfast(
+    fs: list[Fiber],
+    image_size,
+    output_file: str = "results.csv",
+    verbose: bool = True,
+    is_periodic: bool = True,
+    hardcore_ratio: float = 1.0,
+    output_step_size: int = 100,
+    max_steps: int = 1000,
+    dir_matrix = np.diag([1,1,1])
+):
+    """
+    Run the force-biased packing by Altendorf & Jeulin in the refined version but stop when the overlap is 0
+
+    :param fs: list[Fiber]
+        the fiber system to be packed
+    :param image_size:
+        the image size/domain to be modeled on
+    :param output_file: str, default: "results.csv
+        file path to store packing step statistics
+    :param verbose: bool, default: True
+        True: output information on packing statistics
+    :param is_periodic: bool, default: True
+        uses periodic boundary conditions
+    :param hardcore_ratio: float, default: 1.0
+        the hardcore ratio determines the fraction of the radius that can be penetrated
+    :param output_step_size: int, default: 100
+        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
+    :param max_steps: int, default: 1000
+        maximum number of iterations
+    :param tol: float, default: 1e-5
+        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
+    """
+    rows = []
+
+    max_radius = max(fiber.get_max_radius() for fiber in fs)
+
+    grid = sh.SpatialHashing(image_size, 5 * max_radius)
+    grid.add_fiber_system(fs, is_periodic=is_periodic)
+    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
+        calculate_forces(
+        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
+    )
+    if optim_sum < 1:
+        optim_sum = 1
+    prev_optim_sum = optim_sum*optim_sum
+    if verbose:
+        rows.append(print_stats_row(fs, 0, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, 0, image_size, dir_matrix, is_periodic))
+    eps = np.finfo(float).eps
+
+    for i in range(1, max_steps):
+        if overlap < eps:
+            break
+        apply_forces(fs)
+        grid = sh.SpatialHashing(image_size, 5 * max_radius)
+        grid.add_fiber_system(fs, is_periodic)
+        prev_optim_sum = optim_sum
+        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
+            = calculate_forces(
+            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio
+        )
+        if verbose and i % output_step_size == 0:
+            rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                        shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                        image_size, dir_matrix, is_periodic))
+
+    if verbose:
+        rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
+                                    shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
+                                    image_size, dir_matrix, is_periodic))
+        print_stats(output_file, rows)
 
 
 def run_force_biased_general(
