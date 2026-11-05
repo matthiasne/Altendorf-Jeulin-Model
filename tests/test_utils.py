@@ -1,10 +1,8 @@
 import unittest
-from numbers import Real
 from unittest.mock import MagicMock
 
 import numpy as np
 import scipy.stats
-
 from Altendorf_Jeulin_Model.utils import (
     angle_between,
     cut_border,
@@ -134,7 +132,7 @@ class TestSphericalToMatrix(unittest.TestCase):
 
     def test_orthogonality(self):
         # columns of the rotation matrix should be orthonormal
-        for theta, phi in [(0.3, 0.7), (np.pi/2, np.pi/4), (np.pi/3, np.pi)]:
+        for theta, phi in [(0.3, 0.7), (np.pi / 2, np.pi / 4), (np.pi / 3, np.pi)]:
             mat = spherical_to_matrix(theta, phi)
             np.testing.assert_array_almost_equal(mat.T @ mat, np.eye(3), decimal=10)
 
@@ -265,7 +263,6 @@ class TestCutBorder(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_original_fiber_system_not_mutated(self):
-        import Altendorf_Jeulin_Model.Fiber as Fiber
         image_size = np.array([100, 100, 100])
         boundary = 10
         fiber = self._fiber_along_x(x_start=20, x_end=80, n=5)

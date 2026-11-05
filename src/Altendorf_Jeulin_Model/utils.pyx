@@ -1,25 +1,21 @@
 import copy
 from numbers import Real
 
-
 cimport numpy as cnp
-import numpy as np
-from line_profiler import profile
+cimport numpy as np
 import cython
+import numpy as np
 from skimage.draw import line_nd
 from skimage.morphology import isotropic_dilation
 
-cimport numpy as np
 np.import_array()
-from libc.math cimport sin, cos, sqrt, atan2, acos
+from libc.math cimport  sqrt, atan2, acos
 from libc.float cimport DBL_EPSILON
-
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
 cdef double PI = 3.141592653589793
-
 
 def angle_between(v1: np.ndarray, v2: np.ndarray):
     """
@@ -41,7 +37,6 @@ def angle_between(v1: np.ndarray, v2: np.ndarray):
     cos_angle = np.dot(v1, v2) / (l1 * l2)
     return np.acos(np.clip(cos_angle, -1.0, 1.0))
 
-
 def normalized(v: np.ndarray):
     """
     Normalizes a vector and returns both the original length and the normalized vector.
@@ -57,7 +52,6 @@ def normalized(v: np.ndarray):
     if v_length == 0:
         return 0, v
     return v_length, v / v_length
-
 
 cdef inline void cartesian_to_spherical(double x, double y, double z,
                                         double *r, double *theta, double *phi) noexcept nogil:
@@ -80,13 +74,12 @@ cdef inline void cartesian_to_spherical(double x, double y, double z,
     :param phi: double* (out)
         second rotation angle (within x-y-plane) in radians, in (-pi, pi]
     """
-    r[0] = sqrt(x*x + y*y + z*z)
+    r[0] = sqrt(x * x + y * y + z * z)
     if r[0] == 0.0:
         return
 
     phi[0] = atan2(y, x)
-    theta[0] = acos(clip(z/r[0]))  # avoid domain errors
-
+    theta[0] = acos(clip(z / r[0]))  # avoid domain errors
 
 def spherical_to_matrix(theta: float, phi: float):
     """
@@ -113,11 +106,10 @@ def spherical_to_matrix(theta: float, phi: float):
         ]
     )
 
-
 cdef inline void rot(double mu_x, double mu_y, double mu_z,
                      double n_x, double n_y, double n_z,
                      double cos_alpha, double sin_alpha,
-                     double* cross_x, double* cross_y, double* cross_z) noexcept:
+                     double * cross_x, double * cross_y, double * cross_z) noexcept:
     """
     Rotation of a vector mu around normal n and angle alpha using # Rodrigues' formula
 
@@ -144,21 +136,20 @@ cdef inline void rot(double mu_x, double mu_y, double mu_z,
     :param cross_z: double* (out)
         component z of rotated vector
     """
-    cdef double dot = n_x*mu_x + n_y*mu_y + n_z*mu_z
-    cross_x[0] = n_y*mu_z - n_z*mu_y
-    cross_y[0] = n_z*mu_x - n_x*mu_z
-    cross_z[0] = n_x*mu_y - n_y*mu_x
+    cdef double dot = n_x * mu_x + n_y * mu_y + n_z * mu_z
+    cross_x[0] = n_y * mu_z - n_z * mu_y
+    cross_y[0] = n_z * mu_x - n_x * mu_z
+    cross_z[0] = n_x * mu_y - n_y * mu_x
 
     cross_x[0] *= sin_alpha
-    cross_x[0] += mu_x*cos_alpha + n_x*dot*(1.0 - cos_alpha)
+    cross_x[0] += mu_x * cos_alpha + n_x * dot * (1.0 - cos_alpha)
     cross_y[0] *= sin_alpha
-    cross_y[0] += mu_y*cos_alpha + n_y*dot*(1.0 - cos_alpha)
+    cross_y[0] += mu_y * cos_alpha + n_y * dot * (1.0 - cos_alpha)
     cross_z[0] *= sin_alpha
-    cross_z[0] += mu_z*cos_alpha + n_z*dot*(1.0 - cos_alpha)
-
+    cross_z[0] += mu_z * cos_alpha + n_z * dot * (1.0 - cos_alpha)
 
 def is_in_image(
-    pos, image_size, buffer: int = 100
+        pos, image_size, buffer: int = 100
 ) -> bool:
     """
     Checks whether a coordinate lies within the extended observation window.
@@ -179,14 +170,13 @@ def is_in_image(
     if pos[0] < -buffer or pos[1] < -buffer or pos[2] < -buffer:
         return False
     elif (
-        pos[0] > image_size[0] + buffer
-        or pos[1] > image_size[1] + buffer
-        or pos[2] > image_size[2] + buffer
+            pos[0] > image_size[0] + buffer
+            or pos[1] > image_size[1] + buffer
+            or pos[2] > image_size[2] + buffer
     ):
         return False
     else:
         return True
-
 
 def set_value(input_value, rng):
     """
@@ -212,7 +202,6 @@ def set_value(input_value, rng):
         "Input must be a float/int or a distribution object with an 'rvs' method."
     )
 
-
 def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     """
     Cuts fibers when they cross image/observation window borders
@@ -234,22 +223,20 @@ def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
         for j in range(0, len(fiber.balls)):
             fiber.balls[j].coordinate = fiber.balls[j].coordinate - boundary_size_vec
             if j_start == j - 1 and not is_in_image(
-                fiber.balls[j].coordinate, image_size, 0
+                    fiber.balls[j].coordinate, image_size, 0
             ):
                 j_start = j
             elif j_start < j and not is_in_image(
-                fiber.balls[j].coordinate, image_size, 0
+                    fiber.balls[j].coordinate, image_size, 0
             ):
                 j_end = j + 1
                 break
-        fiber.balls = fiber.balls[j_start + 1 : j_end - 1]
+        fiber.balls = fiber.balls[j_start + 1: j_end - 1]
     return fs_cut
 
-
-
 cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
-    object fiber_system,
-    int i_x, int i_y, int i_z
+        object fiber_system,
+        int i_x, int i_y, int i_z
 ):
     """
     Rasterizes a fiber system to a uint8 image with periodic boundary conditions.
@@ -272,7 +259,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
         Binary image; 1 where at least one ball covers the voxel, 0 elsewhere
     """
     cdef cnp.ndarray[cnp.uint8_t, ndim=3] image = \
-            np.zeros((i_x, i_y, i_z), dtype=np.uint8)
+        np.zeros((i_x, i_y, i_z), dtype=np.uint8)
     cdef object fiber
     cdef Ball ball
     cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij
@@ -281,7 +268,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
     for fiber in fiber_system:
         for ball in fiber.balls:
             r = ball.radius
-            r_square = r*r
+            r_square = r * r
             c_x = ball.coordinate[0]
             c_y = ball.coordinate[1]
             c_z = ball.coordinate[2]
@@ -294,20 +281,19 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
             for i in range(i_min, i_max):
                 i_corr = ((i % i_x) + i_x) % i_x
                 d_i = i - c_x
-                delta_i = d_i*d_i
+                delta_i = d_i * d_i
                 for j in range(j_min, j_max):
                     j_corr = ((j % i_y) + i_y) % i_y
                     d_j = j - c_y
-                    delta_ij = delta_i + d_j*d_j
+                    delta_ij = delta_i + d_j * d_j
                     if delta_ij > r_square:
                         continue
                     for k in range(k_min, k_max):
                         d_z = k - c_z
-                        if delta_ij + d_z*d_z <= r_square:
+                        if delta_ij + d_z * d_z <= r_square:
                             k_corr = ((k % i_z) + i_z) % i_z
                             image[i_corr, j_corr, k_corr] = 1
     return image
-
 
 cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
         object fiber_system, int i_x, int i_y, int i_z
@@ -333,7 +319,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
         Binary image; 1 where at least one ball covers the voxel, 0 elsewhere
     """
     cdef cnp.ndarray[cnp.uint8_t, ndim=3] image = \
-                np.zeros((i_x, i_y, i_z), dtype=np.uint8)
+        np.zeros((i_x, i_y, i_z), dtype=np.uint8)
     cdef object fiber
     cdef Ball ball
     cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij, d_z
@@ -342,7 +328,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
     for fiber in fiber_system:
         for ball in fiber.balls:
             r = ball.radius
-            r_square = r*r
+            r_square = r * r
             c_x = ball.coordinate[0]
             c_y = ball.coordinate[1]
             c_z = ball.coordinate[2]
@@ -356,22 +342,21 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
                 if i < 0 or i >= i_x:
                     continue
                 d_i = i - c_x
-                delta_i = d_i*d_i
+                delta_i = d_i * d_i
                 for j in range(j_min, j_max):
                     if j < 0 or j >= i_y:
                         continue
                     d_j = j - c_y
-                    delta_ij = delta_i + d_j*d_j
+                    delta_ij = delta_i + d_j * d_j
                     if delta_ij > r_square:
                         continue
                     for k in range(k_min, k_max):
                         if k < 0 or k >= i_z:
                             continue
                         d_z = k - c_z
-                        if delta_ij + d_z*d_z <= r_square:
+                        if delta_ij + d_z * d_z <= r_square:
                             image[i, j, k] = 1
     return image
-
 
 def discretize_lines(line_system, image_shape):
     """
@@ -402,7 +387,6 @@ def discretize_lines(line_system, image_shape):
 
     return image
 
-
 cdef inline double cdistance_ball(Ball a, Ball b) noexcept nogil:
     """
     Computes the Euclidean distance between two Ball objects.
@@ -425,10 +409,10 @@ cdef inline double cdistance3(double ax, double ay, double az,
                               double bx, double by, double bz) noexcept nogil:
     """
     Computes the Euclidean distance between two 3D points given as scalar components.
-
+    
     Integer division warnings are suppressed via cdivision(True). Safe to call
     without the GIL.
-
+    
     :param ax: double  x component of point a
     :param ay: double  y component of point a
     :param az: double  z component of point a
@@ -444,7 +428,7 @@ cdef inline double cdistance3(double ax, double ay, double az,
 
     return sqrt(dx * dx + dy * dy + dz * dz)
 
-cdef inline double cnormalized(double* ax, double* ay, double* az) noexcept nogil:
+cdef inline double cnormalized(double * ax, double * ay, double * az) noexcept nogil:
     """
     Normalizes a 3D vector in-place and returns its original norm.
 
@@ -458,7 +442,7 @@ cdef inline double cnormalized(double* ax, double* ay, double* az) noexcept nogi
     :return: double
         Original Euclidean norm of the vector, or 0.0 if the vector was zero-length
     """
-    cdef double norm = sqrt (ax[0]*ax[0] + ay[0]*ay[0] + az[0]*az[0])
+    cdef double norm = sqrt(ax[0] * ax[0] + ay[0] * ay[0] + az[0] * az[0])
     if norm < DBL_EPSILON:
         return 0
     ax[0] = ax[0] / norm
@@ -467,9 +451,8 @@ cdef inline double cnormalized(double* ax, double* ay, double* az) noexcept nogi
 
     return norm
 
-
 cdef inline double cdirection(Ball a, Ball b,
-                              double* dir_x, double* dir_y, double* dir_z) noexcept:
+                              double * dir_x, double * dir_y, double * dir_z) noexcept:
     """
     Computes the unit direction vector and distance from Ball a to Ball b.
 
@@ -498,9 +481,9 @@ cdef inline double cdirection(Ball a, Ball b,
         dir_y[0] = 0
         dir_z[0] = 0
         return 0
-    dir_x[0] = dx/dist
-    dir_y[0] = dy/dist
-    dir_z[0] = dz/dist
+    dir_x[0] = dx / dist
+    dir_y[0] = dy / dist
+    dir_z[0] = dz / dist
     return dist
 
 cdef inline double clip(double val) noexcept nogil:
