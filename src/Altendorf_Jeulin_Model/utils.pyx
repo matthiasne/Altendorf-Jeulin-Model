@@ -12,46 +12,13 @@ from skimage.morphology import isotropic_dilation
 cimport numpy as np
 np.import_array()
 from libc.math cimport sin, cos, sqrt, atan2, acos
+from libc.float cimport DBL_EPSILON
 
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 import Altendorf_Jeulin_Model.Fiber as Fiber
 
 cdef double PI = 3.141592653589793
-
-
-
-def periodic_distance(
-    coord1: np.ndarray, coord2: np.ndarray, image_size: tuple[int, int, int]
-):
-    """
-    Calculates the periodic distance between two coordinates and the normalized direction vector between them
-
-    :param coord1: np.ndarray
-        The first coordinate, start of the direction vector
-    :param coord2: np.ndarray
-        The second coordinate, "end" of the direction vector
-    :param image_size: tuple[int, int, int]
-        The size of the image, thus, the periodicity
-    :return: distance between coordinates, direction vector
-    """
-    coord1mod = coord1 % image_size
-    coord2mod = coord2 % image_size
-    dist_orig = np.linalg.norm(coord2mod - coord1mod)
-    delta = coord2mod - coord1mod
-    for i in range(3):
-        if abs(delta[i]) > image_size[i] / 2.0:
-            if delta[i] > 0:
-                coord2mod[i] -= image_size[i]
-            else:
-                coord2mod[i] += image_size[i]
-
-    dist, dir = normalized(coord2mod - coord1mod)
-
-    if np.linalg.norm(coord2mod - coord1mod) > dist_orig:
-        raise ValueError("There is an issue in the periodic distance calculation")
-    else:
-        return dist, dir
 
 
 def angle_between(v1: np.ndarray, v2: np.ndarray):
@@ -82,9 +49,9 @@ def normalized(v: np.ndarray):
     :return: float, np.ndarray
         original length, normalized vector
     """
-    if np.linalg.norm(v) == 0:
-        return 0, v
     v_length = np.linalg.norm(v)
+    if v_length == 0:
+        return 0, v
     return v_length, v / v_length
 
 
@@ -114,28 +81,6 @@ cdef inline void cartesian_to_spherical(double x, double y, double z, double *r,
     theta[0] = acos(clip(z/r[0]))  # avoid domain errors
 
 
-def spherical_to_cartesian(r, theta, phi):
-    """
-    transform spherical coordinates (in radian) to cartesian coordinates
-
-    Spherical coordinates theta and phi are used as the geographical
-    coordinates in Fisher et al. (1987).
-
-    :param r: float
-        radius
-    :param theta: float
-        polar theta angle (down from z-axis)
-    :param phi: float
-        polar phi angle (within x-y-plane)
-    :return: float, float, float
-        cartesian coordinates
-    """
-    x = r * sin(theta) * cos(phi)
-    y = r * sin(theta) * sin(phi)
-    z = r * cos(theta)
-    return x, y, z
-
-
 def spherical_to_matrix(theta: float, phi: float):
     """
     tranforms spherical coordinates to a rotation matrix
@@ -158,10 +103,11 @@ def spherical_to_matrix(theta: float, phi: float):
         ]
     )
 
-cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, double n_z, double alpha,
-        double* rot_x, double* rot_y, double* rot_z) noexcept nogil:
+
+cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, double n_z,
+        double cos_alpha, double sin_alpha, double* cross_x, double* cross_y, double* cross_z) noexcept:
     """
-    rotation of a vector mu around normal n and angle alpha
+    rotation of a vector mu around normal n and angle alpha using # Rodrigues' formula
 
     :param mu: np.ndarray
         vector to be rotated
@@ -173,20 +119,18 @@ cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n
         rotated vector
     """
     cdef double dot = n_x*mu_x + n_y*mu_y + n_z*mu_z
-    cdef double n_cross_mu_x = n_y*mu_z - n_z*mu_y
-    cdef double n_cross_mu_y = n_z*mu_x - n_x*mu_z
-    cdef double n_cross_mu_z = n_x*mu_y - n_y*mu_x
+    cross_x[0] = n_y*mu_z - n_z*mu_y
+    cross_y[0] = n_z*mu_x - n_x*mu_z
+    cross_z[0] = n_x*mu_y - n_y*mu_x
 
-    cdef double cross2_x = n_cross_mu_y*n_z - n_cross_mu_z*n_y
-    cdef double cross2_y = n_cross_mu_z*n_x - n_cross_mu_x*n_z
-    cdef double cross2_z = n_cross_mu_x*n_y - n_cross_mu_y*n_x
+    cross_x[0] *= sin_alpha
+    cross_x[0] += mu_x*cos_alpha + n_x*dot*(1.0 - cos_alpha)
+    cross_y[0] *= sin_alpha
+    cross_y[0] += mu_y*cos_alpha + n_y*dot*(1.0 - cos_alpha)
+    cross_z[0] *= sin_alpha
+    cross_z[0] += mu_z*cos_alpha + n_z*dot*(1.0 - cos_alpha)
 
-    cdef double cosa = cos(alpha)
-    cdef double sina = sin(alpha)
 
-    rot_x[0] = dot*n_x + cosa*cross2_x + sina*n_cross_mu_x
-    rot_y[0] = dot*n_y + cosa*cross2_y + sina*n_cross_mu_y
-    rot_z[0] = dot*n_z + cosa*cross2_z + sina*n_cross_mu_z
 
 
 def is_in_image(
@@ -290,7 +234,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
             np.zeros((i_x, i_y, i_z), dtype=np.uint8)
     cdef object fiber
     cdef Ball ball
-    cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij, d_k, delta_ijk
+    cdef double r, r_square, c_x, c_y, c_z, d_i, delta_i, d_ij, delta_ij
     cdef int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max
 
     for fiber in fiber_system:
@@ -307,11 +251,11 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
             k_min = int(c_z - r) - 1
             k_max = int(c_z + r) + 1
             for i in range(i_min, i_max):
-                i_corr = i % i_x
+                i_corr = ((i % i_x) + i_x) % i_x
                 d_i = i - c_x
                 delta_i = d_i*d_i
                 for j in range(j_min, j_max):
-                    j_corr = j % i_y
+                    j_corr = ((j % i_y) + i_y) % i_y
                     d_j = j - c_y
                     delta_ij = delta_i + d_j*d_j
                     if delta_ij > r_square:
@@ -319,7 +263,7 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
                     for k in range(k_min, k_max):
                         d_z = k - c_z
                         if delta_ij + d_z*d_z <= r_square:
-                            k_corr = k % i_z
+                            k_corr = ((k % i_z) + i_z) % i_z
                             image[i_corr, j_corr, k_corr] = 1
     return image
 
@@ -425,6 +369,8 @@ cdef inline double cdistance3(double ax, double ay, double az, double bx, double
 @cython.cdivision(True)
 cdef inline double cnormalized(double* ax, double* ay, double* az) noexcept nogil:
     cdef double norm = sqrt (ax[0]*ax[0] + ay[0]*ay[0] + az[0]*az[0])
+    if norm < DBL_EPSILON:
+        return 0
     ax[0] = ax[0] / norm
     ay[0] = ay[0] / norm
     az[0] = az[0] / norm

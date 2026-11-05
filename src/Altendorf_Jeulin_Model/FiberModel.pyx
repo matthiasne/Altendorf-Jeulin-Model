@@ -12,7 +12,7 @@ cdef double PI = 3.141592653589793
 
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip
+from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip, rot
 from Altendorf_Jeulin_Model.PoissonLines import (
     generate_half_fiber,
     generate_poisson_line,
@@ -282,22 +282,6 @@ def initialize_fiber_system_endless(
                 n_lines += 1
                 save_balls_in_fiber_system_endless(fiber_system, coords, n_lines - 1, r_fiber)
     return fiber_system
-
-
-cdef inline void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, double n_z,
-        double cos_alpha, double sin_alpha, double* cross_x, double* cross_y, double* cross_z) noexcept:
-    # Rodrigues' formula
-    cdef double dot = n_x*mu_x + n_y*mu_y + n_z*mu_z
-    cross_x[0] = n_y*mu_z - n_z*mu_y
-    cross_y[0] = n_z*mu_x - n_x*mu_z
-    cross_z[0] = n_x*mu_y - n_y*mu_x
-
-    cross_x[0] *= sin_alpha
-    cross_x[0] += mu_x*cos_alpha + n_x*dot*(1.0 - cos_alpha)
-    cross_y[0] *= sin_alpha
-    cross_y[0] += mu_y*cos_alpha + n_y*dot*(1.0 - cos_alpha)
-    cross_z[0] *= sin_alpha
-    cross_z[0] += mu_z*cos_alpha + n_z*dot*(1.0 - cos_alpha)
 
 
 def save_balls_in_fiber_system(
