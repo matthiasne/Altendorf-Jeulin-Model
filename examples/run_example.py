@@ -14,11 +14,13 @@ from Altendorf_Jeulin_Model.ContactModel import (
     find_contact_candidates
 )
 from Altendorf_Jeulin_Model.Statistics import volume_fraction
+from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 
 
 def main():
     example_AJ_finite()
     example_AJ_endless()
+    example_poisson_lines()
 
 def direction_distribution(rng):
     beta = 0.1
@@ -101,12 +103,11 @@ def example_AJ_endless():
     fs = fm.initialize_fiber_system_endless(
         mu,
         R,
-        A,
+        direction_distribution_acg,
         image_size,
         boundary_size,
         100,
         100,
-        has_beta=False,
         seed = 42
     )
     end_time = time.time()
@@ -163,6 +164,17 @@ def example_AJ_endless():
     fs_cut = cut_border(fs, image_size, boundary_size)
     io.save_fibers_as_small_graph("examples/outputs/nonwoven", fs_cut)
 
+
+def example_poisson_lines():
+    print("This is a Poisson line process in 3D")
+    image_size = (400, 400, 400)
+    VV = 0.15
+    R = 17 / 2.0
+    L = np.sqrt(3) / 2 * VV * image_size[0] ** 2 / R**2
+    mu = 3/4*np.pi * L
+
+    lines = simulate_poisson_lines(mu, R, direction_distribution_acg, image_size)
+    io.save_lines_as_image(lines, image_size, "examples/outputs/lines.tif", scale=4)
 
 if __name__ == "__main__":
     main()

@@ -12,6 +12,7 @@ from datetime import datetime
 from Altendorf_Jeulin_Model.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic
 from Altendorf_Jeulin_Model.utils import (
     normalized,
+    discretize_lines
 )
 
 import Altendorf_Jeulin_Model.SpatialHashing as sh
@@ -107,6 +108,50 @@ def save_fibers_as_image(
         sitk.WriteImage(sitk_image, path)
     else:
         raise ValueError(f"Unsupported file format: {path}")
+
+
+def save_lines_as_image(
+    line_system,
+    domain: tuple[int, int, int],
+    path: str = "lines.tif",
+    scale: float = 1.0,
+    spacing=(1.0, 1.0, 1.0)
+):
+    """
+    Save lines as tif-image
+
+    :param line_system:
+        A list of lines, each represented as a start point, an end point, and a radius
+    :param domain: tuple(int, int, int)
+        z,y,x coordinate of the image
+    :param path: string optional
+        The path where the tif image will be saved
+        (default: "spheres.tif")
+    :param scale: float optional
+        The scale of the image, e.g., when the data is given in um and the image has voxel size 4um, the scale is 4
+        (default: 1)
+    """
+    line_system = [
+        (
+            np.floor(line[0] / scale) - np.array([1, 1, 1]),
+            np.floor(line[1] / scale) - np.array([1, 1, 1]),
+            line[2] / scale,
+        )
+        for line in line_system
+    ]
+    image_shape = np.array([d / scale for d in domain], dtype=int)
+    image = discretize_lines(line_system, image_shape)
+    if path.endswith(".tif") or path.endswith(".tiff"):
+        image = np.transpose(image, (2, 1, 0))
+        tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
+    elif path.endswith(".mha") or path.endswith(".mhd"):
+        sitk_image = sitk.GetImageFromArray(image)
+        sitk_image.SetSpacing(spacing)
+        sitk.WriteImage(sitk_image, path)
+    else:
+        raise ValueError(f"Unsupported file format: {path}")
+
+
 
 def print_grid(grid: sh):
     """

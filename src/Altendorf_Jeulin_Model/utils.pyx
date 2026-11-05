@@ -1,9 +1,13 @@
 import copy
+from numbers import Real
+
 
 cimport numpy as cnp
 import numpy as np
 from line_profiler import profile
 import cython
+from skimage.draw import line_nd
+from skimage.morphology import isotropic_dilation
 
 cimport numpy as np
 np.import_array()
@@ -212,6 +216,25 @@ def is_in_image(
         return True
 
 
+def set_value(input_value, rng):
+    """
+    sets values that could be a constant scalar or a realization of a random variable
+
+    :param input_value: constant scalar or random variable
+    :param rng: random number Generator providing the random state
+    :return: float
+        value that the variable should be set to
+    """
+    if isinstance(input_value, Real):
+        return input_value
+    rvs = getattr(input_value, "rvs", None)
+    if callable(rvs):
+        return rvs(random_state=rng)
+    raise ValueError(
+        "Input must be a float/int or a distribution object with an 'rvs' method."
+    )
+
+
 def cut_border(fs: list[Fiber], image_size, boundary_size: int) -> list[Fiber]:
     """
     cuts fibers when they cross image/observation window borders
@@ -356,6 +379,33 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
                         if delta_ij + d_z*d_z <= r_square:
                             image[i, j, k] = 1
     return image
+
+
+def discretize_lines(line_system, image_shape):
+    """
+    Discretize lines to an image
+    :param line_system:
+        lines to be saved (in voxels), each represented as a start point, an end point, and a radius
+    :param image_shape: np.ndarray
+        The image size in voxels
+    :return: np.ndarray
+        The image containing lines
+    """
+    image = np.zeros(image_shape, "uint16")
+    pad = int(np.ceil(max(radius for _, _, radius in line_system)) + 2)
+    boundary_size_vec = np.array([pad, pad, pad])
+    ext_image_size = image_shape + 2 * boundary_size_vec
+    tmp_image = np.empty(ext_image_size, dtype=np.uint16)
+
+    for start, end, radius in line_system:
+        coords = line_nd(start + boundary_size_vec, end + boundary_size_vec, endpoint=False)
+        tmp_image.fill(0)
+        tmp_image[coords] = 1
+        tmp_image = isotropic_dilation(tmp_image, radius)
+        np.maximum(image, tmp_image[pad:-pad, pad:-pad, pad:-pad], out=image)
+
+    return image
+
 
 cdef inline double cdistance_ball(Ball a, Ball b) noexcept nogil:
     cdef double dx = b.coordinate[0] - a.coordinate[0]
