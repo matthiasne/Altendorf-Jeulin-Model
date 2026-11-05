@@ -5,6 +5,10 @@ from pathlib import Path
 import Altendorf_Jeulin_Model.FiberModel as FiberModel
 import numpy as np
 import tifffile
+import SimpleITK as sitk
+import json
+import platform
+from datetime import datetime
 from Altendorf_Jeulin_Model.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic
 from Altendorf_Jeulin_Model.utils import (
     normalized,
@@ -56,13 +60,13 @@ def print_fiber_positions_to_file(fiber_system: FiberModel, output_file: str):
             print("Fiber ", i, ":", coords, file=file)
 
 
-def save_fibers_as_tif(
+def save_fibers_as_image(
     fiber_system: list[Fiber],
     domain,
-    boundary: tuple[int, int, int] = (0, 0, 0),
     path: str = "spheres.tif",
     scale: float = 1,
     is_periodic: bool = True,
+    spacing=(1.0, 1.0, 1.0)
 ):
     """
     Save fibers as tif-image
@@ -86,19 +90,23 @@ def save_fibers_as_tif(
         for ball in fiber.balls:
             coords.append(ball.coordinate)
             radii.append(ball.radius)
-    coords = np.array(coords) / scale
-    radii = np.array(radii) / scale
 
-    min_coordinates = np.array(boundary) / scale
     image_shape = np.array([d / scale for d in domain], dtype=int)
 
     if is_periodic:
         image = discretize_spheres_periodic(fiber_system, image_shape[0], image_shape[1], image_shape[2])
     else:
         image = discretize_spheres_nonperiodic(fiber_system, image_shape[0], image_shape[1], image_shape[2])
-    image = np.transpose(image, (2, 1, 0))
-    tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
 
+    if path.endswith(".tif") or path.endswith(".tiff"):
+        image = np.transpose(image, (2, 1, 0))
+        tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
+    elif path.endswith(".mha") or path.endswith(".mhd"):
+        sitk_image = sitk.GetImageFromArray(image)
+        sitk_image.SetSpacing(spacing)
+        sitk.WriteImage(sitk_image, path)
+    else:
+        raise ValueError(f"Unsupported file format: {path}")
 
 def print_grid(grid: sh):
     """
@@ -415,3 +423,117 @@ def find_next_node(fiber, i_start: int, i_end: int) -> int:
     if i == i_start:
         return i + 1
     return i
+
+
+def read_gad(path: str, scale: int = 1000000):
+    """
+    reads fiber system from gad-file (GeoDict format)
+
+    :param path: str
+        path to gad-file
+    :param scale: int
+        data is usually written in m, so transform into um
+
+    :return: list[Ball], tuple
+        fiber system, window size
+
+    """
+    fiber_system = []
+    with open(path, "r") as f:
+        gad = json.load(f)
+        n_fibers = gad["NumberOfObjects"]
+        window = gad["Domain"]
+        shape = (
+            int(np.ceil(window["LengthX"][0] * scale)),
+            int(np.ceil(window["LengthY"][0] * scale)),
+            int(np.ceil(window["LengthZ"][0] * scale)),
+        )
+        for i in range(1, n_fibers + 1):
+            fiber = gad["Object" + str(i)]
+            radius = fiber["Diameter"] / 2 * scale
+            n_balls = fiber["NumberOfSegments"] + 1
+            coords = []
+            for j in range(1, n_balls + 1):
+                coords.append(np.array(fiber["Point" + str(j)][0]) * scale)
+            FiberModel.save_balls_in_fiber_system_endless(fiber_system, coords, i - 1, radius)
+    return fiber_system, shape
+
+
+def write_gad(
+    fiber_system,
+    path: str,
+    shape,
+    voxel_size: float | int = 1e-06,
+    is_periodic: bool = True,
+    scale: int = 1000000,
+):
+    """
+    write fiber system to gad-file (GeoDict format)
+
+    :param path: str
+        path to gad-file
+    :param fiber_system: list[Ball]
+        fiber system to be written
+    :param shape: tuple
+        window size
+    :param voxel_size: int
+    :param is_periodic: bool
+    :param scale: int
+        positions are usually written in um, so transform into m
+    """
+    system_dict = dict()
+
+    header = dict()
+    now = datetime.now()
+    header["Release"] = now.strftime("%Y")
+    header["Revision"] = 0
+    header["BuildDate"] = now.strftime("%d %b %Y")
+    header["CreationDate"] = now.strftime("%d %b %Y")
+    header["CreationTime"] = now.strftime("%H:%M:%S")
+    header["Creator"] = "Altendorf_Jeulin_Model"
+    header["Platform"] = platform.system()
+
+    system_dict["Header"] = header
+    system_dict["NumberOfObjects"] = len(fiber_system)
+    system_dict["Description"] = "Generated with Altendorf_Jeulin_Model"
+
+    domain = dict()
+    domain["PeriodicX"] = is_periodic
+    domain["PeriodicY"] = is_periodic
+    domain["PeriodicZ"] = is_periodic
+    domain["DomainMode"] = "Length"
+    domain["OriginX"] = [0, "m"]
+    domain["OriginY"] = [0, "m"]
+    domain["OriginZ"] = [0, "m"]
+    domain["VoxelLength"] = [voxel_size, "m"]
+    domain["LengthX"] = [shape[0]/scale, "m"]
+    domain["LengthY"] = [shape[1]/scale, "m"]
+    domain["LengthZ"] = [shape[2]/scale, "m"]
+    domain["OverlapMode"] = "NewMaterial"
+    domain["HollowMaterialID"] = 0
+
+    post_processing = dict()
+    post_processing["ResolveOverlap"] = True
+    post_processing["MarkContactVoxels"] = False
+    post_processing["ContactMaterialID"] = 3
+    domain["PostProcessing"] = post_processing
+
+    system_dict["Domain"] = domain
+
+    for i, fiber in enumerate(fiber_system):
+        fiber_dict = dict()
+        fiber_dict["MaterialIDModel"] = "Constant"
+        fiber_dict["MaterialID"] = 1
+        fiber_dict["Type"] = "CurvedCircularFiber"
+        fiber_dict["NumberOfSegments"] = (fiber.get_number_of_balls() - 1)
+        fiber_dict["FiberEndType1"] = "Rounded"
+        fiber_dict["FiberEndType2"] = "Rounded"
+        fiber_dict["CuttingPlane1"] = [0.0, 0.0, 0.0]
+        fiber_dict["CuttingPlane2"] = [0.0, 0.0, 0.0]
+        fiber_dict["Diameter"] = fiber.get_mean_radius() * 2/scale
+        for j, ball in enumerate(fiber.balls):
+            coord = np.array([ball.coordinate[0], ball.coordinate[1], ball.coordinate[2]])
+            fiber_dict["Point" + str(j + 1)] = [(coord/scale).tolist(), "m"]
+        system_dict["Object" + str(i + 1)] = fiber_dict
+    with open(path, "w") as f:
+        json.dump(system_dict, f, indent=2)

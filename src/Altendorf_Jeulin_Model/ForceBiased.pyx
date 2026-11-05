@@ -11,8 +11,8 @@ import Altendorf_Jeulin_Model.Fiber as Fiber
 import Altendorf_Jeulin_Model.SpatialHashing as sh
 
 from Altendorf_Jeulin_Model.ContactModel import test_in_contact
-from Altendorf_Jeulin_Model.Statistics import volume_fraction, calculate_kl
-from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row
+from Altendorf_Jeulin_Model.Statistics import  calculate_kl
+from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row, write_gad
 
 
 def run_force_biased(
@@ -20,7 +20,7 @@ def run_force_biased(
     image_size,
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     shortlist = [],
@@ -42,24 +42,24 @@ def run_force_biased(
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
     if method == "AJ":
-        run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_file, verbose,
+        run_force_biased_AJ(fs, image_size, use_end_step_radius, use_end_step_repulsion, output_path, verbose,
                             is_periodic, hardcore_ratio, output_step_size, max_steps, dir_matrix=dir_matrix,
                             tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "AJ++":
-        run_force_biased_AJpp(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+        run_force_biased_AJpp(fs, image_size, output_path, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix,
                               tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "AJ++fast":
-        run_force_biased_AJppfast(fs, image_size, output_file, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+        run_force_biased_AJppfast(fs, image_size, output_path, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, dir_matrix=dir_matrix,
                                   tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     elif method == "Contact++":
-        run_force_biased_contactpp(fs, image_size, output_file, verbose, is_periodic, shortlist,
+        run_force_biased_contactpp(fs, image_size, output_path, verbose, is_periodic, shortlist,
                                    hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
                                    output_step_size=output_step_size, max_steps=max_steps, tol=tol,
                                    tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     else:
-        run_force_biased_general(fs, image_size, stop_criterion, output_file, verbose, is_periodic,
+        run_force_biased_general(fs, image_size, stop_criterion, output_path, verbose, is_periodic,
                                  hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps,
                                  tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
 
@@ -68,7 +68,7 @@ def run_force_biased_AJ(
     image_size,
     use_end_step_radius: bool = False,
     use_end_step_repulsion: bool = False,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
@@ -139,6 +139,12 @@ def run_force_biased_AJ(
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                         0, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                         image_size, dir_matrix, is_periodic))
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+                )
     if use_end_step_radius and is_periodic:
         end_step_radius(fs, overlap, 0.1 * min_radius)
     if use_end_step_repulsion:
@@ -148,13 +154,19 @@ def run_force_biased_AJ(
         rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                     image_size, dir_matrix, is_periodic))
-        print_stats(output_file, rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+            )
+        print_stats(output_path + "results.csv", rows)
 
 
 def run_force_biased_AJpp(
     fs: list[Fiber],
     image_size,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
@@ -224,17 +236,29 @@ def run_force_biased_AJpp(
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                         shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                         image_size, dir_matrix, is_periodic))
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+                )
 
     if verbose:
         rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                     image_size, dir_matrix, is_periodic))
-        print_stats(output_file, rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+            )
+        print_stats(output_path + "results.csv", rows)
 
 def run_force_biased_AJppfast(
     fs: list[Fiber],
     image_size,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
@@ -303,19 +327,31 @@ def run_force_biased_AJppfast(
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                         shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                         image_size, dir_matrix, is_periodic))
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+                )
 
     if verbose:
         rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                     image_size, dir_matrix, is_periodic))
-        print_stats(output_file, rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+            )
+        print_stats(output_path + "results.csv", rows)
 
 
 def run_force_biased_general(
     fs: list[Fiber],
     image_size,
     stop_criterion: Callable[[float], bool],
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     hardcore_ratio: float = 1.0,
@@ -381,11 +417,23 @@ def run_force_biased_general(
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                         shortlist_distance_sum, optim_sum))
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+                )
 
     if verbose:
         rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum))
-        print_stats(output_file, rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+            )
+        print_stats(output_path + "results.csv", rows)
 
 
 
@@ -394,7 +442,7 @@ def run_force_biased_general(
 def run_force_biased_contactpp(
     fs: list[Fiber],
     image_size,
-    output_file: str = "results.csv",
+    output_path: str = "examples/outputs/",
     verbose: bool = True,
     is_periodic: bool = True,
     shortlist = [],
@@ -447,7 +495,8 @@ def run_force_biased_contactpp(
     total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
         = (calculate_forces(
         grid, fiber_system=fs, is_periodic=is_periodic, shortlist=shortlist, hardcore_ratio = hardcore_ratio,
-        contact_distance=contact_distance, repulsion_factor=1.05
+        contact_distance=contact_distance, repulsion_factor=1.05,
+        tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     ))
     if optim_sum < 1:
         optim_sum = 1
@@ -487,25 +536,39 @@ def run_force_biased_contactpp(
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum,\
                 optim_sum = (calculate_forces(
                 grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-                shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.05
+                shortlist=shortlist, contact_distance=contact_distance, repulsion_factor=1.05,
+                tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
             ))
         else:
             prev_optim_sum = optim_sum
             total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, \
                 optim_sum = (calculate_forces(
                 grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-                contact_distance=contact_distance, repulsion_factor=1.1
+                contact_distance=contact_distance, repulsion_factor=1.1,
+                tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
             ))
         if verbose and i % output_step_size == 0:
             rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                         shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                         image_size, dir_matrix, is_periodic))
+            write_gad(
+                fs,
+                output_path + "model.gad",
+                image_size,
+                is_periodic=is_periodic,
+                )
 
     if verbose:
         rows.append(print_stats_row(fs, i, overlap, neighbor_dist,
                                     shortlist_distance_sum, optim_sum, abs(optim_sum - prev_optim_sum)/optim_sum,
                                     image_size, dir_matrix, is_periodic))
-        print_stats(output_file, rows)
+        write_gad(
+            fs,
+            output_path + "model.gad",
+            image_size,
+            is_periodic=is_periodic,
+            )
+        print_stats(output_path + "results.csv", rows)
 
 
 def end_step_radius(fs: list[Fiber], overlap: float, max_overlap: float):

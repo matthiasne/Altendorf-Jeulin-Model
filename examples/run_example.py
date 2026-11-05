@@ -78,7 +78,7 @@ def example_AJ_finite():
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts,
           " contact surface: ", contact_surface, " in ", elapsed_time, "s")
 
-    io.save_fibers_as_tif(
+    io.save_fibers_as_image(
         fs, domain=image_size, path="examples/outputs/AJ_model.tif", is_periodic=True
     )
     print_fiber_positions_to_file(fs, "examples/outputs/fibers.txt")
@@ -153,11 +153,10 @@ def example_AJ_endless():
     print("connected components: ", n_cc, "clots: ", n_clots, " contacts: ", n_contacts, " contact surface: ",
           contact_surface, " in ", elapsed_time, "s")
 
-    io.save_fibers_as_tif(
+    io.save_fibers_as_image(
         fs,
         scale=4,
         domain=image_size,
-        boundary=(boundary_size, boundary_size, boundary_size),
         path="examples/outputs/AJ_model_endless.tif",
         is_periodic=False,
     )
