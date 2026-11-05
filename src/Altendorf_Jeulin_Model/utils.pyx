@@ -336,7 +336,10 @@ def discretize_lines(line_system, image_shape):
         The image containing lines
     """
     image = np.zeros(image_shape, "uint16")
-    pad = int(np.ceil(max(radius for _, _, radius in line_system)) + 2)
+    radii = [radius for _, _, radius in line_system]
+    if len(radii) == 0:
+        return image
+    pad = int(np.ceil(max(radii)) + 2)
     boundary_size_vec = np.array([pad, pad, pad])
     ext_image_size = image_shape + 2 * boundary_size_vec
     tmp_image = np.empty(ext_image_size, dtype=np.uint16)
