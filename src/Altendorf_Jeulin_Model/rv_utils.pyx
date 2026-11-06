@@ -1,14 +1,10 @@
-import copy
-
 import numpy as np
-from numpy.random import default_rng
 from scipy.linalg import cholesky
 from scipy.stats import norm
 from Altendorf_Jeulin_Model.utils import normalized
-import cython
 from libc.math cimport log, exp, sqrt, asin, acos
 cdef double PI = 3.141592653589793
-
+from libc.float cimport DBL_EPSILON
 
 cimport numpy as np
 np.import_array()
@@ -22,15 +18,19 @@ def vonmises_fisher(double kappa, double mu_x, double mu_y, double mu_z, rng):
     cdef double r2 = rng.random()
     cdef double lambd = exp(-2.0*kappa)
 
-    cdef double theta = 2.0*asin(sqrt(-log(r1*(1.0-lambd)+lambd)/(2.0*kappa)))
+    cdef double theta
     cdef double phi = 2.0*PI*r2
+    if kappa < DBL_EPSILON:
+        theta = acos(1 - 2*r1)
+    else:
+        theta = 2.0*asin(sqrt(-log(r1*(1.0-lambd)+lambd)/(2.0*kappa)))
 
-    if mu_x == 0 and mu_y == 0 and mu_z ==1:
-        return
     cartesian_to_spherical(mu_x, mu_y, mu_z, &mean_r, &mean_theta, &mean_phi)
     dx = sin(theta) * cos(phi)
     dy = sin(theta) * sin(phi)
     dz = cos(theta)
+    if abs(mu_x) < DBL_EPSILON and abs(mu_y) < DBL_EPSILON:
+        return dx, dy, dz
     dir_x = cos(mean_theta)*cos(mean_phi)*dx - sin(mean_phi)*dy + sin(mean_theta)*cos(mean_phi)*dz
     dir_y = cos(mean_theta)*sin(mean_phi)*dx + cos(mean_phi)*dy + sin(mean_theta)*sin(mean_phi)*dz
     dir_z = cos(mean_theta)*dz-sin(mean_theta)*dx
@@ -65,6 +65,8 @@ def schladitz_distribution(beta: float, rng):
     :return: np.ndarray, float, float
         direction vector, polar coordinates of direction vector
     """
+    if beta < DBL_EPSILON:
+        raise ValueError("beta must be positive")
     u1 = rng.random()
     u2 = rng.random()
     phi0 = PI * 2 * u1
