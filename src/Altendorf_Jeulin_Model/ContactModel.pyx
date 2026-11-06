@@ -1,6 +1,5 @@
 # cython: language_level=3, infer_type=True
 
-import cython
 from Altendorf_Jeulin_Model.Graph import Graph, CC
 from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing
 from Altendorf_Jeulin_Model.Fiber cimport Ball
@@ -16,19 +15,35 @@ import networkx as nx
 
 def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: float = 0, boundary_size=0):
     """
-    Calculates statistics on the contact between fibers
+    Calculates statistics on the contact structure between fibers.
 
-    :param fs:
-        list of fibers
-    :param image_size:
-        image size (in micrometer)
+    Builds a ball-level contact graph from *find_contact_pairs*, extends it
+    with intra-fiber edges to find connected components, and derives
+    per-component contact metrics.
+
+    :param fs: list[Fiber]
+        List of fibers in the system.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
     :param is_periodic: bool
-        whether or not the fiber system is periodic
+        Whether to apply periodic boundary conditions.
     :param contact_distance: float, default 0
-        The maximal distance that balls can have to be considered in contact
-    :return n_connected_components, n_clots, n_contact_areas, contact_surface: int, int, int, float
-        number of connected components, number of clots (more than two fibers in a contact area),
-         number of contact areas, measure of contact surface
+        Maximum surface-to-surface distance for two balls to be considered
+        in contact.
+    :param boundary_size: int, default 0
+        Width of the boundary layer (in voxels) added around the image when
+        *is_periodic* is ``False``.  Balls inside the boundary are included
+        in the contact search but excluded from the returned metrics.
+    :return: (int, int, int, float)
+        * **n_connected_components** – number of connected components in the
+          extended contact graph (ball + fiber edges).
+        * **n_clots** – number of connected components whose internal
+          fiber-subgraph has more than two fiber-level sub-components.
+        * **n_contact_areas** – total number of pairwise fiber contact
+          areas across all connected components.
+        * **contact_surface** – cumulative contact-surface measure
+          (sum of ``ball.neighbor_dist`` weighted by the number of distinct
+          contact partners per ball).
     """
     contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size, is_periodic= is_periodic,
                                        contact_distance=contact_distance)
@@ -82,24 +97,36 @@ def find_contact_areas(fs, image_size, is_periodic: bool, contact_distance: floa
                         contact_partners_loc.add(adj_fiber)
                 contact_surface += fs[ball[0]].balls[ball[1]].neighbor_dist * len(contact_partners_loc)
             n_contact_areas += len(contact_partners)
-            #print("fiber ", ball[0], " in contact with ", contact_partners) TODO how to deal with broken contact areas
-            #TODO warum nicht einfach contact edges zählen
     return n_connected_components, n_clots, n_contact_areas, contact_surface
 
 def find_contact_candidates(fs, image_size, boundary_size = 0, is_periodic:bool = True, interaction_distance: float = 0):
     """
-    finds contact candidates and calculates a shortlist
+    Finds contact candidates and computes the shortlist (pruned contact graph).
 
-    :param fs: list of fibers
-    :param image_size:
-        image size (in micrometers)
-    :param is_periodic: bool, default True
-        whether or not to use periodic boundary conditions
-    :param interaction_distance: float, default = 0
-        largest distance between balls to make them contact candidates
-    :return:
-        shortlist (see Keilmann et al. (2026) or tbd)
+    For each ball, only the edges whose weight equals the minimum edge weight
+    in the ball's one-hop neighbourhood are retained, following the shortlist
+    criterion of Keilmann et al. (2026).
 
+    :param fs: list[Fiber]
+        List of fibers in the system.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param boundary_size: int, default 0
+        Width of the boundary layer (in voxels) added around the image when
+        *is_periodic* is ``False``.
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param interaction_distance: float (default: 0)
+        Maximum surface-to-surface distance for two balls to be considered
+        contact candidates.
+    :return: networkx.EdgeView
+        Edges of the pruned shortlist graph.  Each node is a
+        ``(fiber_label, ball_label)`` tuple; edge weights are
+        surface-to-surface distances.
+    :raises ValueError:
+        If a node in the contact graph has no edges (isolated node) and
+        ``min()`` is called on an empty sequence.  Fixed by passing
+        ``default=float("inf")`` to ``min()``.
     """
     contact_pairs = find_contact_pairs(fs, image_size, boundary_size=boundary_size,
                                        is_periodic=is_periodic, contact_distance=interaction_distance,
@@ -108,7 +135,8 @@ def find_contact_candidates(fs, image_size, boundary_size = 0, is_periodic:bool 
     contact_graph.add_weighted_edges_from(contact_pairs)
 
     node_min = {
-        node: min(data["weight"] for _, _, data in contact_graph.edges(node, data=True))
+        node: min((data["weight"] for _, _, data in contact_graph.edges(node, data=True)),
+        default=float("inf"))
         for node in contact_graph
     }
     neighborhood_min = {}
@@ -250,6 +278,30 @@ cdef set identify_contact_partners(int i, Ball ball, list cell, SpatialHashing g
     return contact_pairs
 
 def test_in_contact(ball, ball2, image_size, is_periodic, contact_distance):
+    """
+    Public wrapper to test whether two balls are in contact.
+
+    Dispatches to the periodic or non-periodic internal implementation
+    depending on *is_periodic*.
+
+    :param ball: Ball
+        First ball.
+    :param ball2: Ball
+        Second ball.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+        Only used when *is_periodic* is ``True``.
+    :param is_periodic: bool
+        If ``True``, minimum-image periodic boundary conditions are applied.
+    :param contact_distance: float
+        Maximum surface-to-surface distance (center distance minus sum of
+        radii) for two balls to be considered in contact.  Use ``0`` for
+        touching contact only.
+    :return: (bool, float)
+        ``(True, surface_distance)`` when the balls are in contact,
+        ``(False, -1.0)`` otherwise or when both balls belong to the same
+        fiber.
+    """
     cdef int[3] image_size_loc
 
     if is_periodic:
@@ -301,7 +353,7 @@ cdef tuple test_in_contact_periodic(Ball ball, Ball ball2, int[3] image_size,
         if weight <= contact_distance:
             return True, weight
 
-    return False, weight
+    return False, -1.0
 
 
 cdef tuple test_in_contact_nonperiodic(Ball ball, Ball ball2, double contact_distance = 0) noexcept:
