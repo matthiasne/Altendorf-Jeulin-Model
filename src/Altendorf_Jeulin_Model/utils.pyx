@@ -268,6 +268,8 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_periodic(
     for fiber in fiber_system:
         for ball in fiber.balls:
             r = ball.radius
+            if r < DBL_EPSILON:
+                continue
             r_square = r * r
             c_x = ball.coordinate[0]
             c_y = ball.coordinate[1]
@@ -328,6 +330,8 @@ cpdef cnp.ndarray[cnp.uint8_t, ndim=3] discretize_spheres_nonperiodic(
     for fiber in fiber_system:
         for ball in fiber.balls:
             r = ball.radius
+            if r < DBL_EPSILON:
+                continue
             r_square = r * r
             c_x = ball.coordinate[0]
             c_y = ball.coordinate[1]
