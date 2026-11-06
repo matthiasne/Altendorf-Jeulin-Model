@@ -1,6 +1,6 @@
 # cython: language_level=3, infer_type=True
-import cython
 import numpy as np
+from typing import Callable
 from Altendorf_Jeulin_Model.CalculateForces import (
     apply_forces,
     calculate_forces,
@@ -30,14 +30,78 @@ def run_force_biased(
     boundary_size: int = 0,
     output_step_size: int = 100,
     max_steps: int = 1000,
-    stop_criterion: Callable[[float], bool] = default_stop_criterion,
-    tol: float = 1e-5,
+    tol: float = 1e-3,
     dir_matrix = np.diag([1,1,1]),
     tau: float = 0.25,
     rho: float = 0.25,
     alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
     x_s: float = 0.25, x_e: float = 0.5
 ):
+    """
+    Dispatcher for all force-biased packing variants.
+
+    Selects the appropriate packing algorithm based on *method* and forwards
+    all remaining parameters.  For non-periodic systems, *boundary_size* voxels
+    are added to each side of *image_size* before the algorithm runs.
+
+    :param fs: list[Fiber]
+        Fiber system to be packed.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param use_end_step_radius: bool (default: False)
+        If ``True`` and *method* is ``"AJ"``, reduces ball radii at the end
+        of the run to eliminate residual overlaps.
+    :param use_end_step_repulsion: bool (default: False)
+        If ``True`` and *method* is ``"AJ"``, applies a pure repulsion step
+        at the end of the run to eliminate residual overlaps.
+    :param output_path: str (default: ``"examples/outputs/"``)
+        Directory path for intermediate ``.gad`` snapshots of the current
+        fiber system and the final ``results.csv`` statistics file.
+    :param verbose: bool (default: True)
+        If ``True``, prints per-step statistics and writes intermediate
+        ``.gad`` snapshots of the current fiber system
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param shortlist: list (default: [])
+        Pre-computed contact shortlist (ball-pair edges).  Only used by
+        the ``"Contact++"`` method.
+    :param hardcore_ratio: float (default: 1.0)
+        Fraction of each ball's radius that may not be penetrated.
+    :param contact_distance: float (default: 1.0)
+        Maximum surface-to-surface distance for two balls to be considered
+        in contact.  Only used by the ``"Contact++"`` method.
+    :param method: str (default: ``"AJ++"``)
+        Packing algorithm to use.  One of:
+
+        * ``"AJ"``        – original Altendorf–Jeulin algorithm.
+        * ``"AJ++"``      – refined AJ with relative-change stop criterion.
+        * ``"AJ++fast"``  – AJ++ stopping as soon as overlap reaches zero.
+        * ``"Contact++"`` – contact-extension variant with shortlist forces.
+        * any other str   – AJ++
+    :param boundary_size: int (default: 0)
+        Width of the boundary layer (voxels) added around the domain when
+        *is_periodic* is ``False``.
+    :param output_step_size: int (default: 100)
+        Number of iteration steps between statistics snapshots and saving the current fiber system.
+    :param max_steps: int (default: 1000)
+        Maximum number of packing iterations.
+    :param tol: float (default: 1e-3)
+        Relative-change tolerance for the AJ++ and Contact++ stop criteria.
+    :param dir_matrix: array-like, shape (3, 3), default ``np.diag([1, 1, 1])``
+        Direction matrix used for orientation statistics in the verbose output.
+    :param tau: float (default: 0.25)
+        Step size of the repulsion force
+    :param rho: float (default: 0.25)
+        Step size of the recovery forces
+    :param alpha_s: float (default: pi/180)
+        Start angle for the angle-force cut-off smoothing window (radians).
+    :param alpha_e: float (default: 2pi/180)
+        End angle for the angle-force cut-off smoothing window (radians).
+    :param x_s: float (default: 0.25)
+        Start distance ratio for the spring-force cut-off smoothing window.
+    :param x_e: float (default: 0.5)
+        End distance ratio for the spring-force cut-off smoothing window.
+    """
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
     if not is_periodic:
         image_size = image_size + 2 * boundary_size_vec
@@ -59,9 +123,9 @@ def run_force_biased(
                                    output_step_size=output_step_size, max_steps=max_steps, tol=tol,
                                    tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     else:
-        run_force_biased_general(fs, image_size, stop_criterion, output_path, verbose, is_periodic,
-                                 hardcore_ratio = hardcore_ratio, output_step_size=output_step_size, max_steps=max_steps,
-                                 tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
+        run_force_biased_AJpp(fs, image_size, output_path, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
+                              output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix,
+                              tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
 
 def run_force_biased_AJ(
     fs: list[Fiber],
@@ -84,25 +148,46 @@ def run_force_biased_AJ(
     Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
 
     :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size:
-        the image size/domain to be modeled on
-    :param use_end_step_radius: bool, default: False
-        if necessary, reduces the radius to remove intersections at the end
-    :param use_end_step_repulsion: bool, default: False
-        if necessary, applies repulsion force to remove intersections at the end
-    :param output_file: str, default: "results.csv"
-        file path to store packing step statistics
-    :param verbose: bool, default: True
-        true: output information on packing statistics
-    :param is_periodic: bool, default: True
-        uses periodic boundary conditions
-    :param hardcore_ratio: float, default: 1.0
-        hardcore ratio percentage of fiber core that must not be intersected
-    :param output_step_size: int, default: 100
-        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
-    :param max_steps: int, default: 1000
-        maximum number of iterations
+        Fiber system to be packed.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param use_end_step_radius: bool (default: False)
+        If ``True`` and *method* is ``"AJ"``, reduces ball radii at the end
+        of the run to eliminate residual overlaps.
+    :param use_end_step_repulsion: bool (default: False)
+        If ``True`` and *method* is ``"AJ"``, applies a pure repulsion step
+        at the end of the run to eliminate residual overlaps.
+    :param output_path: str (default: ``"examples/outputs/"``)
+        Directory path for intermediate ``.gad`` snapshots of the current
+        fiber system and the final ``results.csv`` statistics file.
+    :param verbose: bool (default: True)
+        If ``True``, prints per-step statistics and writes intermediate
+        ``.gad`` snapshots of the current fiber system
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param hardcore_ratio: float (default: 1.0)
+        Fraction of each ball's radius that may not be penetrated.
+    :param boundary_size: int (default: 0)
+        Width of the boundary layer (voxels) added around the domain when
+        *is_periodic* is ``False``.
+    :param output_step_size: int (default: 100)
+        Number of iteration steps between statistics snapshots and saving the current fiber system.
+    :param max_steps: int (default: 1000)
+        Maximum number of packing iterations.
+    :param dir_matrix: array-like, shape (3, 3), default ``np.diag([1, 1, 1])``
+        Direction matrix used for orientation statistics in the verbose output.
+    :param tau: float (default: 0.25)
+        Step size of the repulsion force
+    :param rho: float (default: 0.25)
+        Step size of the recovery forces
+    :param alpha_s: float (default: pi/180)
+        Start angle for the angle-force cut-off smoothing window (radians).
+    :param alpha_e: float (default: 2pi/180)
+        End angle for the angle-force cut-off smoothing window (radians).
+    :param x_s: float (default: 0.25)
+        Start distance ratio for the spring-force cut-off smoothing window.
+    :param x_e: float (default: 0.5)
+        End distance ratio for the spring-force cut-off smoothing window.
     """
     rows = []
 
@@ -116,11 +201,12 @@ def run_force_biased_AJ(
         grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio, repulsion_factor=1,
         tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
     )
+    prev_optim_sum = optim_sum*optim_sum
     if verbose:
         rows.append(print_stats_row(fs, 0, overlap, neighbor_dist,
                                     0, optim_sum, 0, image_size, dir_matrix, is_periodic))
     print("We run the force-biased algorithm:")
-    end_force_biased = 0.002 * max(image_size) * len(fs)
+    end_force_biased = 0.002 * max(image_size) * max(1, len(fs))
 
     for i in range(1, max_steps):
         if total_force_strength < end_force_biased and overlap < 0.1 * min_radius:
@@ -172,7 +258,7 @@ def run_force_biased_AJpp(
     hardcore_ratio: float = 1.0,
     output_step_size: int = 100,
     max_steps: int = 1000,
-    tol: float = 1e-5,
+    tol: float = 1e-3,
     dir_matrix = np.diag([1,1,1]),
     tau: float = 0.25,
     rho: float = 0.25,
@@ -183,23 +269,42 @@ def run_force_biased_AJpp(
     Run the force-biased packing by Altendorf & Jeulin in the refined version
 
     :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size:
-        the image size/domain to be modeled on
-    :param output_file: str, default: "results.csv
-        file path to store packing step statistics
-    :param verbose: bool, default: True
-        True: output information on packing statistics
-    :param is_periodic: bool, default: True
-        uses periodic boundary conditions
-    :param hardcore_ratio: float, default: 1.0
-        the hardcore ratio determines the fraction of the radius that can be penetrated
-    :param output_step_size: int, default: 100
-        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
-    :param max_steps: int, default: 1000
-        maximum number of iterations
-    :param tol: float, default: 1e-5
-        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
+        Fiber system to be packed.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param output_path: str (default: ``"examples/outputs/"``)
+        Directory path for intermediate ``.gad`` snapshots of the current
+        fiber system and the final ``results.csv`` statistics file.
+    :param verbose: bool (default: True)
+        If ``True``, prints per-step statistics and writes intermediate
+        ``.gad`` snapshots of the current fiber system
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param hardcore_ratio: float (default: 1.0)
+        Fraction of each ball's radius that may not be penetrated.
+    :param boundary_size: int (default: 0)
+        Width of the boundary layer (voxels) added around the domain when
+        *is_periodic* is ``False``.
+    :param output_step_size: int (default: 100)
+        Number of iteration steps between statistics snapshots and saving the current fiber system.
+    :param max_steps: int (default: 1000)
+        Maximum number of packing iterations.
+    :param tol: float (default: 1e-3)
+        Relative-change tolerance for the AJ++ and Contact++ stop criteria.
+    :param dir_matrix: array-like, shape (3, 3), default ``np.diag([1, 1, 1])``
+        Direction matrix used for orientation statistics in the verbose output.
+    :param tau: float (default: 0.25)
+        Step size of the repulsion force
+    :param rho: float (default: 0.25)
+        Step size of the recovery forces
+    :param alpha_s: float (default: pi/180)
+        Start angle for the angle-force cut-off smoothing window (radians).
+    :param alpha_e: float (default: 2pi/180)
+        End angle for the angle-force cut-off smoothing window (radians).
+    :param x_s: float (default: 0.25)
+        Start distance ratio for the spring-force cut-off smoothing window.
+    :param x_e: float (default: 0.5)
+        End distance ratio for the spring-force cut-off smoothing window.
     """
     rows = []
 
@@ -255,6 +360,7 @@ def run_force_biased_AJpp(
             )
         print_stats(output_path + "results.csv", rows)
 
+
 def run_force_biased_AJppfast(
     fs: list[Fiber],
     image_size,
@@ -271,26 +377,47 @@ def run_force_biased_AJppfast(
     x_s: float = 0.25, x_e: float = 0.5
 ):
     """
-    Run the force-biased packing by Altendorf & Jeulin in the refined version but stop when the overlap is 0
+    Run AJ++ (the refined version of the Altendorf-Jeulin packing), stopping as soon as
+    all overlaps are resolved (overlap < machine epsilon).
+
+    Unlike ``run_force_biased_AJpp``, this variant ignores the relative change
+    of the optimisation sum and stops purely when the system is overlap-free.
 
     :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size:
-        the image size/domain to be modeled on
-    :param output_file: str, default: "results.csv
-        file path to store packing step statistics
-    :param verbose: bool, default: True
-        True: output information on packing statistics
-    :param is_periodic: bool, default: True
-        uses periodic boundary conditions
-    :param hardcore_ratio: float, default: 1.0
-        the hardcore ratio determines the fraction of the radius that can be penetrated
-    :param output_step_size: int, default: 100
-        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
-    :param max_steps: int, default: 1000
-        maximum number of iterations
-    :param tol: float, default: 1e-5
-        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
+        Fiber system to be packed.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param output_path: str (default: ``"examples/outputs/"``)
+        Directory path for intermediate ``.gad`` snapshots of the current
+        fiber system and the final ``results.csv`` statistics file.
+    :param verbose: bool (default: True)
+        If ``True``, prints per-step statistics and writes intermediate
+        ``.gad`` snapshots of the current fiber system
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param hardcore_ratio: float (default: 1.0)
+        Fraction of each ball's radius that may not be penetrated.
+    :param boundary_size: int (default: 0)
+        Width of the boundary layer (voxels) added around the domain when
+        *is_periodic* is ``False``.
+    :param output_step_size: int (default: 100)
+        Number of iteration steps between statistics snapshots and saving the current fiber system.
+    :param max_steps: int (default: 1000)
+        Maximum number of packing iterations.
+    :param dir_matrix: array-like, shape (3, 3), default ``np.diag([1, 1, 1])``
+        Direction matrix used for orientation statistics in the verbose output.
+    :param tau: float (default: 0.25)
+        Step size of the repulsion force
+    :param rho: float (default: 0.25)
+        Step size of the recovery forces
+    :param alpha_s: float (default: pi/180)
+        Start angle for the angle-force cut-off smoothing window (radians).
+    :param alpha_e: float (default: 2pi/180)
+        End angle for the angle-force cut-off smoothing window (radians).
+    :param x_s: float (default: 0.25)
+        Start distance ratio for the spring-force cut-off smoothing window.
+    :param x_e: float (default: 0.5)
+        End distance ratio for the spring-force cut-off smoothing window.
     """
     rows = []
 
@@ -347,98 +474,6 @@ def run_force_biased_AJppfast(
         print_stats(output_path + "results.csv", rows)
 
 
-def run_force_biased_general(
-    fs: list[Fiber],
-    image_size,
-    stop_criterion: Callable[[float], bool],
-    output_path: str = "examples/outputs/",
-    verbose: bool = True,
-    is_periodic: bool = True,
-    hardcore_ratio: float = 1.0,
-    output_step_size: int = 100,
-    max_steps: int = 1000,
-    tau: float = 0.25,
-    rho: float = 0.25,
-    alpha_s: float = 1*np.pi/180, alpha_e: float = 2*np.pi/180,
-    x_s: float = 0.25, x_e: float = 0.5
-):
-    """
-    Run the force-biased packing by Altendorf & Jeulin, using the original end criteria
-
-    :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size:
-        the image size/domain to be modeled on
-    :param stop_criterion: Callable[[float], bool]
-        a customized stop criterion. We recommend writing your own run_force_biased function though and hardcoding
-        the stop criterion into it because it improves the runtime and allows for more customization
-    :param output_file: str, default: "results.csv
-        file path to store packing step statistics
-    :param verbose: bool, default: True
-        True: output information on packing statistics
-    :param is_periodic: bool, default: True
-        uses periodic boundary conditions
-    :param hardcore_ratio: float, default: 1.0
-        the hardcore ratio determines the fraction of the radius that can be penetrated
-    :param output_step_size: int, default: 100
-        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
-    :param max_steps: int, default: 1000
-        maximum number of iterations
-    """
-    rows = []
-
-    max_radius = max(fiber.get_max_radius() for fiber in fs)
-
-    grid = sh.SpatialHashing(image_size, 5 * max_radius)
-    grid.add_fiber_system(fs, is_periodic=is_periodic)
-    total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum =\
-        calculate_forces(
-        grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
-    )
-    if verbose:
-        rows.append(print_stats_row(fs, 0, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
-    eps = np.finfo(float).eps
-    end_force_biased = 0.1*max_radius
-
-    for i in range(1, max_steps):
-        if not stop_criterion(overlap, eps, total_force_strength, max_force_strength, shortlist_distance_sum,
-                              end_force_biased):
-            break
-        apply_forces(fs)
-        grid = sh.SpatialHashing(image_size, 5 * max_radius)
-        grid.add_fiber_system(fs, is_periodic)
-        total_force_strength, max_force_strength, overlap, neighbor_dist, angle_diff, shortlist_distance_sum, optim_sum\
-            = calculate_forces(
-            grid, fiber_system=fs, is_periodic=is_periodic, hardcore_ratio = hardcore_ratio,
-            tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e
-        )
-        if verbose and i % output_step_size == 0:
-            rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                        shortlist_distance_sum, optim_sum))
-            write_gad(
-                fs,
-                output_path + "model.gad",
-                image_size,
-                is_periodic=is_periodic,
-                )
-
-    if verbose:
-        rows.append(print_stats_row(fs, i, total_force_strength, max_force_strength, overlap, neighbor_dist,
-                                    shortlist_distance_sum, optim_sum))
-        write_gad(
-            fs,
-            output_path + "model.gad",
-            image_size,
-            is_periodic=is_periodic,
-            )
-        print_stats(output_path + "results.csv", rows)
-
-
-
-
-
 def run_force_biased_contactpp(
     fs: list[Fiber],
     image_size,
@@ -451,7 +486,7 @@ def run_force_biased_contactpp(
     output_step_size: int = 100,
     steps_tension_reduction: int = 500,
     max_steps: int = 1000,
-    tol: float = 1e-5,
+    tol: float = 1e-3,
     dir_matrix = np.diag([1,1,1]),
     tau: float = 0.25,
     rho: float = 0.25,
@@ -459,32 +494,55 @@ def run_force_biased_contactpp(
     x_s: float = 0.25, x_e: float = 0.5
 ):
     """
-    Run the improved contact extension
+    Run the Contact++ force-biased packing with shortlist-based contact forces.
+
+    Applies repulsion forces to resolve overlaps and spring/angle forces to
+    attract shortlisted contact pairs.  After *steps_tension_reduction*
+    iterations, contact edges that are either no longer in contact or under
+    compression are pruned from the shortlist to allow convergence.
 
     :param fs: list[Fiber]
-        the fiber system to be packed
-    :param image_size:
-        the image size/domain to be modeled on
-    :param output_file: str
-        file path to store packing step statistics
-    :param verbose: bool, default: True
-        True: output information on packing statistics
-    :param is_periodic: bool, default: True
-        uses periodic boundary conditions
-    :param shortlist: list, default: []
-        list of contact edges on which the contact force acts
-    :param hardcore_ratio: float, default: 1.0
-        the hardcore ratio determines the fraction of the radius that can be penetrated
-    :param contact_distance: float, default: 0.0
-        the contact distance describes the distance under which balls are considered in contact
-    :param output_step_size: int, default: 100
-        number of iteration steps after which statistics are calculated and an intermediate fiber system is saved
-    :param steps_tension_reduction: int, default: 50
-        number of iteration steps after which contact edges are reduced to allow convergence
-    :param max_steps: int, default: 1000
-        maximum number of iterations
-    :param tol: float, default: 1e-5
-        tolerance of the stop criterion (relative difference of the optimization between iteration steps)
+        Fiber system to be packed.
+    :param image_size: array-like of int, shape (3,)
+        Size of the image domain in each spatial dimension (micrometers).
+    :param output_path: str (default: ``"examples/outputs/"``)
+        Directory path for intermediate ``.gad`` snapshots of the current
+        fiber system and the final ``results.csv`` statistics file.
+    :param verbose: bool (default: True)
+        If ``True``, prints per-step statistics and writes intermediate
+        ``.gad`` snapshots of the current fiber system
+    :param is_periodic: bool (default: True)
+        Whether to apply periodic boundary conditions.
+    :param shortlist: list (default: [])
+        Pre-computed contact shortlist (ball-pair edges).
+    :param hardcore_ratio: float (default: 1.0)
+        Fraction of each ball's radius that may not be penetrated.
+    :param contact_distance: float (default: 1.0)
+        Maximum surface-to-surface distance for two balls to be considered
+        in contact.
+    :param output_step_size: int (default: 100)
+        Number of iteration steps between statistics snapshots and saving the current fiber system.
+    :param steps_tension_reduction: int (default: 500)
+        Iteration step at which tense edges are removed from the shortlist,
+        i.e., those that are still not in contact or whose balls are overlapping.
+    :param max_steps: int (default: 1000)
+        Maximum number of packing iterations.
+    :param tol: float (default: 1e-3)
+        Relative-change tolerance for the AJ++ and Contact++ stop criteria.
+    :param dir_matrix: array-like, shape (3, 3), default ``np.diag([1, 1, 1])``
+        Direction matrix used for orientation statistics in the verbose output.
+    :param tau: float (default: 0.25)
+        Step size of the repulsion force
+    :param rho: float (default: 0.25)
+        Step size of the recovery forces
+    :param alpha_s: float (default: pi/180)
+        Start angle for the angle-force cut-off smoothing window (radians).
+    :param alpha_e: float (default: 2pi/180)
+        End angle for the angle-force cut-off smoothing window (radians).
+    :param x_s: float (default: 0.25)
+        Start distance ratio for the spring-force cut-off smoothing window.
+    :param x_e: float (default: 0.5)
+        End distance ratio for the spring-force cut-off smoothing window.
     """
     rows = []
 
@@ -618,10 +676,3 @@ def end_step_repulsion(
         grid = sh.SpatialHashing(image_size, 5 * max_radius)
         grid.add_fiber_system(fs)
 
-cdef inline bint default_stop_criterion(double overlap, double eps,
-                                double total_force_strength,
-                                double max_force_strength, double contact_distances,
-                                double end_force_biased):
-    if max_force_strength < end_force_biased and overlap < eps:
-        return True
-    return False
