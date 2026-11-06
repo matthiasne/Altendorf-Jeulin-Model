@@ -2,7 +2,7 @@
 import cython
 
 class Graph:
-"""
+    """
     Undirected graph with hashable vertex labels.
 
     Vertices are stored with an integer ID assigned in insertion order.
