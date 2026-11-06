@@ -1,24 +1,30 @@
-# cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
-import numpy as np
-import cython
-from libc.stdint cimport int64_t
-cimport numpy as np
-np.import_array()
-
 cdef class Ball:
     """
-    Ball contains balls used in the fiber model
+    A sphere representing one segment of a fiber in the Altendorf–Jeulin model.
 
-    :param coordinate: np.ndarray
-        coordinate of the center of the ball
-    :param radius: float
-        radius of the ball
+    All fields are public so they can be read and written from Python.
+
+    :param coordinate: double[3]
+        Cartesian center position (x, y, z)
+    :param radius: double
+        sphere radius
     :param fiber_label: int
-        label of the fiber that the ball belongs to
+        index of the fiber this ball belongs to; -1 if unassigned
     :param ball_label: int
-        index of the ball within the fiber
-    :param angle: float
-        angle between the incident edges of the ball
+        index of this ball within its fiber; -1 if unassigned
+    :param force: double[3]
+        force vector (gradient) acting on this ball during packing, initialized to (0, 0, 0)
+    :param overlap: double
+        maximal overlap with neighboring balls, initialized to 0
+    :param angle: double
+        target bending angle at this ball (radians), i.e. the angle between the incoming and outgoing segments;
+        defaults to pi (straight)
+    :param angle_diff: double
+        difference between the realized bending angle and the target angle after packing, initialized to 0
+    :param neighbor_dist: double
+        distance to the next ball set to radius / 2 at construction
+    :param optim_sum: double
+        summand of the optimization objective, initialized to 0
     """
     cdef public double radius
     cdef public int fiber_label
