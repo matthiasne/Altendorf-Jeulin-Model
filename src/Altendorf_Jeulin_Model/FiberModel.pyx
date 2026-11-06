@@ -1,16 +1,13 @@
 import numpy as np
-import cython
 
-from Altendorf_Jeulin_Model.Statistics import volume_fraction
 from libc.math cimport sin, cos, sqrt, atan2, acos
 
 cimport numpy as np
 np.import_array()
 from numpy.random import default_rng
-from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher, acg_distribution, schladitz_distribution
 cdef double PI = 3.141592653589793
 
-
+from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
 from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip, rot
 from Altendorf_Jeulin_Model.PoissonLines import (
@@ -28,22 +25,21 @@ from Altendorf_Jeulin_Model.utils import (
 class FiberModel:
     def __init__(self, initial_fiber_system):
         if not (
-            isinstance(initial_fiber_system, list)
-            and all(isinstance(x, Fiber) for x in initial_fiber_system)
+                isinstance(initial_fiber_system, list)
+                and all(isinstance(x, Fiber) for x in initial_fiber_system)
         ):
             raise TypeError("Initial_fiber_system must be a list of fibers")
 
 def initialize_fiber_system(
-    intensity,
-    L,
-    R,
-    direction_distribution,
-    image_size,
-    seed: int = None,
+        intensity,
+        L,
+        R,
+        direction_distribution,
+        image_size,
+        seed: int = None,
 ):
     """
-    initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
-    Altendorf&Jeulin (2011), further systems tbd
+    initializes a fiber system of straight fibers, where fibers still overlap.
 
     :param intensity: float
         expected number of fibers
@@ -66,7 +62,7 @@ def initialize_fiber_system(
     cdef double r, theta, phi
     cdef double mu0_x, mu0_y, mu0_z, rot_x, rot_y, rot_z
     cdef double mu_old_x, mu_old_y, mu_old_z, mu_new_x, mu_new_y, mu_new_z
-    cdef double mu_bar_x, mu_bar_y, mu_bar_z, n_axis_x, n_axis_y, n_axis_z
+    cdef double mu_bar_x, mu_bar_y, mu_bar_z
     cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z
     rng = default_rng(seed)
     N = set_value(intensity, rng)
@@ -76,7 +72,7 @@ def initialize_fiber_system(
         # 1. Simulate the length of the ith Fiber and its radius
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
-        l_fiber_discrete = int(2 * ((l_fiber-2*r_fiber )/ r_fiber))
+        l_fiber_discrete = max(0, int(2 * ((l_fiber-2*r_fiber )/ r_fiber)))
         # 2. Simulate the mean orientation
         mu0_x, mu0_y, mu0_z = direction_distribution(rng)
 
@@ -101,14 +97,14 @@ def initialize_fiber_system(
     return fiber_system
 
 def initialize_fiber_system_AJ(
-    intensity,
-    L,
-    R,
-    direction_distribution,
-    image_size,
-    kappa1: float|int,
-    kappa2: float|int,
-    seed: int = None,
+        intensity,
+        L,
+        R,
+        direction_distribution,
+        image_size,
+        kappa1: float|int,
+        kappa2: float|int,
+        seed: int = None,
 ):
     """
     initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
@@ -145,7 +141,7 @@ def initialize_fiber_system_AJ(
         # 1. Simulate the length of the ith Fiber and its radius
         l_fiber = set_value(L, rng)
         r_fiber = set_value(R, rng)
-        l_fiber_discrete = int(2 * ((l_fiber-2*r_fiber )/ r_fiber))
+        l_fiber_discrete = max(0, int(2 * ((l_fiber-2*r_fiber )/ r_fiber)))
         # 2. Simulate the mean orientation
         mu0_x, mu0_y, mu0_z = direction_distribution(rng)
 
@@ -179,7 +175,7 @@ def initialize_fiber_system_AJ(
         n_axis_y = mu0_z*mu_bar_x - mu0_x*mu_bar_z
         n_axis_z = mu0_x*mu_bar_y - mu0_y*mu_bar_x
         cnormalized(&n_axis_x, &n_axis_y, &n_axis_z)
-        alpha = 2*PI - acos(clip(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z))
+        alpha = acos(clip(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z))
 
         if alpha > 0:
             cos_alpha = cos(alpha)
@@ -198,14 +194,14 @@ def initialize_fiber_system_AJ(
 
 
 def initialize_fiber_system_endless(
-    mu: float|int,
-    R,
-    direction_distribution,
-    image_size,
-    boundary_size: int,
-    kappa1: float|int,
-    kappa2: float|int,
-    seed: int = None
+        mu: float|int,
+        R,
+        direction_distribution,
+        image_size,
+        boundary_size: int,
+        kappa1: float|int,
+        kappa2: float|int,
+        seed: int = None
 ):
     """
     initializes a fiber system of endless fibers, where fibers still overlap.
@@ -234,7 +230,7 @@ def initialize_fiber_system_endless(
         In general, the number of fibers will not be exceeded.
     :return: list[Fiber]
         the generated fiber system
-    
+
 """
     rng = default_rng(seed)
     n = int(set_value(mu, rng))
@@ -261,7 +257,7 @@ def initialize_fiber_system_endless(
                 coords,
                 rng,
                 True,
-            )
+                )
             coords = generate_half_fiber(
                 mu0,
                 mid_pos + boundary_size_vec,
@@ -272,7 +268,7 @@ def initialize_fiber_system_endless(
                 coords,
                 rng,
                 False,
-            )
+                )
 
             # 4. Adjusting the fibers such that the mean orientation is maintained
             l_fiber_discrete = len(coords)
@@ -285,7 +281,7 @@ def initialize_fiber_system_endless(
 
 
 def save_balls_in_fiber_system(
-    fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
+        fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
 ):
     """
     saves balls in fiber system
@@ -316,7 +312,7 @@ def save_balls_in_fiber_system(
         fiber_system[i].add_ball(Ball(coords[j], r_fiber, i, j, angle))
 
 def save_balls_in_fiber_system_endless(
-    fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
+        fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
 ):
     """
     saves balls in fiber system
