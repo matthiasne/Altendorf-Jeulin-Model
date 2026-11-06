@@ -21,14 +21,49 @@ def calculate_forces(grid: sh, fiber_system: list[Fiber], is_periodic: bool = Tr
                      alpha_s: float = 1*PI/180, alpha_e: float = 2*PI/180,
                      x_s: float = 0.25, x_e: float = 0.5):
     """
-    Calculates forces in the fiber system and adds them to corresponding ball
+    Compute all forces in the fiber system for one packing step.
+
+    Applies three/four force types in order:
+    1. Repulsion forces between all nearby ball pairs (via spatial hashing).
+    2. Spring forces between consecutive balls within each fiber.
+    3. Angle forces at each interior ball to enforce the target bending angle.
+    4. Contact forces along edges in the shortlist (only in the Contact++ model).
+
+    Forces are *added* to ball.force; the caller must ensure ball.force is
+    zeroed before calling (apply_forces resets them after each step).
 
     :param grid: SpatialHashing
-        The spatial hashing grid for the model
-    :param fiber_system: list[list[Ball]])
-        The fiber system that contains all balls
-    :return: np.ndarray
-        total force of the fiber system
+        spatial hashing grid containing all balls
+    :param fiber_system: list[Fiber]
+        the full fiber system
+    :param is_periodic: bool, optional (default: True)
+        whether to use periodic boundary conditions
+    :param shortlist: list, optional (default: [], i.e. no contact forces)
+        list of contact edges ((fiber_i, ball_i), (fiber_j, ball_j));
+    :param hardcore_ratio: float, optional (default: 1.0)
+        fraction of the sum of radii that counts as the hard-core exclusion
+        distance
+    :param contact_distance: float, optional (default: 1)
+        maximum surface-to-surface distance for contact force activation
+    :param repulsion_factor: float, optional (default 1.1)
+        multiplier on the exclusion distance for the soft repulsion zone;
+        values > 1 widen the repulsion shell
+    :param tau: float, optional (default: 0.25)
+        repulsion force magnitude scaling factor
+    :param rho: float, optional (default: 0.25)
+        spring and angle force magnitude scaling factor
+    :param alpha_s: float, optional (default: 1°)
+        angle smoothing onset (radians)
+    :param alpha_e: float, optional (default: 2°)
+        angle smoothing saturation (radians)
+    :param x_s: float, optional (default: 0.25)
+        spring smoothing onset ratio
+    :param x_e: float, optional (default: 0.5)
+        spring smoothing saturation ratio
+    :return: tuple
+        (total_force_norm, max_force_norm, total_overlap,
+         total_neighbor_dist, total_angle_diff,
+         shortlist_distance_sum, optim_sum)
     """
     cdef list balls, cell
     cdef set neighbor_cells
@@ -110,14 +145,24 @@ def calculate_forces_endstep(
     grid: sh, fiber_system: list[Fiber], is_periodic: bool = True, hardcore_ratio: float = 1.0
 ):
     """
-    Calculates forces in the fiber system and adds them to corresponding ball#
+    Compute only repulsion forces for the end-step of the packing algorithm.
+
+    Used after the main packing loop converges (overlap < threshold) to
+    remove residual overlaps without applying spring or angle forces.
+    Forces are added to ball.force; the caller must ensure ball.force is
+    zeroed before calling.
 
     :param grid: SpatialHashing
-        The spatial hashing grid for the model
-    :param fiber_system: list[list[Ball]])
-        The fiber system that contains all balls
-    :return: np.ndarray
-        total force of the fiber system
+        spatial hashing grid containing all balls
+    :param fiber_system: list[Fiber]
+        the full fiber system
+    :param is_periodic: bool, optional (default: True)
+        whether to use periodic boundary conditions
+    :param hardcore_ratio: float, optional (default: 1.0)
+        fraction of the sum of radii that counts as the hard-core exclusion
+        distance
+    :return: tuple
+        (total_force_norm, total_overlap, total_neighbor_dist, total_angle_diff)
     """
 
     cdef list balls, cell
@@ -176,17 +221,32 @@ cdef inline void calculate_repulsion_forces(
     double tau = 0.25
 ) noexcept:
     """
-    Calculates the repulsion force for the whole fiber system
-    and adds it to corresponding ball
+    Dispatch repulsion force calculations for one ball against its cell
+    neighbours and all balls in younger neighbouring cells.
+
+    Within-cell pairs are compared with index j > i to avoid double-counting.
+    Neighbouring-cell pairs are compared with all balls (the younger-cell
+    convention ensures each inter-cell pair is visited exactly once).
 
     :param i: int
-        cell index of the current cell
+        index of ball within its cell; pairs with j > i within the same cell
     :param ball: Ball
-        The ball whose neighbors are currently considered
+        the ball whose interactions are computed
     :param cell: list[Ball]
-        The cell that the ball is saved in
+        the cell containing ball
     :param grid: SpatialHashing
-        The spatial hashing grid of the model
+        the spatial hashing grid
+    :param neighbor_cells: set[int]
+        flat indices of the younger neighbouring cells returned by
+        grid.get_younger_neighbor_cell_indices
+    :param is_periodic: bool
+        whether to use periodic boundary conditions
+    :param hardcore_ratio: float
+        fraction of radii sum used as hard-core exclusion distance
+    :param repulsion_factor: float
+        multiplier on the exclusion distance for the soft repulsion shell
+    :param tau: float
+        repulsion force magnitude scaling factor
     """
     cdef Ball ball2
     cdef list neighbor_cell
@@ -230,18 +290,27 @@ cdef void calculate_repulsion_force_periodic(
     double tau = 0.25
 ) noexcept:
     """
-    calculates the repulsion force between two balls in the periodic case
+    Compute and apply the repulsion force between two balls under
+    periodic boundary conditions.
+
+    The force is active when the periodic distance is less than
+    repulsion_factor * hardcore_ratio * (r1 + r2).  Its magnitude is
+    proportional to the overlap depth and scaled by tau.  Equal and
+    opposite forces are applied to both balls.  Balls on the same fiber
+    within MIN_REPULSION_DISTANCE indices of each other are skipped.
 
     :param ball: Ball
-        The ball whose neighbors are currently considered
+        first ball; force subtracted (pushed away from ball2)
     :param ball2: Ball
-        The neighboring ball that is currently considered
+        second ball; force added (pushed away from ball)
     :param image_size: int[3]
-    :param repulsion_factor: float, default 1.1
-        This factor is 1 in the Altendorf-Jeulin model.
-        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
-        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
-        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        domain dimensions for periodic wrapping
+    :param hardcore_ratio: float
+        fraction of radii sum used as hard-core exclusion distance
+    :param repulsion_factor: float
+        multiplier on the exclusion distance for the soft repulsion shell
+    :param tau: float (default: 0.25)
+        force magnitude scaling factor
     """
     cdef double dist, displaced, overlap, overlap_true, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
@@ -292,20 +361,25 @@ cdef void calculate_repulsion_force_nonperiodic(
     double tau = 0.25
 ) noexcept:
     """
-    calculates the repulsion force between two balls in the nonperiodic case
+    Compute and apply the repulsion force between two balls without
+    periodic boundary conditions.
+
+    Identical to calculate_repulsion_force_periodic except distances are
+    Euclidean rather than periodic.  Balls on the same fiber within
+    MIN_REPULSION_DISTANCE indices of each other are skipped.
 
     :param ball: Ball
-        The ball whose neighbors are currently considered
+        first ball; force subtracted (pushed away from ball2)
     :param ball2: Ball
-        The neighboring ball that is currently considered
-    :param repulsion_factor: float, default 1.1
-        This factor is 1 in the Altendorf-Jeulin model.
-        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
-        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
-        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
-        TODO: add enforced distance as in contact model or fSAM, which may be relevant when voxelizing fiber system
+        second ball; force added (pushed away from ball)
+    :param hardcore_ratio: float
+        fraction of radii sum used as hard-core exclusion distance
+    :param repulsion_factor: float
+        multiplier on the exclusion distance for the soft repulsion shell
+    :param tau: float (default: 0.25)
+        force magnitude scaling factor
     """
-    cdef double dist, overlap, overlap_true, force_strength
+    cdef double dist, overlap, overlap_true, force_strength, optim_summand
     cdef double dx, dy, dz
     if (
         ball.fiber_label != ball2.fiber_label
@@ -333,14 +407,26 @@ cdef void calculate_repulsion_force_nonperiodic(
 cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next, double rho = 0.25,
         double x_s = 0.25, double x_e = 0.5) noexcept:
     """
-    Calculates the spring force between 2 balls and adds it to corresponding balls
+    Compute and apply the spring force between two consecutive balls.
+
+    The target distance between neighbours is ball.radius / 2 (for the
+    forward neighbour) or ball2.radius / 2 (for the backward neighbour).
+    The force magnitude is proportional to the displacement from the target
+    distance, smoothed by smoothing_factor to suppress small fluctuations.
 
     :param ball1: Ball
-        the ball that the force is added to
+        the ball to which the force is applied
     :param ball2: Ball
-        neighbor to ball1
+        the neighbouring ball (previous or next in the fiber)
     :param is_next: bool
-        indicates whether ball2 comes before or after ball1 in the fiber
+        True if ball2 follows ball1 in the fiber (use ball1.radius);
+        False if ball2 precedes ball1 (use ball2.radius)
+    :param rho: float (default: 0.25)
+        force magnitude scaling factor; default 0.25
+    :param x_s: float (default: 0.25)
+        smoothing onset ratio (fraction of target distance)
+    :param x_e: float ((default: 0.5)
+        smoothing saturation ratio (fraction of target distance)
     """
     cdef double dx, dy, dz, s_f
     cdef double dist_is, dist_should, dist_displaced, ratio_displaced
@@ -364,17 +450,27 @@ cdef void calculate_spring_force(Ball ball1, Ball ball2, bint is_next, double rh
 cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next, double rho = 0.25,
         double alpha_s = 1*PI/180, double alpha_e = 2*PI/180) noexcept:
     """
-    Calculates angle force between 3 neighboring balls and adds it to the center ball
-    Note: this code does not directly follow the paper by Altendorf&Jeulin
-    because this caused strange errors. Instead, it uses an equivalent calculation
-    that was proposed yet undocumented in the original code (MAVIlib)
+    Compute and apply the bending-angle restoring force at an interior ball.
 
-    :param ball: Balls / 2.0
-        The center ball - this is where the force will be applied
+    The force drives the bending angle at ball toward the target angle
+    ball.angle, using the geometric construction from the original MAVIlib
+    implementation (equivalent to Altendorf & Jeulin 2011 but numerically
+    more stable).  The force magnitude is smoothed by smoothing_factor.
+    Returns immediately (no force) if the angle error is below 1e-6 rad
+    or if ball lies exactly on the axis between ball_prev and ball_next.
+
+    :param ball: Ball
+        the interior ball where the angle force is applied
     :param ball_prev: Ball
-        The previous ball
+        the preceding ball in the fiber
     :param ball_next: Ball
-        The next ball
+        the following ball in the fiber
+    :param rho: float (default: 0.25)
+        force magnitude scaling factor
+    :param alpha_s: float (default: 1°)
+        smoothing onset angle in radians
+    :param alpha_e: float (default: 2°)
+        smoothing saturation angle in radians
     """
     cdef double ax, ay, az, dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z, mx, my, mz
     cdef double length_prev, alpha0, alpha, d, h1, h2, z, tan_alpha0, f
@@ -425,17 +521,20 @@ cdef void calculate_angle_force(Ball ball, Ball ball_prev, Ball ball_next, doubl
 
 cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
     """
-    Calculate the smoothing factor
-    (arguments named after Altendorf&Jeulin 2011)
+    Cut-off smoothing function mapping a ratio to [0, 1].
+
+    Returns 0 for x < x_s, 1 for x > x_e, and a smooth cosine ramp
+    0.5*(1 - cos(pi*(x-x_s)/(x_e-x_s))) in between.  Named after the
+    notation in Altendorf & Jeulin (2011).
 
     :param x: float
-        The ratio that is the argument of smoothing factor
+        input value (typically a normalised displacement or angle)
     :param x_s: float
-        if x < x_y, the factor is 0
+        lower threshold; below this the factor is 0
     :param x_e: float
-        if x > x_e, the factor is 1
+        upper threshold; above this the factor is 1
     :return: float
-        the smoothing factor
+        smoothing factor in [0, 1]
     """
     cdef double ratio
     if x < x_s:
@@ -447,25 +546,29 @@ cdef inline double smoothing_factor(double x, double x_s, double x_e) noexcept:
 
 
 cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image_size,
-    double contact_distance, double repulsion_factor = 1.1, double rho = 0.25) noexcept:
+    double contact_distance, double rho = 0.25) noexcept:
     """
-    calculates the contact force between two balls
+    Compute and apply the contact attraction force between two balls under
+    periodic boundary conditions.
+
+    The force is active when the surface-to-surface distance
+    dist - (r1 + r2) is positive (balls not overlapping) and pulls the
+    balls toward their touching distance.  The magnitude is smoothed by
+    smoothing_factor over the range [contact_distance/2, contact_distance].
 
     :param ball: Ball
-        The ball whose neighbors are currently considered
+        first ball; force added (pulled toward ball2)
     :param ball2: Ball
-        The neighboring ball that is currently considered
-    :param is_periodic: bool
-        Whether the repulsion force is to be calculated on the torus, i.e., periodically
-    :param image_size: int
-        The image size (relevant for periodic case)
+        second ball; force subtracted (pulled toward ball)
+    :param image_size: int[3]
+        domain dimensions for periodic wrapping
     :param contact_distance: float
-        The maximal distance that balls can have to be considered in contact
-    :param repulsion_factor: float, default 1.1
-        This factor is 1 in the Altendorf-Jeulin model.
-        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
-        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
-        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        maximum surface-to-surface distance for force activation
+    :param rho: float (default: 0.25)
+        force magnitude scaling factor
+    :return: float
+        residual gap max(0, dist - (r1+r2) - contact_distance), i.e. how
+        far outside the contact zone the balls still are; 0 if in contact
     """
     cdef double dist, displaced, dist_perfect, displace, true_displace, force_strength
     cdef double dx, dy, dz, coordx, coordy, coordz, coord2x, coord2y, coord2z
@@ -509,21 +612,24 @@ cdef double calculate_contact_force_periodic(Ball ball, Ball ball2, int[3] image
 
 
 cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
-    double contact_distance, double repulsion_factor = 1.1, double rho = 0.25) noexcept:
+    double contact_distance, double rho = 0.25) noexcept:
     """
-    calculates the contact force between two balls in the nonperiodic case
-    
+    Compute and apply the contact attraction force between two balls without
+    periodic boundary conditions.
+
+    Identical to calculate_contact_force_periodic except distances are
+    Euclidean rather than periodic.
+
     :param ball: Ball
-        The ball whose neighbors are currently considered
+        first ball; force added (pulled toward ball2)
     :param ball2: Ball
-        The neighboring ball that is currently considered
+        second ball; force subtracted (pulled toward ball)
     :param contact_distance: float
-        The maximal distance that balls can have to be considered in contact
-    :param repulsion_factor: float, default 1.1
-        This factor is 1 in the Altendorf-Jeulin model.
-        However, this leads to incredibly low convergence (explainable with limit of explicit Euler?),
-        which is also why they stop packing when the overlap is 0.1*radius and then need an end_step
-        A factor of 1.1 turned out as trade-off between runtime and highest volume fraction
+        maximum surface-to-surface distance for force activation
+    :param rho: float (default: 0.25)
+        force magnitude scaling factor
+    :return: float
+        residual gap max(0, dist - (r1+r2) - contact_distance); 0 if in contact
     """
     cdef double dist, displaced, dist_perfect, displace, force_strength
     cdef double dx, dy, dz
@@ -556,12 +662,16 @@ cdef double calculate_contact_force_nonperiodic(Ball ball, Ball ball2,
 
 def apply_forces(fiber_system: list[Fiber]):
     """
-    Applies forces to the fiber system
-    - it adds their forces to their coordinates, thus moves the balls
-    - it sets all forces to 0
+    Apply accumulated forces to ball positions and reset per-step state.
 
-    :param fiber_system: list[list[Ball]])
-        The fiber system that contains all balls
+    For each ball: adds ball.force to ball.coordinate, then resets
+    ball.force to (0,0,0), ball.overlap to 0, ball.neighbor_dist to
+    radius/2, ball.angle_diff to 0, and ball.optim_sum to 0.
+
+    Must be called once per packing step, after calculate_forces.
+
+    :param fiber_system: list[Fiber]
+        the full fiber system; modified in place
     """
     cdef Ball ball
     for fiber in fiber_system:
