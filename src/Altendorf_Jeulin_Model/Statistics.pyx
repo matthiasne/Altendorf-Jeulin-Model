@@ -1,5 +1,4 @@
 import numpy as np
-import cython
 from libc.stdint cimport int64_t
 from libc.math cimport cos
 cimport numpy as np
@@ -7,6 +6,8 @@ np.import_array()
 from scipy.linalg import solve_triangular
 from scipy.special import digamma
 from scipy.spatial import cKDTree
+from libc.float cimport DBL_EPSILON
+
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
@@ -39,8 +40,8 @@ def mean_length(fs: list[Fiber]):
     """
     if len(fs) == 0:
         return 0
-    mean_length = np.mean([fiber.get_length() for fiber in fs])
-    return mean_length
+    m_length = np.mean([fiber.get_length() for fiber in fs])
+    return m_length
 
 
 def mean_angle_error(fs: list[Fiber]):
@@ -105,9 +106,14 @@ def estimate_beta(fs: list[Fiber], beta: float):
     beta_last = beta_0 + 2 * accuracy
     beta_next = beta_0
 
+    max_iter = 1000
+    i = 0
     while abs(beta_next - beta_last) > accuracy:
+        if i > max_iter:
+            break
         beta_last = beta_next
         beta_next = beta_last - h(beta_last, thetas) / h_dif(beta_last, thetas)
+        i += 1
     return beta_next
 
 
@@ -142,51 +148,21 @@ def h_dif(beta: float, thetas: list):
     """
     sum_h = 0
     beta_sq = np.square(beta)
-    for theta in thetas:
-        sum_h += np.square(
-            np.sin(2 * theta) / (1 + (beta_sq - 1) * np.square(np.cos(theta)))
-        )
-    return 3 / 2 * beta * sum_h
+    cos_sq = np.square(np.cos(thetas))
+    denom = 1.0 + (beta_sq - 1.0)*cos_sq
+    term1 = np.sum(cos_sq/denom)
+    term2 = np.sum(np.square(cos_sq/denom))
+    return 6.0*beta*term1 - 6.0*beta_sq*beta*term2
 
 
 def volume_fraction(
     fiber_system: list[Fiber], shape, is_periodic: bool = True
 ):
-    image = discretize_spheres_periodic(fiber_system, shape[0], shape[1], shape[2])
-    return image.mean()
-    """
-    calculates the volume fraction of the fiber system in an image
-
-    :param fiber_system: list[Fiber]
-        the fiber system
-    :param shape: tuple[int, int, int]
-        the shape of the image
-    :param is_periodic: bool
-        boundary conditions of the image
-    :return: float
-        the volume fraction of the fiber system
-    """
-    """coords = []
-    radii = []
-    for fiber in fiber_system:
-        for ball in fiber.balls:
-            coords.append(ball.coordinate)
-            radii.append(ball.radius)
-    coords = np.array(coords)
-    radii = np.array(radii)
-
-    min_coordinates = np.array([0, 0, 0])
-    max_coordinates = np.array(shape)
-
     if is_periodic:
-        image = discretize_spheres_periodic(
-            coords, radii, min_coordinates, max_coordinates
-        )
+        image = discretize_spheres_periodic(fiber_system, shape[0], shape[1], shape[2])
     else:
-        image = discretize_spheres_nonperiodic(
-            coords, radii, min_coordinates, max_coordinates
-        )
-    return np.mean(image)"""
+        image = discretize_spheres_nonperiodic(fiber_system, shape[0], shape[1], shape[2])
+    return image.mean()
 
 
 def estimate_kappa1(fs: list[Fiber]):
@@ -216,7 +192,8 @@ def estimate_kappa1(fs: list[Fiber]):
         diff_inner_sum = np.mean(diff) if diff else 0
         diff_sum.append(diff_inner_sum)
     # mean angle error across all fibers
-    return 1 / np.mean(diff_sum) if diff_sum else 0
+    mean = np.mean(diff_sum)
+    return 1 / mean if mean else 0
 
 
 def estimate_kappa2(fs: list[Fiber]):
@@ -249,7 +226,8 @@ def estimate_kappa2(fs: list[Fiber]):
         diff_sum.append(diff_inner_sum)
 
     # mean angle error across all fibers
-    return 2 / np.mean(diff_sum) if diff_sum else 0
+    mean = np.mean(diff_sum)
+    return 2 / mean if mean else 0
 
 
 def calculate_fot(fs: list[Fiber]) -> np.ndarray:
@@ -261,9 +239,11 @@ def calculate_fot(fs: list[Fiber]) -> np.ndarray:
         FOT of shape (3, 3)
     """
     fot = np.zeros((3, 3))
+    if len(fs) == 0:
+        return fot
     for fiber in fs:
-        _, dir = normalized(fiber.get_direction())
-        fot += np.outer(dir, dir)
+        _, direction = normalized(fiber.get_direction())
+        fot += np.outer(direction, direction)
     fot /= len(fs)
     return fot
 
@@ -296,7 +276,7 @@ def kl_to_acg(samples, Sigma, k=5):
         raise ValueError("samples must contain only finite values")
 
     norms = np.linalg.norm(x, axis=1)
-    if np.any(norms == 0):
+    if np.any(norms < DBL_EPSILON):
         raise ValueError("samples must be nonzero vectors")
     x = x / norms[:, None]
 
