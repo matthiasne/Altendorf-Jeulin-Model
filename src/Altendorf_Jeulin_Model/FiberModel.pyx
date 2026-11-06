@@ -23,6 +23,14 @@ from Altendorf_Jeulin_Model.utils import (
 
 
 class FiberModel:
+    """
+    Container for a fiber system managed by the Altendorf–Jeulin model.
+
+    :param initial_fiber_system: list[Fiber]
+        the starting fiber system; must be a non-empty list of Fiber objects
+    :raises TypeError:
+        if initial_fiber_system is not a list of Fiber instances
+    """
     def __init__(self, initial_fiber_system):
         if not (
                 isinstance(initial_fiber_system, list)
@@ -39,25 +47,30 @@ def initialize_fiber_system(
         seed: int = None,
 ):
     """
-    initializes a fiber system of straight fibers, where fibers still overlap.
+    Generate a fiber system of straight fibers placed at random positions.
 
-    :param intensity: float
-        expected number of fibers
+    Each fiber follows its mean direction exactly (no curvature).  Ball
+    centers are spaced r_fiber/2 apart along the mean direction.  Starting
+    positions are drawn uniformly within image_size.  This is a simplified
+    initialiser; for curved fibers use initialize_fiber_system_AJ.
+
+    :param intensity: float or random variable
+        expected number of fibers; passed to set_value, so it may be a
+        scipy distribution or a plain number
     :param L: float or random variable
-        length of the fiber
+        fiber length; passed to set_value
     :param R: float or random variable
-        radius of the fiber
-    :param direction_distribution: function
-        a direction distribution that takes rng as input and returns the direction vector
-    :param image_size:
-    :param kappa1: float
-        curvature parameter for the random walk
-    :param kappa2: float
-        curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
+        fiber radius; passed to set_value
+    :param direction_distribution: callable
+        function (rng) -> (mu_x, mu_y, mu_z) returning a unit direction
+        vector for each fiber
+    :param image_size: array-like of shape (3,)
+        dimensions of the domain (x, y, z); starting positions are drawn
+        uniformly in [0, image_size[d]) for each dimension d
+    :param seed: int or None, optional
+        seed for the random number generator; default None (random)
     :return: list[Fiber]
-        the generated fiber system
+        generated fiber system with overlapping fibers
     """
     cdef double r, theta, phi
     cdef double mu0_x, mu0_y, mu0_z, rot_x, rot_y, rot_z
@@ -107,26 +120,38 @@ def initialize_fiber_system_AJ(
         seed: int = None,
 ):
     """
-    initializes a fiber system, where fibers still overlap. This method follows the initial fiber system by
-    Altendorf&Jeulin (2011), further systems tbd
+    Generate a fiber system using the Altendorf–Jeulin (2011) random-walk model.
 
-    :param intensity: float
-        expected number of fibers
+    Each fiber is grown by a von Mises–Fisher random walk whose local mean
+    direction is a weighted combination of the global mean direction (kappa1)
+    and the previous step direction (kappa2).  After the walk, the fiber is
+    rigidly rotated so that its end-to-end direction matches the sampled mean
+    direction mu0.
+
+    Ball centers are spaced r_fiber/2 apart.  Starting positions are drawn
+    uniformly within image_size.
+
+    :param intensity: float or random variable
+        expected number of fibers; passed to set_value
     :param L: float or random variable
-        length of the fiber
+        fiber length; passed to set_value
     :param R: float or random variable
-        radius of the fiber
-    :param direction_distribution: function
-        a direction distribution that takes rng as input and returns the direction vector
-    :param image_size:
+        fiber radius; passed to set_value
+    :param direction_distribution: callable
+        function (rng) -> (mu_x, mu_y, mu_z) returning a unit mean
+        direction vector for each fiber
+    :param image_size: array-like of shape (3,)
+        dimensions of the domain (x, y, z)
     :param kappa1: float
-        curvature parameter for the random walk
+        weight of the global mean direction mu0 in the random-walk step;
+        higher values pull each step toward mu0
     :param kappa2: float
-        curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
+        weight of the previous step direction in the random-walk step;
+        higher values increase local persistence (straightness)
+    :param seed: int or None, optional
+        seed for the random number generator; default None (random)
     :return: list[Fiber]
-        the generated fiber system
+        generated fiber system with overlapping fibers
     """
     cdef double r, theta, phi
     cdef double mu0_x, mu0_y, mu0_z, rot_x, rot_y, rot_z
@@ -204,34 +229,35 @@ def initialize_fiber_system_endless(
         seed: int = None
 ):
     """
-    initializes a fiber system of endless fibers, where fibers still overlap.
-    This method follows the initial fiber system by Prakash Easwaran
+    Generate a system of endless (domain-spanning) fibers following
+    Prakash Easwaran's method.
 
-    :param mu: float
-        The mean number of fibers
+    Fibers are grown from Poisson line midpoints in both directions using
+    generate_half_fiber.  An extended domain of size image_size +
+    2*boundary_size is used so that fibers entering from outside the
+    boundary are captured.  Fibers shorter than 2 balls after cropping
+    are discarded.
+
+    :param mu: float or random variable
+        mean number of fibers to attempt; passed to set_value
     :param R: float or random variable
-        radius of the fiber
-    :param beta: float
-        direction parameter for the Schladitz distribution
-    :param image_size: tuple[int, int, int]
+        fiber radius; passed to set_value
+    :param direction_distribution: callable
+        function (rng) -> (mu_x, mu_y, mu_z) returning a unit mean
+        direction vector for each fiber
+    :param image_size: np.ndarray of shape (3,)
+        dimensions of the core domain (x, y, z), excluding boundary
     :param boundary_size: int
+        width of the boundary layer added on each side of the domain
     :param kappa1: float
-        curvature parameter for the random walk
+        weight of the global mean direction in the random-walk step
     :param kappa2: float
-        curvature parameter for the random walk
-    :param seed: int, default 42
-        seed for the random variables
-    :param has_beta: bool, default True
-        whether to use the beta parameter for the Schladitz distribution or A for the ACG distribution
-    :param is_poisson: bool, default True
-        whether to sample the number of fibers from a Poisson distribution (Poisson line process)
-    :param volume_fraction_should: float, default 1.0
-        volume fraction that should not be exceeded. When it is set to 1.0, the volume fraction is not tested.
-        In general, the number of fibers will not be exceeded.
+        weight of the previous step direction in the random-walk step
+    :param seed: int or None, optional
+        seed for the random number generator; default None (random)
     :return: list[Fiber]
-        the generated fiber system
-
-"""
+        generated fiber system of endless fibers, still overlapping
+    """
     rng = default_rng(seed)
     n = int(set_value(mu, rng))
     boundary_size_vec = np.array([boundary_size, boundary_size, boundary_size])
@@ -284,15 +310,21 @@ def save_balls_in_fiber_system(
         fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
 ):
     """
-    saves balls in fiber system
+    Append a new Fiber built from a dense coordinate array to the fiber system.
+
+    For each interior ball (index 1 to n-2) the bending angle is computed
+    from the directions of the incoming and outgoing segments and stored in
+    ball.angle.  The first and last balls receive angle = pi (straight).
 
     :param fiber_system: list[Fiber]
-    :param coords: list[np.ndarray]
-        coordinates of balls
+        the fiber system to append to; modified in place
+    :param coords: np.ndarray, shape (n, 3)
+        ball center coordinates in order along the fiber
     :param i: int
-        fiber index within the fiber system
+        fiber index used as fiber_label for all balls; must equal
+        len(fiber_system) before the call
     :param r_fiber: float
-        fiber radius
+        radius assigned to every ball in the fiber
     """
     cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z, angle
     cdef int l_fiber_discrete = len(coords)
@@ -315,15 +347,25 @@ def save_balls_in_fiber_system_endless(
         fiber_system: list[Fiber], coords, i: int, r_fiber: float|int
 ):
     """
-    saves balls in fiber system
+    Append a new Fiber built from a list of coordinate arrays to the fiber system.
+
+    Equivalent to save_balls_in_fiber_system but accepts coords as a Python
+    list of 1-D arrays (the format returned by generate_half_fiber) rather
+    than a 2-D numpy array.
+
+    For each interior ball the bending angle is computed from the directions
+    of the incoming and outgoing segments and stored in ball.angle.  The
+    first and last balls receive angle = pi (straight).
 
     :param fiber_system: list[Fiber]
-    :param coords: list[np.ndarray]
-        coordinates of balls
+        the fiber system to append to; modified in place
+    :param coords: list[array-like]
+        ball center coordinates in order along the fiber, each of length 3
     :param i: int
-        fiber index within the fiber system
+        fiber index used as fiber_label for all balls; must equal
+        len(fiber_system) before the call
     :param r_fiber: float
-        fiber radius
+        radius assigned to every ball in the fiber
     """
     cdef double dir_prev_x, dir_prev_y, dir_prev_z, dir_next_x, dir_next_y, dir_next_z, angle
     cdef int l_fiber_discrete = len(coords)
