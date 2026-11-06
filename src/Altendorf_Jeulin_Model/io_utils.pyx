@@ -21,17 +21,17 @@ from Altendorf_Jeulin_Model.Statistics import mean_angle_error, volume_fraction,
 
 
 def print_fiber_positions(
-    fiber_system: FiberModel, max_fibers: int = 10, max_balls: int = 10
+    fiber_system: list[Fiber], max_fibers: int = 10, max_balls: int = 10
 ):
     """
-    Print fibers as positions.
+    Print fiber positions to stdout.
 
     :param fiber_system: list[Fiber]
         A list of fibers, each represented as a list of balls
     :param max_fibers: int, optional
-        maximal number of fibers to be printed
-    :param max_balls:  int, optional
-        maximal number of spheres to be printed
+        Maximum number of fibers to print (default: 10)
+    :param max_balls: int, optional
+        Maximum number of balls per fiber to print (default: 10)
     """
     for i, fiber in enumerate(fiber_system[:max_fibers]):
         coords = " ".join(
@@ -42,14 +42,14 @@ def print_fiber_positions(
         print("Fiber ", i, ":", coords)
 
 
-def print_fiber_positions_to_file(fiber_system: FiberModel, output_file: str):
+def print_fiber_positions_to_file(fiber_system: list[Fiber], output_file: str):
     """
-    Print fibers as positions.
+    Write fiber positions to a text file, one fiber per line.
 
     :param fiber_system: list[Fiber]
         A list of fibers, each represented as a list of balls
     :param output_file: str
-        path for the output file
+        Path for the output file
     """
     with open(output_file, mode="w", newline="") as file:
         for i, fiber in enumerate(fiber_system):
@@ -70,20 +70,26 @@ def save_fibers_as_image(
     spacing=(1.0, 1.0, 1.0)
 ):
     """
-    Save fibers as tif-image
+    Save a fiber system as a 3D image file (TIF or MHA/MHD).
 
-    :param fiber_system: list[list[Ball]]
-        A list of fibers, each represented as a list of 3D np.arrays
-    :param domain: tuple(int, int, int)
-        z,y,x coordinate of the image
-    :param path: string optional
-        The path where the tif image will be saved
-        (default: "spheres.tif")
-    :param scale: float optional
-        The scale of the image, e.g., when the data is given in um and the image has voxel size 4um, the scale is 4
+    Fibers are discretized as chains of spheres. The image is saved with axes
+    transposed to (z, y, x) order as expected by tifffile and SimpleITK.
+
+    :param fiber_system: list[Fiber]
+        A list of fibers, each represented as a list of balls
+    :param domain: tuple[int, int, int]
+        Size of the domain in physical units (x, y, z)
+    :param path: str, optional
+        Output file path; must end with .tif, .tiff, .mha, or .mhd (default: "spheres.tif")
+    :param scale: float, optional
+        Voxel size in physical units, e.g. 4 if coordinates are in µm and voxels are 4 µm
         (default: 1)
-    :param is_periodic: bool optional
-        Whether the system is periodic or not (default: True)
+    :param is_periodic: bool, optional
+        Whether to apply periodic boundary conditions when discretizing (default: True)
+    :param spacing: tuple[float, float, float], optional
+        Physical voxel spacing written into MHA/MHD metadata (default: (1.0, 1.0, 1.0))
+    :raises ValueError:
+        If the file extension is not .tif, .tiff, .mha, or .mhd
     """
     image_shape = np.array([d / scale for d in domain], dtype=int)
 
@@ -111,18 +117,25 @@ def save_lines_as_image(
     spacing=(1.0, 1.0, 1.0)
 ):
     """
-    Save lines as tif-image
+    Save a line system as a 3D image file (TIF or MHA/MHD).
 
-    :param line_system:
-        A list of lines, each represented as a start point, an end point, and a radius
-    :param domain: tuple(int, int, int)
-        z,y,x coordinate of the image
-    :param path: string optional
-        The path where the tif image will be saved
-        (default: "spheres.tif")
-    :param scale: float optional
-        The scale of the image, e.g., when the data is given in um and the image has voxel size 4um, the scale is 4
-        (default: 1)
+    Lines are discretized using isotropic dilation. The image is saved with axes
+    transposed to (z, y, x) order as expected by tifffile and SimpleITK.
+
+    :param line_system: list[tuple[np.ndarray, np.ndarray, float]]
+        A list of lines, each represented as (start, end, radius) in physical units
+    :param domain: tuple[int, int, int]
+        Size of the domain in physical units (x, y, z)
+    :param path: str, optional
+        Output file path; must end with .tif, .tiff, .mha, or .mhd (default: "lines.tif")
+    :param scale: float, optional
+        Voxel size in physical units (default: 1.0)
+    :param spacing: tuple[float, float, float], optional
+        Physical voxel spacing written into MHA/MHD metadata (default: (1.0, 1.0, 1.0))
+    :raises ValueError:
+        If the file extension is not .tif, .tiff, .mha, or .mhd
+    :raises ValueError:
+        If line_system is empty (max() on empty sequence); guard against this before calling
     """
     line_system = [
         (
@@ -148,10 +161,10 @@ def save_lines_as_image(
 
 def print_grid(grid: sh):
     """
-    Print cells of a SpatialHashing
+    Print the contents of each cell in a SpatialHashing grid to stdout.
 
     :param grid: SpatialHashing
-    A list of fibers, each represented as a list of Balls
+        The spatial hashing grid whose cells will be printed
     """
     for i, cell in enumerate(grid.cells):
         coords = " ".join(
@@ -164,12 +177,14 @@ def print_grid(grid: sh):
 
 def print_stats(output_file: str, rows):
     """
-    Prints the statistics into an output file
+    Write packing statistics to a CSV file.
+
     :param output_file: str
-        path to the output file
+        Path to the output file
     :param rows: list
-        rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
+        Rows to be written; each row should contain values for the columns:
+        "Step", "#Fibers", "VF", "MAE", "meanLength", "KL",
+        "MaxOverlap", "ContactDistances", "change"
     """
     with open(output_file, mode="w", newline="") as file:
         writer = csv.writer(file)
@@ -194,25 +209,34 @@ def print_stats_row(
         objective:float, change:float, image_size, dir_matrix, is_periodic: bool
 ):
     """
-    Prints the statistics into the console and returns a list of them
+    Compute and print packing statistics for the current iteration step.
+
+    Prints a summary line to stdout and returns the statistics as a list
+    suitable for passing to print_stats.
+
     :param fs: list[Fiber]
-        fiber system
+        Current fiber system
     :param i: int
-        iteration step of force-biased algorithm
-    :param total_force_strength: float
-        force strength, length of vector of displacements
-    :param max_force_strength: float
-        maximal force strength
+        Current iteration step of the force-biased algorithm
     :param overlap: float
-        maximal overlap between balls (should be 0)
+        Maximum overlap between balls at this step
     :param neighbor_dist: float
-        maximal distance between neighbors (should be half the radius)
+        Maximum distance between neighbouring balls at this step
     :param contact_distance: float
-        maximal distance between contacts (should be 0)
-    :param res: float
-        relative difference from optimization function in this step to previous step
-    :return: rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
+        Maximum contact distance at this step
+    :param objective: float
+        Current value of the packing objective function
+    :param change: float
+        Relative change of the objective function since the previous step
+    :param image_size: tuple[int, int, int]
+        Domain size, used to compute the volume fraction
+    :param dir_matrix: np.ndarray
+        3x3 direction matrix used to compute the KL divergence
+    :param is_periodic: bool
+        Whether the fiber system uses periodic boundary conditions
+    :return: list
+        Row containing: Step, #Fibers, VF, MAE, meanLength, KL,
+        MaxOverlap, ContactDistances, change
     """
     mae = mean_angle_error(fs)
     mean_length = np.mean([fiber.get_length() for fiber in fs])
@@ -239,12 +263,13 @@ def print_stats_row(
 
 def print_contact_stats(output_file: str, rows):
     """
-    Prints the statistics into an output file
+    Write contact statistics to a CSV file.
+
     :param output_file: str
-        path to the output file
+        Path to the output file
     :param rows: list
-        rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
+        Rows to be written; each row should contain values for the columns:
+        "#connected_components", "#clots", "#contacts", "contact_surface"
     """
     with open(output_file, mode="w", newline="") as file:
         writer = csv.writer(file)
@@ -259,13 +284,23 @@ def print_contact_stats(output_file: str, rows):
 
 def save_fibers_as_graph(file_path: str, fs: sh):
     """
-    Prints the fiber system according to input file format of
-    TexMathVisualizer. Each edge is the original AJ edge.
+    Write a fiber system to the TexMathVisualizer graph format.
 
-    :param file_path: string
-        base path for the output file
+    Produces six files at the given base path:
+    - .fft.nod            — node coordinates (one per line: x y z)
+    - .fft.elm            — edges (one per line: node_a node_b radius)
+    - .fft.threads        — thread (fiber) descriptions
+    - .fft.ndn            — total node count
+    - .fft.eln            — total edge count
+    - .fft.threads.number — total thread (fiber) count
+
+    Fibers with fewer than 3 balls are skipped.
+    Each ball becomes a node and each consecutive ball pair becomes an edge.
+
+    :param file_path: str
+        Base path for the output files (without extension)
     :param fs: list[Fiber]
-        fiber system to be printed
+        Fiber system to be written
     """
     base = Path(file_path)
     nod_file = base.with_suffix(base.suffix + ".fft.nod")
@@ -309,14 +344,17 @@ def save_fibers_as_graph(file_path: str, fs: sh):
 
 def save_fibers_as_small_graph(file_path, fs):
     """
-    Prints the fiber system according to input file format of
-    TexMathVisualizer but removes edges for a maximal curvature of
-    0.2 radian
+    Write a simplified fiber system to the TexMathVisualizer FFT graph format.
 
-    :param file_path: string
-        base path for the output file
+    Produces the same six files as save_fibers_as_graph, but simplifies each
+    fiber by merging consecutive balls whose cumulative curvature stays below
+    0.2 radians. This reduces the number of nodes and edges for nearly straight
+    fibers. Fibers with fewer than 3 balls are skipped.
+
+    :param file_path: str
+        Base path for the output files (without extension)
     :param fs: list[Fiber]
-        fiber system to be printed
+        Fiber system to be written
     """
     base = Path(file_path)
     nod_file = base.with_suffix(base.suffix + ".fft.nod")
@@ -385,17 +423,24 @@ def save_fibers_as_small_graph(file_path, fs):
 
 def find_next_node(fiber, i_start: int, i_end: int) -> int:
     """
-    Helper function for save_fibers_as_small_graph: finds next node to remove
-    superfluous edges indirectly
+    Find the index of the next node to retain when simplifying a fiber.
 
-    :param fiber:   list[Ball]
+    Starting from i_start, advances along the fiber accumulating curvature
+    (sum of turning angles between consecutive ball-to-ball directions) until
+    the cumulative curvature reaches or exceeds 0.2 radians or the end of the
+    fiber is reached. Returns the index of the last ball visited, which is
+    the next node to keep in the simplified graph.
+
+    If only one step ahead is available, returns i_start + 1 unconditionally.
+
+    :param fiber: Fiber
+        The fiber to traverse
     :param i_start: int
-        index to start searching from
+        Index of the current node to start from
     :param i_end: int
-        last index in fiber
+        Index of the last ball in the fiber
     :return: int
-        index of next node
-
+        Index of the next node to retain, always > i_start and <= i_end
     """
     curvature = 0
     i = i_start
@@ -417,16 +462,16 @@ def find_next_node(fiber, i_start: int, i_end: int) -> int:
 
 def read_gad(path: str, scale: int = 1000000):
     """
-    reads fiber system from gad-file (GeoDict format)
+    Read a fiber system from a GeoDict GAD file.
 
     :param path: str
-        path to gad-file
-    :param scale: int
-        data is usually written in m, so transform into um
-
-    :return: list[Ball], tuple
-        fiber system, window size
-
+        Path to the GAD file (JSON format)
+    :param scale: int, optional
+        Conversion factor from the file's unit (metres) to the working unit
+        (micrometres by default); coordinates and radii are multiplied by this
+        value (default: 1000000)
+    :return: tuple[list[Fiber], tuple[int, int, int]]
+        The fiber system and the domain size in working units (x, y, z)
     """
     fiber_system = []
     with open(path, "r") as f:
@@ -458,18 +503,27 @@ def write_gad(
     scale: int = 1000000,
 ):
     """
-    write fiber system to gad-file (GeoDict format)
+    Write a fiber system to a GeoDict GAD file.
 
+    Coordinates and radii are converted from working units (micrometres) to
+    metres by dividing by scale. The voxel_size field in the output records
+    the physical size of one voxel in metres and is independent of the
+    coordinate scaling.
+
+    :param fiber_system: list[Fiber]
+        Fiber system to be written
     :param path: str
-        path to gad-file
-    :param fiber_system: list[Ball]
-        fiber system to be written
-    :param shape: tuple
-        window size
-    :param voxel_size: int
-    :param is_periodic: bool
-    :param scale: int
-        positions are usually written in um, so transform into m
+        Path to the output GAD file
+    :param shape: tuple[int, int, int]
+        Domain size in working units (x, y, z)
+    :param voxel_size: float, optional
+        Physical size of one voxel in metres, written into the GAD header
+        (default: 1e-6)
+    :param is_periodic: bool, optional
+        Whether the domain is periodic in all three axes (default: True)
+    :param scale: int, optional
+        Conversion factor from working units to metres; coordinates and
+        radii are divided by this value (default: 1000000)
     """
     system_dict = dict()
 
