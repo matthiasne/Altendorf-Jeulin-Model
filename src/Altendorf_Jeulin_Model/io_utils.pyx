@@ -9,7 +9,7 @@ import SimpleITK as sitk
 import json
 import platform
 from datetime import datetime
-from Altendorf_Jeulin_Model.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic
+from Altendorf_Jeulin_Model.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic, clip
 from Altendorf_Jeulin_Model.utils import (
     normalized,
     discretize_lines
@@ -85,13 +85,6 @@ def save_fibers_as_image(
     :param is_periodic: bool optional
         Whether the system is periodic or not (default: True)
     """
-    coords = []
-    radii = []
-    for fiber in fiber_system:
-        for ball in fiber.balls:
-            coords.append(ball.coordinate)
-            radii.append(ball.radius)
-
     image_shape = np.array([d / scale for d in domain], dtype=int)
 
     if is_periodic:
@@ -99,12 +92,12 @@ def save_fibers_as_image(
     else:
         image = discretize_spheres_nonperiodic(fiber_system, image_shape[0], image_shape[1], image_shape[2])
 
+    image = np.transpose(image, (2, 1, 0))
     if path.endswith(".tif") or path.endswith(".tiff"):
-        image = np.transpose(image, (2, 1, 0))
         tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
     elif path.endswith(".mha") or path.endswith(".mhd"):
         sitk_image = sitk.GetImageFromArray(image)
-        sitk_image.SetSpacing(spacing)
+        sitk_image.SetSpacing(spacing[::-1])
         sitk.WriteImage(sitk_image, path)
     else:
         raise ValueError(f"Unsupported file format: {path}")
@@ -141,12 +134,12 @@ def save_lines_as_image(
     ]
     image_shape = np.array([d / scale for d in domain], dtype=int)
     image = discretize_lines(line_system, image_shape)
+    image = np.transpose(image, (2, 1, 0))
     if path.endswith(".tif") or path.endswith(".tiff"):
-        image = np.transpose(image, (2, 1, 0))
         tifffile.imwrite(path, image, photometric="minisblack", metadata={"axes": "XYZ"})
     elif path.endswith(".mha") or path.endswith(".mhd"):
         sitk_image = sitk.GetImageFromArray(image)
-        sitk_image.SetSpacing(spacing)
+        sitk_image.SetSpacing(spacing[::-1])
         sitk.WriteImage(sitk_image, path)
     else:
         raise ValueError(f"Unsupported file format: {path}")
@@ -194,55 +187,7 @@ def print_stats(output_file: str, rows):
             ]
         )  # Header
         writer.writerows(rows)
-
-
-def print_stats_row(
-    fs: list[Fiber], i, overlap: float, neighbor_dist: float, contact_distance:float,
-        objective:float, change:float, image_size, dir_matrix, is_periodic: bool
-):
-    """
-    Prints the statistics into the console and returns a list of them
-    :param fs: list[Fiber]
-        fiber system
-    :param i: int
-        iteration step of force-biased algorithm
-    :param total_force_strength: float
-        force strength, length of vector of displacements
-    :param max_force_strength: float
-        maximal force strength
-    :param overlap: float
-        maximal overlap between balls (should be 0)
-    :param neighbor_dist: float
-        maximal distance between neighbors (should be half the radius)
-    :param contact_distance: float
-        maximal distance between contacts (should be 0)
-    :param res: float
-        relative difference from optimization function in this step to previous step
-    :return: rows to be printed, containing
-        "Step", "#Fibers", "FOT", "MeanAngleError", "MaxNeighborDist" "MaxOverlap", "ForceStrength", "MaxForceStrength"
-    """
-    mae = mean_angle_error(fs)
-    mean_length = np.mean([fiber.get_length() for fiber in fs])
-    vf = volume_fraction(fs, image_size, is_periodic=is_periodic)
-    kl = calculate_kl(fs, dir_matrix)
-    print(
-        f"step {i} objective {objective:.3f} change {change:.5f} max overlap {overlap:.3f} "
-        f"MAE {mae*180/np.pi:.3f}° max neighbor dist {neighbor_dist:.3f} "
-        f"KL divergence {kl:.3f} "
-        f"contact distance {contact_distance:.3f} "
-    )
-    return [
-        i,
-        len(fs),
-        vf,
-        mae,
-        mean_length,
-        kl,
-        overlap,
-        contact_distance,
-        change
-    ]
-
+        
 
 def print_stats_row(
     fs: list[Fiber], i, overlap: float, neighbor_dist: float, contact_distance:float,
@@ -462,7 +407,7 @@ def find_next_node(fiber, i_start: int, i_end: int) -> int:
         _, dir_next = normalized(
             np.array(fiber.balls[i + 2].coordinate) - np.array(fiber.balls[i + 1].coordinate)
         )
-        angle = np.arccos(np.dot(dir_prev, dir_next))
+        angle = np.arccos(clip(np.dot(dir_prev, dir_next)))
         curvature += angle
         i += 1
     if i == i_start:
