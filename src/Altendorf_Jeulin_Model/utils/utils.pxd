@@ -8,7 +8,7 @@ cdef void rot(double mu_x, double mu_y, double mu_z, double n_x, double n_y, dou
               double sin_alpha, double * cross_x, double * cross_y, double * cross_z) noexcept
 cdef double cnormalized(double * ax, double * ay, double * az) noexcept nogil
 cdef double cdistance_ball(Ball a, Ball b) noexcept nogil
-cdef double cdistance3(double ax, double ax, double az, double bx, double by, double bz) noexcept nogil
+cdef double cdistance3(double ax, double ay, double az, double bx, double by, double bz) noexcept nogil
 cdef double cdirection(Ball a, Ball b, double * dir_x, double * dir_y, double * dir_z) noexcept
 
 cpdef cnp.ndarray discretize_spheres_periodic(

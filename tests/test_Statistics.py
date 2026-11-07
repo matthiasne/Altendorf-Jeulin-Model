@@ -8,7 +8,7 @@ from numpy.testing import assert_allclose
 
 from Altendorf_Jeulin_Model.Fiber import Fiber
 from Altendorf_Jeulin_Model.Fiber import Ball
-from Altendorf_Jeulin_Model.Statistics import (
+from Altendorf_Jeulin_Model.utils.Statistics import (
     mean_radius,
     mean_length,
     mean_angle_error,

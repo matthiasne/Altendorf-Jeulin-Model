@@ -4,7 +4,7 @@ tests/test_graph.py – unit tests for Graph.pyx
 
 import unittest
 
-from Altendorf_Jeulin_Model.Graph import Graph, CC
+from Altendorf_Jeulin_Model.utils.Graph import Graph, CC
 
 
 # ---------------------------------------------------------------------------

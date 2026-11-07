@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy.linalg import cholesky
 
-from Altendorf_Jeulin_Model.rv_utils import (
+from Altendorf_Jeulin_Model.utils.rv_utils import (
     acg_distribution,
     schladitz_distribution,
     vonmises_fisher,

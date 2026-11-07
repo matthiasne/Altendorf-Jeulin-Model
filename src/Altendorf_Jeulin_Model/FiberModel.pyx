@@ -196,9 +196,9 @@ def initialize_fiber_system_AJ(
         mu_bar_y = coord[l_fiber_discrete-1, 1] - coord[0,1]
         mu_bar_z = coord[l_fiber_discrete-1, 2] - coord[0,2]
         cnormalized(&mu_bar_x, &mu_bar_y, &mu_bar_z)
-        n_axis_x = mu0_y*mu_bar_z - mu0_z*mu_bar_y
-        n_axis_y = mu0_z*mu_bar_x - mu0_x*mu_bar_z
-        n_axis_z = mu0_x*mu_bar_y - mu0_y*mu_bar_x
+        n_axis_x = mu_bar_y*mu0_z - mu_bar_z*mu0_y
+        n_axis_y = mu_bar_z*mu0_x - mu_bar_x*mu0_z
+        n_axis_z = mu_bar_x*mu0_y - mu_bar_y*mu0_x
         cnormalized(&n_axis_x, &n_axis_y, &n_axis_z)
         alpha = acos(clip(mu0_x*mu_bar_x + mu0_y*mu_bar_y + mu0_z*mu_bar_z))
 

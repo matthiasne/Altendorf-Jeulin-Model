@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import scipy.stats
-from Altendorf_Jeulin_Model.utils import (
+from Altendorf_Jeulin_Model.utils.utils import (
     angle_between,
     cut_border,
     discretize_lines,

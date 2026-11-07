@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
-import Altendorf_Jeulin_Model.SpatialHashing as sh
+import Altendorf_Jeulin_Model.utils.SpatialHashing as sh
 import Altendorf_Jeulin_Model.FiberModel as fm
 from Altendorf_Jeulin_Model.CalculateForces import calculate_forces
-from Altendorf_Jeulin_Model.rv_utils import schladitz_distribution
+from Altendorf_Jeulin_Model.utils.rv_utils import schladitz_distribution
 
 
 def make_fiber_system(seed=42):

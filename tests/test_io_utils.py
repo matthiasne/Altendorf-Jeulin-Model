@@ -9,7 +9,7 @@ from unittest.mock import patch
 import numpy as np
 
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
-from Altendorf_Jeulin_Model.io_utils import (
+from Altendorf_Jeulin_Model.utils.io_utils import (
     find_next_node,
     print_contact_stats,
     print_fiber_positions_to_file,
