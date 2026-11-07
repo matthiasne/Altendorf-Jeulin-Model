@@ -267,7 +267,7 @@ def initialize_fiber_system_endless(
     n_lines = 0
     for i in range(0, n):
         # 1. Simulate the radius of the ith fiber
-        r_fiber, rng = set_value(R, rng)
+        r_fiber = set_value(R, rng)
         # 2. Generate Poisson line
         _, _, mid_pos, mu0, length = generate_poisson_line(rng, direction_distribution, ext_image_size)
         if length > -1:
