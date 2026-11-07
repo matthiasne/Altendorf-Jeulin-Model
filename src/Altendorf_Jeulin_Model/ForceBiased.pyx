@@ -120,8 +120,8 @@ def run_force_biased(
     elif method == "Contact++":
         run_force_biased_contactpp(fs, image_size, output_path, verbose, is_periodic, shortlist,
                                    hardcore_ratio = hardcore_ratio, contact_distance=contact_distance,
-                                   output_step_size=output_step_size, max_steps=max_steps, tol=tol,
-                                   tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
+                                   output_step_size=output_step_size, max_steps=max_steps, dir_matrix=dir_matrix,
+                                   tol=tol, tau=tau, rho=rho, alpha_s=alpha_s, alpha_e=alpha_e, x_s=x_s, x_e=x_e)
     else:
         run_force_biased_AJpp(fs, image_size, output_path, verbose, is_periodic, hardcore_ratio = hardcore_ratio,
                               output_step_size=output_step_size, max_steps=max_steps, tol=tol, dir_matrix=dir_matrix,
