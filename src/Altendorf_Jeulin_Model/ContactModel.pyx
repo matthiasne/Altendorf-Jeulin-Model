@@ -1,9 +1,9 @@
 # cython: language_level=3, infer_type=True
 
-from utils.Graph import Graph, CC
-from utils.SpatialHashing cimport SpatialHashing
+from Altendorf_Jeulin_Model.utils.Graph import Graph, CC
+from Altendorf_Jeulin_Model.utils.SpatialHashing cimport SpatialHashing
 from Altendorf_Jeulin_Model.Fiber cimport Ball
-from utils.utils cimport cdistance_ball
+from Altendorf_Jeulin_Model.utils.utils cimport cdistance_ball
 
 from libc.math cimport sqrt
 from libc.stdint cimport int64_t

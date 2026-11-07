@@ -1,5 +1,5 @@
 import numpy as np
-from utils.utils cimport cdistance_ball, cartesian_to_spherical
+from Altendorf_Jeulin_Model.utils.utils cimport cdistance_ball, cartesian_to_spherical
 
 
 cdef class Ball:

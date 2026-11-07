@@ -9,15 +9,15 @@ import SimpleITK as sitk
 import json
 import platform
 from datetime import datetime
-from utils.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic, clip
-from utils.utils import (
+from Altendorf_Jeulin_Model.utils.utils cimport discretize_spheres_periodic, discretize_spheres_nonperiodic, clip
+from Altendorf_Jeulin_Model.utils.utils import (
     normalized,
     discretize_lines
 )
 
-import utils.SpatialHashing as sh
+import Altendorf_Jeulin_Model.utils.SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from utils.Statistics import mean_angle_error, volume_fraction, calculate_kl
+from Altendorf_Jeulin_Model.utils.Statistics import mean_angle_error, volume_fraction, calculate_kl
 
 
 def print_fiber_positions(

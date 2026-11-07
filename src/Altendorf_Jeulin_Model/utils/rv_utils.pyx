@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import cholesky
 from scipy.stats import norm
-from Altendorf_Jeulin_Model.utils import normalized
+from Altendorf_Jeulin_Model.utils.utils import normalized
 from libc.math cimport log, exp, sqrt, asin, acos
 cdef double PI = 3.141592653589793
 from libc.float cimport DBL_EPSILON
@@ -9,7 +9,7 @@ from libc.float cimport DBL_EPSILON
 cimport numpy as np
 np.import_array()
 from libc.math cimport sin, cos, sqrt
-from utils.utils cimport cartesian_to_spherical
+from Altendorf_Jeulin_Model.utils.utils cimport cartesian_to_spherical
 
 def vonmises_fisher(double kappa, double mu_x, double mu_y, double mu_z, rng):
     """

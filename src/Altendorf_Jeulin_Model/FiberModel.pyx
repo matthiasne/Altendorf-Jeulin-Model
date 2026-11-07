@@ -7,16 +7,16 @@ np.import_array()
 from numpy.random import default_rng
 cdef double PI = 3.141592653589793
 
-from utils.rv_utils import vonmises_fisher
+from Altendorf_Jeulin_Model.utils.rv_utils import vonmises_fisher
 from Altendorf_Jeulin_Model.Fiber import Ball, Fiber
-from utils.utils cimport cartesian_to_spherical, cnormalized, clip, rot
+from Altendorf_Jeulin_Model.utils.utils cimport cartesian_to_spherical, cnormalized, clip, rot
 from Altendorf_Jeulin_Model.PoissonLines import (
     generate_half_fiber,
     generate_poisson_line,
 )
 
 
-from Altendorf_Jeulin_Model.utils import (
+from Altendorf_Jeulin_Model.utils.utils import (
     is_in_image,
     set_value
 )

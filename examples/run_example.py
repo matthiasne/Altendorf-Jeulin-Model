@@ -2,19 +2,19 @@ import time
 import Altendorf_Jeulin_Model.FiberModel as fm
 import numpy as np
 import scipy.stats
-from Altendorf_Jeulin_Model.utils import cut_border
-from Altendorf_Jeulin_Model.rv_utils import schladitz_distribution, acg_distribution
+from Altendorf_Jeulin_Model.utils.utils import cut_border
+from Altendorf_Jeulin_Model.utils.rv_utils import schladitz_distribution, acg_distribution
 
-import Altendorf_Jeulin_Model.io_utils as io
+import Altendorf_Jeulin_Model.utils.io_utils as io
 from Altendorf_Jeulin_Model.ForceBiased import run_force_biased
-from Altendorf_Jeulin_Model.io_utils import (
+from Altendorf_Jeulin_Model.utils.io_utils import (
     print_fiber_positions_to_file,
 )
 from Altendorf_Jeulin_Model.ContactModel import (
     find_contact_areas,
     find_contact_candidates
 )
-from Altendorf_Jeulin_Model.Statistics import volume_fraction
+from Altendorf_Jeulin_Model.utils.Statistics import volume_fraction
 from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 
 

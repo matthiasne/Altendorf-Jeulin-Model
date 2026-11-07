@@ -5,14 +5,14 @@ from libc.math cimport sin, cos, sqrt, atan2, acos
 
 cimport numpy as np
 np.import_array()
-from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher
+from Altendorf_Jeulin_Model.utils.rv_utils import vonmises_fisher
 cdef double PI = 3.141592653589793
 
-from utils.utils import (
+from Altendorf_Jeulin_Model.utils.utils import (
     is_in_image,
     set_value,
 )
-from utils.utils cimport cartesian_to_spherical, cnormalized, clip
+from Altendorf_Jeulin_Model.utils.utils cimport cartesian_to_spherical, cnormalized, clip
 
 
 

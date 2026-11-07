@@ -1,15 +1,15 @@
 # cython: language_level=3, infer_type=True, exception_check=False, cdivision=True
 import numpy as np
 import cython
-from Altendorf_Jeulin_Model import SpatialHashing
+from Altendorf_Jeulin_Model.utils import SpatialHashing
 from libc.math cimport cos, sqrt, tan, acos
 cimport numpy as np
 np.import_array()
 
-from utils.SpatialHashing cimport SpatialHashing as sh
+from Altendorf_Jeulin_Model.utils.SpatialHashing cimport SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from utils.utils cimport cdirection, cdistance3, clip
+from Altendorf_Jeulin_Model.utils.utils cimport cdirection, cdistance3, clip
 
 MIN_REPULSION_DISTANCE = 5
 cdef double PI = 3.141592653589793
