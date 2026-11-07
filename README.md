@@ -40,7 +40,7 @@ This demonstrates three workflows:
 - Poisson lines (example_poisson_lines): generates a 3D Poisson line process.
 
 Outputs are written to examples/outputs/ (adjust if different). 
-Intermediate fiber states are saved as .gad files to examples/outputs/ at regular intervals during packing (configurable via output_step_size), so a run can be resumed from the last checkpoint if it crashes.
+
 
 ## Packing Algorithms
 
@@ -50,6 +50,8 @@ The module provides four packing methods, selectable via the method parameter of
 - AJ++ – refined version that reformulates packing as an optimization problem with a stricter, window-size-independent stop criterion [5]. Recommended for most use cases.
 - AJ++fast – same as AJ++, but stops as soon as all overlaps are resolved.
 - Contact++ – extends AJ++ with a contact force that draws fibers towards a precomputed shortlist of contact candidates, increasing inter-fiber contact [4, 5].
+
+Intermediate fiber states are saved as .gad files to examples/outputs/ at regular intervals during packing (configurable via output_step_size), so a run can be resumed from the last checkpoint if it crashes.
 
 ## Output Formats
 
