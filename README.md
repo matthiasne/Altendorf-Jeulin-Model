@@ -72,13 +72,13 @@ Intermediate fiber states are saved as .gad files to examples/outputs/ at regula
 
 
 ## References
-[1] H. Altendorf, D. Jeulin, 2011. Random-walk-based stochastic modeling of three-dimensional fiber systems. Physical Review E. [doi: 10.1103/PhysRevE.83.041804](url:https://doi.org/10.1103/PhysRevE.83.041804)
+[1] H. Altendorf, D. Jeulin, 2011. Random-walk-based stochastic modeling of three-dimensional fiber systems. Physical Review E. [doi: 10.1103/PhysRevE.83.041804](https://doi.org/10.1103/PhysRevE.83.041804)
 
 [2] P. Easwaran, 2017. Stochastic geometry models for interacting fibers. Doctoral dissertation, Technische Universität Kaiserslautern.
 
-[3] J. Franke, C. Redenbach, & N. Zhang, 2016. On a Mixture Model for Directional Data on the Sphere. Scandinavian Journal of Statistics, 43(1), 139–155. [doi: 10.1111/sjos.12169](url:https://doi.org/10.1111/sjos.12169)
+[3] J. Franke, C. Redenbach, & N. Zhang, 2016. On a Mixture Model for Directional Data on the Sphere. Scandinavian Journal of Statistics, 43(1), 139–155. [doi: 10.1111/sjos.12169](https://doi.org/10.1111/sjos.12169)
 
-[4] A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science. [doi: 10.1016/j.commatsci.2025.114458](url:https://doi.org/10.1016/j.commatsci.2025.114458)
+[4] A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science. [doi: 10.1016/j.commatsci.2025.114458](https://doi.org/10.1016/j.commatsci.2025.114458)
 
 [5] In preparation.
 
