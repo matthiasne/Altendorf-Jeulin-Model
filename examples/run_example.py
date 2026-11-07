@@ -19,7 +19,7 @@ from Altendorf_Jeulin_Model.PoissonLines import simulate_poisson_lines
 
 
 def main():
-    #example_AJ_finite()
+    example_AJ_finite()
     example_AJ_endless()
     example_poisson_lines()
 
