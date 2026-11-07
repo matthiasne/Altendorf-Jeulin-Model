@@ -1,28 +1,20 @@
 # Altendorf-Jeulin-Model
-This python module generates fiber-based microstructures. 
-The implementation is based on the original paper by 
-Altendorf & Jeulin [1] and the extension to endless fibers
-by Easwaran [2]. It also contains a modified version of
-the contact model [4].
-For the fiber direction distribution, we
-implemented generators based on Franke et al. [3].
+This Python module generates fiber-based microstructures using the Altendorf–Jeulin random-walk model [1], extended to 
+endless fibers by Easwaran [2]. It includes refined packing algorithms (AJ++) and a contact model (Contact++) for 
+increasing inter-fiber contact [4, 5]. Fiber direction generators are based on Franke et al. [3].
 
-The module is an early release and still under development. 
-If you have questions, implementation requests, or suggestions, 
-please contact [keilmann@rptu.de](keilmann@rptu.de) or
-[neumann@tu-graz.at](neumann@tu-graz.at).
-We are open for contributions and collaboration!
+The module is an early release and still under development. If you have questions, implementation requests, or 
+suggestions, please contact [alex.keilmann@uni-due.de](mailto:alex.keilmann@uni-due.de) or 
+[neumann@tu-graz.at](mailto:neumann@tu-graz.at). We are open for contributions and collaboration!
+
 
 Please cite this work, depending on the functions you are using, as follows:
-A. Keilmann, M. Neumann. An open-source package for simulating and calibrating fiber-based materials with the Altendorf-Jeulin model. In preparation.
-A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science.
-or
-tbd
+- A. Keilmann, M. Neumann. An open-source package for simulating and calibrating fiber-based materials with the Altendorf-Jeulin model. In preparation.
+- A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science.
 
 
 ## Requirements
-Please make sure you have at least Python 3.14 installed. Further requirements are
-saved in the requirements.txt or alternatively, in the pyproject.toml.
+Python 3.14 or later. All dependencies are listed in requirements.txt and pyproject.toml.
 
 ## Setup (recommended)
 Clone the repository (or download it as a zip under the Code-Button). Then, run the following code in your terminal.
@@ -32,20 +24,49 @@ python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
-cd src # Windows: src
+cd src
 python setup.py build_ext --inplace
 ```
 ## Usage
 
-Run the example script
+Run the example script from the repository root:
 ```bash
 python examples/run_example.py
 ```
-This runs:
-- a finite-fiber model (directional distribution: Schladitz) and the contact model,
-- an infinite-fiber model (directional distribution: angular central Gaussian).
+This demonstrates three workflows:
 
-Outputs are written to ./outputs/ (adjust if different).
+- Finite fibers (example_AJ_finite): initializes a fiber system, packs it with AJ++ to remove all overlaps, then applies Contact++ to increase inter-fiber contact. Uses a Schladitz direction distribution.
+- Endless fibers (example_AJ_endless): same pipeline for domain-spanning fibers with a non-periodic boundary, using an angular central Gaussian distribution.
+- Poisson lines (example_poisson_lines): generates a 3D Poisson line process.
+
+Outputs are written to examples/outputs/ (adjust if different). 
+Intermediate fiber states are saved as .gad files to examples/outputs/ at regular intervals during packing (configurable via output_step_size), so a run can be resumed from the last checkpoint if it crashes.
+
+## Packing Algorithms
+
+The module provides four packing methods, selectable via the method parameter of run_force_biased:
+
+- AJ – original Altendorf–Jeulin force-biased packing [1].
+- AJ++ – refined version that reformulates packing as an optimization problem with a stricter, window-size-independent stop criterion [5]. Recommended for most use cases.
+- AJ++fast – same as AJ++, but stops as soon as all overlaps are resolved.
+- Contact++ – extends AJ++ with a contact force that draws fibers towards a precomputed shortlist of contact candidates, increasing inter-fiber contact [4, 5].
+
+## Output Formats
+
+### 3D images (fiber and line systems voxelized as label images):
+
+- .tif / .tiff — written via tifffile, axes stored as XYZ metadata
+- .mha / .mhd — written via SimpleITK, with physical voxel spacing
+
+### Fiber geometry:
+
+- .txt — plain text, one fiber per line with ball coordinates; readable without any extra tooling
+- .gad — GeoDict format (JSON-based); supports read and write, coordinates in metres
+- .fft.* — TexMathVisualizer graph format (.fft.nod, .fft.elm, .fft.threads, and three count files); available as full-resolution and simplified (small graph) variants
+
+### Statistics (written during packing):
+
+- .csv — per-step packing statistics (volume fraction, MAE, KL divergence, overlap, contact distance)
 
 
 ## References
@@ -56,6 +77,8 @@ Outputs are written to ./outputs/ (adjust if different).
 [3] J. Franke, C. Redenbach, & N. Zhang, 2016. On a Mixture Model for Directional Data on the Sphere. Scandinavian Journal of Statistics, 43(1), 139–155. https://doi.org/10.1111/sjos.12169
 
 [4] A. Keilmann, C. Redenbach, F. Willot, 2026. Increasing Inter-Fiber Contact in the Altendorf-Jeulin Model. Computational Materials Science.
+
+[5] In preparation.
 
 ## Further Fiber Models
 - [SAMSON Microstructure Generator](https://git.uni-due.de/publicsoftwareingmath/samson)
