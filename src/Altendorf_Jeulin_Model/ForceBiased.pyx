@@ -8,11 +8,11 @@ from Altendorf_Jeulin_Model.CalculateForces import (
 )
 
 import Altendorf_Jeulin_Model.Fiber as Fiber
-import Altendorf_Jeulin_Model.SpatialHashing as sh
+import utils.SpatialHashing as sh
 
 from Altendorf_Jeulin_Model.ContactModel import test_in_contact
-from Altendorf_Jeulin_Model.Statistics import  calculate_kl
-from Altendorf_Jeulin_Model.io_utils import print_stats, print_stats_row, write_gad
+from utils.Statistics import  calculate_kl
+from utils.io_utils import print_stats, print_stats_row, write_gad
 
 
 def run_force_biased(

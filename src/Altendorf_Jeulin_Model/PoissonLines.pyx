@@ -8,11 +8,11 @@ np.import_array()
 from Altendorf_Jeulin_Model.rv_utils import vonmises_fisher
 cdef double PI = 3.141592653589793
 
-from Altendorf_Jeulin_Model.utils import (
+from utils.utils import (
     is_in_image,
     set_value,
 )
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, cnormalized, clip
+from utils.utils cimport cartesian_to_spherical, cnormalized, clip
 
 
 

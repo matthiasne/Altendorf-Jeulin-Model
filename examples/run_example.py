@@ -53,7 +53,7 @@ def example_AJ_finite():
     # pack the fibers
     start_time = time.time()
     run_force_biased(fs, image_size, verbose=True, hardcore_ratio = 1.0, output_step_size = 10,
-                     method="AJ++", tol=1e-3, max_steps=10000, dir_matrix = np.diag([1,1,1/0.1**2]))
+                     method="AJ++fast", tol=1e-3, max_steps=10000, dir_matrix = np.diag([1,1,1/0.1**2]))
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"AJ++ Packing - Elapsed time: {elapsed_time:.6f} seconds")

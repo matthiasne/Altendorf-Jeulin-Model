@@ -11,8 +11,8 @@ from libc.float cimport DBL_EPSILON
 
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical, discretize_spheres_periodic, clip
-from Altendorf_Jeulin_Model.utils import (
+from utils.utils cimport cartesian_to_spherical, discretize_spheres_periodic, clip
+from utils.utils import (
     discretize_spheres_nonperiodic,
     normalized,
 )

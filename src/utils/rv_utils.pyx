@@ -9,7 +9,7 @@ from libc.float cimport DBL_EPSILON
 cimport numpy as np
 np.import_array()
 from libc.math cimport sin, cos, sqrt
-from Altendorf_Jeulin_Model.utils cimport cartesian_to_spherical
+from utils.utils cimport cartesian_to_spherical
 
 def vonmises_fisher(double kappa, double mu_x, double mu_y, double mu_z, rng):
     """

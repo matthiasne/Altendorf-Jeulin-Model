@@ -6,10 +6,10 @@ from libc.math cimport cos, sqrt, tan, acos
 cimport numpy as np
 np.import_array()
 
-from Altendorf_Jeulin_Model.SpatialHashing cimport SpatialHashing as sh
+from utils.SpatialHashing cimport SpatialHashing as sh
 from Altendorf_Jeulin_Model.Fiber cimport Ball
 from Altendorf_Jeulin_Model.Fiber import Fiber
-from Altendorf_Jeulin_Model.utils cimport cdirection, cdistance3, clip
+from utils.utils cimport cdirection, cdistance3, clip
 
 MIN_REPULSION_DISTANCE = 5
 cdef double PI = 3.141592653589793
